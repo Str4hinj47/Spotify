@@ -7,7 +7,7 @@ on:
       - arena/01a0f910-spotify
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-debug-apk:
@@ -72,3 +72,16 @@ jobs:
           path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish APK to branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p ../artifacts
+          cp android/app/build/outputs/apk/debug/app-debug.apk ../artifacts/kartoon-karts-debug.apk
+          cd ..
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/kartoon-karts-debug.apk
+          git commit -m "chore: publish Kartoon Karts APK [skip ci]"
+          git push origin HEAD:${GITHUB_REF_NAME}
