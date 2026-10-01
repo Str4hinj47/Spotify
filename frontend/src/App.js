@@ -176,16 +176,16 @@ const TrackLandscape = ({ car, isRacing, lane, progress, surface, isDrifting, dr
       <g transform="translate(804 286)">
         <rect width="98" height="42" rx="4" fill="#242044" stroke="#68e7e3" strokeWidth="2" /><text x="49" y="17" fill="#ff6b9e" textAnchor="middle" fontSize="9" fontFamily="Arial, sans-serif" fontWeight="700">MIDNIGHT</text><text x="49" y="31" fill="#ffe08b" textAnchor="middle" fontSize="8" fontFamily="Arial, sans-serif">DRIVE</text>
       </g>
-      <g transform="translate(362 356) rotate(19)">
-        <rect width="62" height="18" rx="3" fill="#3a2544" stroke="#f3b16b" strokeWidth="1.5" /><text x="31" y="12" fill="#f3b16b" textAnchor="middle" fontSize="7" fontFamily="Arial, sans-serif" fontWeight="700">DIRT CUT</text>
-      </g>
-      <path d="M245 306c64 10 112 38 157 65 43 25 75 48 111 56" fill="none" stroke="#d28a5d" strokeWidth="37" strokeLinecap="round" strokeLinejoin="round" opacity=".98" />
-      <path d="M245 306c64 10 112 38 157 65 43 25 75 48 111 56" fill="none" stroke="#b76b50" strokeWidth="29" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M245 306c64 10 112 38 157 65 43 25 75 48 111 56" fill="none" stroke="#f3b16b" strokeWidth="2" strokeDasharray="2 11" strokeLinecap="round" opacity=".85" />
       <path d="M-25 433C93 381 135 302 253 306c133 5 126 136 268 128 110-6 106-170 221-190 88-15 118 60 274-58" fill="none" stroke="#55e6eb" strokeWidth="58" strokeLinecap="round" strokeLinejoin="round" opacity=".85" />
       <path d="M-25 433C93 381 135 302 253 306c133 5 126 136 268 128 110-6 106-170 221-190 88-15 118 60 274-58" fill="none" stroke="#242349" strokeWidth="47" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M-25 433C93 381 135 302 253 306c133 5 126 136 268 128 110-6 106-170 221-190 88-15 118 60 274-58" fill="none" stroke="url(#tokyoRoadDots)" strokeWidth="42" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M-25 433C93 381 135 302 253 306c133 5 126 136 268 128 110-6 106-170 221-190 88-15 118 60 274-58" fill="none" stroke="#ff5f9a" strokeWidth="2" strokeDasharray="13 17" strokeLinecap="round" strokeLinejoin="round" opacity=".85" />
+      <path d="M245 306C300 312 341 355 385 388C428 419 473 438 521 434" fill="none" stroke="#d28a5d" strokeWidth="43" strokeLinecap="round" strokeLinejoin="round" opacity=".98" />
+      <path d="M245 306C300 312 341 355 385 388C428 419 473 438 521 434" fill="none" stroke="#b76b50" strokeWidth="34" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M245 306C300 312 341 355 385 388C428 419 473 438 521 434" fill="none" stroke="#f3b16b" strokeWidth="2" strokeDasharray="2 11" strokeLinecap="round" opacity=".9" />
+      <g transform="translate(362 356) rotate(19)">
+        <rect width="70" height="18" rx="3" fill="#3a2544" stroke="#f3b16b" strokeWidth="1.5" /><text x="35" y="12" fill="#f3b16b" textAnchor="middle" fontSize="7" fontFamily="Arial, sans-serif" fontWeight="700">DIRT SECTOR</text>
+      </g>
       <g transform="translate(108 349) rotate(-22)">
         <rect x="-18" y="-12" width="8" height="24" rx="2" fill="#f7f6ee" /><rect x="-8" y="-12" width="8" height="24" rx="2" fill="#ff5f9a" />
         <rect x="2" y="-12" width="8" height="24" rx="2" fill="#f7f6ee" /><rect x="12" y="-12" width="8" height="24" rx="2" fill="#ff5f9a" />
@@ -206,7 +206,7 @@ const TrackLandscape = ({ car, isRacing, lane, progress, surface, isDrifting, dr
       {isRacing && <span className="speed-streak streak-two" />}
     </div>
     <div className="track-location"><Icon name="flag" size={14} /> TOKYO NIGHT CIRCUIT <span>•</span> 2.4 KM</div>
-    {surface === "dirt" && <div className="surface-chip"><span className="surface-icon">✦</span> DIRT CUT <small>LOW GRIP</small></div>}
+    {surface === "dirt" && <div className="surface-chip"><span className="surface-icon">✦</span> DIRT SECTOR <small>LOW GRIP</small></div>}
     {isDrifting && <div className="drift-callout">DRIFT <strong>+{Math.floor(driftScore)}</strong></div>}
     {isRacing && <div className="race-start-callout">GO! <Icon name="bolt" size={15} /></div>}
     <div className="track-progress"><span style={{ width: `${Math.min(progress, 100)}%` }} /></div>
@@ -267,7 +267,7 @@ const RaceSidebar = ({ isRacing, startRace, surface, isDrifting, driftScore, set
     </section>
 
     <section className="side-card drift-card">
-      <div className="drift-card-top"><div><span className="card-label">SURFACE REPORT</span><strong>{surface === "dirt" ? "Dirt cut active" : "Tarmac ready"}</strong></div><span className={`surface-dot ${surface === "dirt" ? "surface-dot-dirt" : ""}`} /></div>
+      <div className="drift-card-top"><div><span className="card-label">SURFACE REPORT</span><strong>{surface === "dirt" ? "Dirt sector active" : "Tarmac ready"}</strong></div><span className={`surface-dot ${surface === "dirt" ? "surface-dot-dirt" : ""}`} /></div>
       <div className="drift-score-row"><div><span>DRIFT CHAIN</span><strong>{Math.floor(driftScore).toString().padStart(3, "0")}</strong></div><div className={`grip-badge ${surface === "dirt" ? "grip-badge-dirt" : ""}`}>{surface === "dirt" ? "LOOSE" : "GRIP"}</div></div>
       <div className="drift-meter"><span style={{ width: `${Math.min(100, (driftScore % 100))}%` }} /></div>
       <div className="drift-hint"><kbd>SPACE</kbd> handbrake + steer <span>{isDrifting ? "SLIDING" : "READY"}</span></div>
