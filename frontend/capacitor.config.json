@@ -1,0 +1,8 @@
+{
+  "appId": "com.kartoonkarts.game",
+  "appName": "Kartoon Karts",
+  "webDir": "build",
+  "server": {
+    "androidScheme": "https"
+  }
+}
