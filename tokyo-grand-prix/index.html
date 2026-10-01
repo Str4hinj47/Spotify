@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>Tokyo Grand Prix — a Cars 2 Japan-race tribute</title>
+<link rel="icon" href="data:,"/>
+<link rel="stylesheet" href="./style.css"/>
+</head>
+<body>
+<div id="app">
+  <canvas id="gl"></canvas>
+
+  <div id="hud" class="hidden">
+    <div id="posBox"><span id="posNum">6</span><span id="posSuf">th</span><div class="sub">POSITION</div></div>
+    <div id="lapBox">
+      <div class="row">LAP <b id="lapNum">1</b><span class="dim">/3</span></div>
+      <div class="row">TIME <b id="lapTime">0:00.00</b></div>
+      <div class="row">BEST <b id="bestTime">-:--.--</b></div>
+    </div>
+    <div id="standings"></div>
+    <canvas id="minimap" width="190" height="190"></canvas>
+    <div id="speedBox"><span id="speedNum">0</span><div class="unit">km/h</div></div>
+    <div id="centerMsg"></div>
+    <div id="wrongWay">⟲ WRONG WAY</div>
+  </div>
+
+  <div id="title" class="overlay">
+    <div class="panel titlePanel">
+      <div class="kicker">WORLD GRAND PRIX &bull; ROUND 1 &bull; NIGHT RACE</div>
+      <h1>TOKYO<em> GRAND PRIX</em></h1>
+      <p class="tag">A Cars&nbsp;2 Japan-race tribute. Three laps through neon Tokyo —
+      torii gates, sakura blizzards, the bay bridge, and Francesco Bernoulli to beat.
+      Keep an eye out for Party Mater in the zen garden…</p>
+      <div class="ctrlGrid">
+        <span><b>W / ↑</b> gas</span><span><b>S / ↓</b> brake</span>
+        <span><b>A D / ← →</b> steer</span><span><b>SPACE</b> drift</span>
+        <span><b>C</b> camera</span><span><b>R</b> reset</span>
+        <span><b>M</b> sound</span><span><b>P</b> pause</span>
+      </div>
+      <button id="startBtn">▶  START ENGINE</button>
+      <div class="hint">click the button or press ENTER &nbsp;•&nbsp; sound on for full effect</div>
+    </div>
+  </div>
+
+  <div id="results" class="overlay hidden">
+    <div class="panel">
+      <div class="kicker" id="resKicker">CHECKERED FLAG</div>
+      <h2 id="resTitle">RACE COMPLETE</h2>
+      <table id="resTable"></table>
+      <div id="resBest" class="resBest"></div>
+      <button id="againBtn">↻  RACE AGAIN</button>
+      <div class="hint">press ENTER to restart</div>
+    </div>
+  </div>
+
+  <div id="pauseOv" class="overlay hidden">
+    <div class="panel">
+      <h2>PAUSED</h2>
+      <button id="resumeBtn">▶  RESUME</button>
+      <button id="restartBtn" class="secondary">↻  RESTART RACE</button>
+    </div>
+  </div>
+
+  <div id="touchUI" class="hidden">
+    <div class="tGroup left">
+      <button id="tLeft">◀</button><button id="tRight">▶</button>
+    </div>
+    <div class="tGroup right">
+      <button id="tDrift">DRIFT</button><button id="tBrake">BRAKE</button><button id="tGas">GAS</button>
+    </div>
+  </div>
+
+  <div id="vignette"></div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js" } }
+</script>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>
