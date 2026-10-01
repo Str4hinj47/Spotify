@@ -10,18 +10,18 @@ const cars = [
     shadow: "#6b8e35",
     topSpeed: 92,
     handling: 78,
-    boost: 88,
+    acceleration: 88,
     quote: "Small car. Big thunder.",
   },
   {
-    name: "SUNSET SLICER",
+    name: "SAKURA SLICER",
     className: "DRIFTER",
     color: "#ff806f",
     accent: "#ffd052",
     shadow: "#a64b50",
     topSpeed: 84,
     handling: 96,
-    boost: 72,
+    acceleration: 72,
     quote: "Cuts corners like butter.",
   },
   {
@@ -32,7 +32,7 @@ const cars = [
     shadow: "#367d8b",
     topSpeed: 88,
     handling: 85,
-    boost: 91,
+    acceleration: 91,
     quote: "Made for moon-shot moves.",
   },
 ];
@@ -59,6 +59,7 @@ const Icon = ({ name, size = 18, stroke = 1.8, className = "" }) => {
     volume: <><path d="M4 10v4h4l5 4V6l-5 4H4Z" /><path d="M17 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" /></>,
     sun: <><circle cx="12" cy="12" r="3.5" /><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" /></>,
     mountain: <><path d="m3 19 6-8 4 5 2-3 6 6" /><path d="m11 9 1.5-2L14 9" /></>,
+    moon: <path d="M20.4 14.6A8.5 8.5 0 0 1 9.4 3.6 8.5 8.5 0 1 0 20.4 14.6Z" />,
     home: <><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10M9 20v-6h6v6" /></>,
     grid: <><rect x="4" y="4" width="6" height="6" rx="1" /><rect x="14" y="4" width="6" height="6" rx="1" /><rect x="4" y="14" width="6" height="6" rx="1" /><rect x="14" y="14" width="6" height="6" rx="1" /></>,
   };
@@ -125,61 +126,70 @@ const CarArt = ({ car, className = "", compact = false, animate = false }) => (
 );
 
 const TrackLandscape = ({ car, isRacing, lane, progress }) => (
-  <div className={`track-landscape ${isRacing ? "track-landscape-racing" : ""}`}>
-    <svg className="track-background" viewBox="0 0 1000 520" preserveAspectRatio="none" aria-label="Sunset Circuit race track preview" role="img">
+  <div className={`track-landscape tokyo-track ${isRacing ? "track-landscape-racing" : ""}`}>
+    <svg className="track-background" viewBox="0 0 1000 520" preserveAspectRatio="none" aria-label="Tokyo Night Circuit race track preview" role="img">
       <defs>
-        <linearGradient id="skyGradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#342d66" />
-          <stop offset=".54" stopColor="#a35f82" />
-          <stop offset="1" stopColor="#f3aa71" />
+        <linearGradient id="tokyoSkyGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#10152f" />
+          <stop offset=".55" stopColor="#25204e" />
+          <stop offset="1" stopColor="#8d356d" />
         </linearGradient>
-        <linearGradient id="grassGradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#92bd79" />
-          <stop offset="1" stopColor="#4f805d" />
+        <linearGradient id="cityGlow" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#242958" />
+          <stop offset="1" stopColor="#151834" />
         </linearGradient>
-        <radialGradient id="sunGlow">
-          <stop offset="0" stopColor="#fff2b5" stopOpacity=".95" />
-          <stop offset=".5" stopColor="#ffd35f" stopOpacity=".35" />
-          <stop offset="1" stopColor="#ffd35f" stopOpacity="0" />
+        <radialGradient id="moonGlow">
+          <stop offset="0" stopColor="#ffe6c3" stopOpacity=".95" />
+          <stop offset=".45" stopColor="#ff9fc1" stopOpacity=".28" />
+          <stop offset="1" stopColor="#ff9fc1" stopOpacity="0" />
         </radialGradient>
-        <pattern id="roadDots" width="18" height="18" patternUnits="userSpaceOnUse">
-          <circle cx="3" cy="3" r="1.2" fill="#fff" opacity=".08" />
-          <circle cx="12" cy="11" r="1" fill="#fff" opacity=".06" />
+        <pattern id="tokyoRoadDots" width="18" height="18" patternUnits="userSpaceOnUse">
+          <circle cx="3" cy="3" r="1.2" fill="#b9c7ff" opacity=".1" />
+          <circle cx="12" cy="11" r="1" fill="#fff" opacity=".07" />
         </pattern>
-        <filter id="softGlow"><feGaussianBlur stdDeviation="8" /></filter>
+        <filter id="neonBlur"><feGaussianBlur stdDeviation="7" /></filter>
       </defs>
-      <rect width="1000" height="520" fill="url(#skyGradient)" />
-      <circle cx="774" cy="112" r="125" fill="url(#sunGlow)" />
-      <circle cx="774" cy="112" r="38" fill="#ffe9a2" opacity=".9" />
-      <path d="M0 220 120 148l92 81 104-113 129 101 109-78 138 100 108-78 100 70v145H0Z" fill="#554a78" opacity=".7" />
-      <path d="M0 260 111 190l93 77 105-91 106 89 106-73 105 72 117-89 157 101v180H0Z" fill="#394a66" opacity=".55" />
-      <rect y="300" width="1000" height="220" fill="url(#grassGradient)" />
-      <path d="M0 340c180-35 260 30 418-10 150-38 273-28 582 11v179H0Z" fill="#638c62" opacity=".7" />
-      <g opacity=".5" fill="#355d56">
-        <path d="M68 289 84 254l16 35Z" /><path d="M87 289 102 247l17 42Z" /><path d="M924 311 942 260l19 51Z" />
-        <path d="M942 314 961 273l18 41Z" /><path d="M270 342 284 301l17 41Z" /><path d="M295 342 312 295l17 47Z" />
+      <rect width="1000" height="520" fill="url(#tokyoSkyGradient)" />
+      <circle cx="790" cy="105" r="135" fill="url(#moonGlow)" />
+      <circle cx="790" cy="105" r="40" fill="#ffe1c4" opacity=".92" />
+      <circle cx="779" cy="95" r="7" fill="#f3c0b4" opacity=".5" />
+      <circle cx="804" cy="116" r="11" fill="#f3c0b4" opacity=".4" />
+      <g fill="#10142d">
+        <path d="M0 224V163h42v61h25v-92h47v92h20V131h56v93h20v-51h53v51h23v-77h45v77h18v-112h60v112h22v-66h46v66h22v-97h63v97h28v-76h47v76h20v-51h48v51h21v-119h55v119h30v-85h53v85h29v-59h59v59h25v-92h42v92H0Z" opacity=".72" />
+        <path d="M0 275V222h45v53h16v-78h36v78h18v-41h48v41h17v-92h41v92h25v-53h37v53h24v-78h59v78h20v-50h41v50h17v-102h47v102h20v-63h53v63h23v-89h40v89h18v-54h54v54h22v-77h50v77h18v-96h42v96h28v-57h47v57h20v-82h39v82h25v-61h47v61h21v-43h41v43H0Z" fill="url(#cityGlow)" />
       </g>
-      <path d="M-25 433C93 381 135 302 253 306c133 5 126 136 268 128 110-6 106-170 221-190 88-15 118 60 274-58" fill="none" stroke="#f7cf5d" strokeWidth="58" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M-25 433C93 381 135 302 253 306c133 5 126 136 268 128 110-6 106-170 221-190 88-15 118 60 274-58" fill="none" stroke="#302c50" strokeWidth="47" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M-25 433C93 381 135 302 253 306c133 5 126 136 268 128 110-6 106-170 221-190 88-15 118 60 274-58" fill="none" stroke="url(#roadDots)" strokeWidth="42" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M-25 433C93 381 135 302 253 306c133 5 126 136 268 128 110-6 106-170 221-190 88-15 118 60 274-58" fill="none" stroke="#a498a7" strokeWidth="2" strokeDasharray="14 15" strokeLinecap="round" strokeLinejoin="round" opacity=".6" />
+      <g fill="#69e9ea" opacity=".7">
+        <rect x="30" y="177" width="5" height="22" /><rect x="74" y="143" width="6" height="32" /><rect x="143" y="153" width="5" height="23" /><rect x="206" y="192" width="6" height="26" /><rect x="284" y="146" width="5" height="35" /><rect x="368" y="116" width="6" height="37" /><rect x="455" y="147" width="5" height="29" /><rect x="542" y="167" width="6" height="26" /><rect x="624" y="140" width="5" height="31" /><rect x="693" y="188" width="6" height="24" /><rect x="849" y="146" width="5" height="31" /><rect x="927" y="184" width="6" height="22" />
+      </g>
+      <g fill="#ff5f9a" opacity=".72">
+        <rect x="53" y="205" width="5" height="12" /><rect x="159" y="185" width="6" height="18" /><rect x="235" y="205" width="5" height="13" /><rect x="327" y="175" width="6" height="19" /><rect x="419" y="190" width="5" height="15" /><rect x="506" y="198" width="6" height="17" /><rect x="596" y="178" width="5" height="18" /><rect x="735" y="202" width="6" height="14" /><rect x="889" y="174" width="5" height="17" />
+      </g>
+      <rect y="268" width="1000" height="252" fill="#10142e" />
+      <path d="M0 316c180-27 278 19 427-6 182-30 313-12 573 17v193H0Z" fill="#171a39" />
+      <g opacity=".8">
+        <path d="M133 275v-44h5v44" stroke="#e94e88" strokeWidth="2" /><path d="M106 239h58" stroke="#e94e88" strokeWidth="3" /><path d="M111 240v21M126 240v21M141 240v21M156 240v21" stroke="#e94e88" strokeWidth="2" />
+        <path d="M828 282v-58h6v58" stroke="#55e6eb" strokeWidth="2" /><path d="M796 225h70" stroke="#55e6eb" strokeWidth="3" /><path d="M801 226v26M817 226v26M833 226v26M849 226v26" stroke="#55e6eb" strokeWidth="2" />
+      </g>
+      <g transform="translate(57 283)">
+        <rect width="93" height="42" rx="4" fill="#222754" stroke="#ff5f9a" strokeWidth="2" /><text x="46" y="17" fill="#ffcf67" textAnchor="middle" fontSize="10" fontFamily="Arial, sans-serif" fontWeight="700">TOKYO</text><text x="46" y="31" fill="#75f0e9" textAnchor="middle" fontSize="8" fontFamily="Arial, sans-serif">NEON RUN</text>
+      </g>
+      <g transform="translate(804 286)">
+        <rect width="98" height="42" rx="4" fill="#242044" stroke="#68e7e3" strokeWidth="2" /><text x="49" y="17" fill="#ff6b9e" textAnchor="middle" fontSize="9" fontFamily="Arial, sans-serif" fontWeight="700">MIDNIGHT</text><text x="49" y="31" fill="#ffe08b" textAnchor="middle" fontSize="8" fontFamily="Arial, sans-serif">DRIVE</text>
+      </g>
+      <path d="M-25 433C93 381 135 302 253 306c133 5 126 136 268 128 110-6 106-170 221-190 88-15 118 60 274-58" fill="none" stroke="#55e6eb" strokeWidth="58" strokeLinecap="round" strokeLinejoin="round" opacity=".85" />
+      <path d="M-25 433C93 381 135 302 253 306c133 5 126 136 268 128 110-6 106-170 221-190 88-15 118 60 274-58" fill="none" stroke="#242349" strokeWidth="47" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M-25 433C93 381 135 302 253 306c133 5 126 136 268 128 110-6 106-170 221-190 88-15 118 60 274-58" fill="none" stroke="url(#tokyoRoadDots)" strokeWidth="42" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M-25 433C93 381 135 302 253 306c133 5 126 136 268 128 110-6 106-170 221-190 88-15 118 60 274-58" fill="none" stroke="#ff5f9a" strokeWidth="2" strokeDasharray="13 17" strokeLinecap="round" strokeLinejoin="round" opacity=".85" />
       <g transform="translate(108 349) rotate(-22)">
-        <rect x="-18" y="-12" width="8" height="24" rx="2" fill="#fff5d0" /><rect x="-8" y="-12" width="8" height="24" rx="2" fill="#ff776d" />
-        <rect x="2" y="-12" width="8" height="24" rx="2" fill="#fff5d0" /><rect x="12" y="-12" width="8" height="24" rx="2" fill="#ff776d" />
+        <rect x="-18" y="-12" width="8" height="24" rx="2" fill="#f7f6ee" /><rect x="-8" y="-12" width="8" height="24" rx="2" fill="#ff5f9a" />
+        <rect x="2" y="-12" width="8" height="24" rx="2" fill="#f7f6ee" /><rect x="12" y="-12" width="8" height="24" rx="2" fill="#ff5f9a" />
       </g>
       <g transform="translate(660 287) rotate(-54)">
-        <rect x="-21" y="-2" width="42" height="4" fill="#f6d15a" />
-        <path d="M-21 0v-31M21 0v-31" stroke="#f6d15a" strokeWidth="3" />
-        <path d="M-18-30h14v8h-14ZM0-30h14v8H0Z" fill="#fff4d7" />
+        <rect x="-21" y="-2" width="42" height="4" fill="#ffe076" /><path d="M-21 0v-31M21 0v-31" stroke="#ffe076" strokeWidth="3" /><path d="M-18-30h14v8h-14ZM0-30h14v8H0Z" fill="#fff5df" />
       </g>
-      <g fill="#355d56" opacity=".9">
-        <path d="M83 431h8l-4-31-4 31Z" /><circle cx="87" cy="398" r="16" />
-        <path d="M884 401h8l-4-33-4 33Z" /><circle cx="888" cy="365" r="17" />
-        <path d="M518 423h8l-4-30-4 30Z" /><circle cx="522" cy="389" r="14" />
-      </g>
-      <g fill="#fff0be" opacity=".75">
-        <circle cx="80" cy="80" r="2" /><circle cx="127" cy="136" r="2" /><circle cx="250" cy="64" r="1.5" /><circle cx="344" cy="105" r="2" /><circle cx="899" cy="53" r="2" />
-      </g>
+      <g fill="#ff5f9a" opacity=".52" filter="url(#neonBlur)"><circle cx="207" cy="293" r="13" /><circle cx="745" cy="299" r="16" /><circle cx="907" cy="340" r="12" /></g>
+      <g fill="#252957"><path d="M83 431h8l-4-31-4 31Z" /><circle cx="87" cy="398" r="16" /><path d="M884 401h8l-4-33-4 33Z" /><circle cx="888" cy="365" r="17" /><path d="M518 423h8l-4-30-4 30Z" /><circle cx="522" cy="389" r="14" /></g>
+      <g fill="#c6faff" opacity=".72"><circle cx="80" cy="80" r="2" /><circle cx="127" cy="136" r="2" /><circle cx="250" cy="64" r="1.5" /><circle cx="344" cy="105" r="2" /><circle cx="899" cy="53" r="2" /></g>
     </svg>
     <div className="track-chip track-chip-lap"><span className="chip-dot" /> LAP 1 / 3</div>
     <div className="track-chip track-chip-position">P<span>2</span></div>
@@ -189,17 +199,17 @@ const TrackLandscape = ({ car, isRacing, lane, progress }) => (
       {isRacing && <span className="speed-streak streak-one" />}
       {isRacing && <span className="speed-streak streak-two" />}
     </div>
-    <div className="track-location"><Icon name="flag" size={14} /> SUNSET CIRCUIT <span>•</span> 2.4 KM</div>
+    <div className="track-location"><Icon name="flag" size={14} /> TOKYO NIGHT CIRCUIT <span>•</span> 2.4 KM</div>
     {isRacing && <div className="race-start-callout">GO! <Icon name="bolt" size={15} /></div>}
     <div className="track-progress"><span style={{ width: `${Math.min(progress, 100)}%` }} /></div>
   </div>
 );
 
 const MiniTrack = () => (
-  <svg className="mini-track" viewBox="0 0 240 115" role="img" aria-label="Sunset Circuit map">
-    <path d="M35 79c-17-20-4-45 26-49 25-3 32 17 59 18 29 2 29-29 55-31 21-1 38 12 30 29-11 23-47 17-63 33-17 17-38 22-62 15-18-5-35-2-45-15Z" fill="none" stroke="#625889" strokeWidth="19" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M35 79c-17-20-4-45 26-49 25-3 32 17 59 18 29 2 29-29 55-31 21-1 38 12 30 29-11 23-47 17-63 33-17 17-38 22-62 15-18-5-35-2-45-15Z" fill="none" stroke="#f2cf67" strokeWidth="2" strokeDasharray="4 6" strokeLinecap="round" />
-    <circle cx="35" cy="79" r="5" fill="#b8f35a" stroke="#191832" strokeWidth="3" />
+  <svg className="mini-track" viewBox="0 0 240 115" role="img" aria-label="Tokyo Night Circuit map">
+    <path d="M35 79c-17-20-4-45 26-49 25-3 32 17 59 18 29 2 29-29 55-31 21-1 38 12 30 29-11 23-47 17-63 33-17 17-38 22-62 15-18-5-35-2-45-15Z" fill="none" stroke="#393762" strokeWidth="19" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M35 79c-17-20-4-45 26-49 25-3 32 17 59 18 29 2 29-29 55-31 21-1 38 12 30 29-11 23-47 17-63 33-17 17-38 22-62 15-18-5-35-2-45-15Z" fill="none" stroke="#ff5f9a" strokeWidth="2" strokeDasharray="4 6" strokeLinecap="round" />
+    <circle cx="35" cy="79" r="5" fill="#6ee7e0" stroke="#191832" strokeWidth="3" />
     <circle cx="205" cy="46" r="5" fill="#ff806f" stroke="#191832" strokeWidth="3" />
   </svg>
 );
@@ -233,25 +243,19 @@ const Header = ({ activePage, setActivePage, credits }) => (
   </header>
 );
 
-const RaceSidebar = ({ isRacing, startRace, triggerBoost, boost, selectedCar, setToast }) => (
+const RaceSidebar = ({ isRacing, startRace, setToast }) => (
   <aside className="race-sidebar">
     <section className="side-card next-event-card">
       <div className="card-kicker"><span className="live-indicator"><i /> NEXT EVENT</span><span className="event-number">CUP 03</span></div>
-      <h2>Sunset<br /><span>Circuit</span></h2>
-      <div className="event-meta"><span><Icon name="sun" size={15} /> Clear skies</span><span><Icon name="mountain" size={15} /> 2.4 KM</span></div>
+      <h2>Tokyo Night<br /><span>Circuit</span></h2>
+      <div className="event-meta"><span><Icon name="moon" size={15} /> Neon drizzle</span><span><Icon name="mountain" size={15} /> 2.4 KM</span></div>
       <MiniTrack />
       <div className="event-time"><span>RACE STARTS IN</span><strong>02:14</strong></div>
       <button className={`start-race-button ${isRacing ? "is-racing" : ""}`} onClick={startRace}>
         <span>{isRacing ? "RACING NOW" : "START RACE"}</span>
         <span className="button-arrow"><Icon name={isRacing ? "pause" : "arrow"} size={17} /></span>
       </button>
-      <div className="control-hint"><span><kbd>←</kbd><kbd>→</kbd> steer</span><span><kbd>SPACE</kbd> boost</span></div>
-    </section>
-
-    <section className="side-card boost-card">
-      <div className="boost-header"><div><span className="card-label">NITRO METER</span><strong>Ready to rip</strong></div><span className="bolt-disc"><Icon name="bolt" size={16} /></span></div>
-      <div className="meter meter-lime"><span style={{ width: `${boost}%` }} /></div>
-      <div className="boost-footer"><span>{boost}% charged</span><button onClick={triggerBoost} disabled={!isRacing || boost < 15}><Icon name="bolt" size={13} /> BOOST</button></div>
+      <div className="control-hint"><span><kbd>←</kbd><kbd>→</kbd> steer</span><span><kbd>R</kbd> replay</span></div>
     </section>
 
     <section className="side-card rivals-card">
@@ -270,16 +274,16 @@ const RaceSidebar = ({ isRacing, startRace, triggerBoost, boost, selectedCar, se
   </aside>
 );
 
-const RacePage = ({ car, isRacing, startRace, triggerBoost, boost, lane, setLane, progress, setToast }) => (
+const RacePage = ({ car, isRacing, startRace, lane, progress, setToast }) => (
   <main className="content-grid">
     <section className="stage-card panel-card">
       <div className="stage-heading">
         <div>
           <div className="eyebrow"><span className="eyebrow-line" /> QUICK RACE <span className="eyebrow-slash">/</span> 01</div>
-          <h1>Neon Nitro <span>Cup</span></h1>
-          <p>Pick a line. Hit the gas. Make some noise.</p>
+          <h1>Tokyo Twilight <span>Cup</span></h1>
+          <p>Pick a line. Hit the gas. Own the night.</p>
         </div>
-        <div className="stage-actions"><span className="weather-pill"><Icon name="sun" size={14} /> 24° <span>DAYLIGHT</span></span><button className="small-icon-button" onClick={() => setToast("Track details pinned to your dashboard")} aria-label="Pin track"><Icon name="flag" size={16} /></button></div>
+        <div className="stage-actions"><span className="weather-pill"><Icon name="moon" size={14} /> 18° <span>NIGHT RUN</span></span><button className="small-icon-button" onClick={() => setToast("Track details pinned to your dashboard")} aria-label="Pin track"><Icon name="flag" size={16} /></button></div>
       </div>
       <TrackLandscape car={car} isRacing={isRacing} lane={lane} progress={progress} />
       <div className="stage-bottom">
@@ -287,7 +291,7 @@ const RacePage = ({ car, isRacing, startRace, triggerBoost, boost, lane, setLane
         <div className="quick-stats"><div><span>TOP SPEED</span><strong>{car.topSpeed}<small> MPH</small></strong></div><div><span>HANDLING</span><strong>{car.handling}<small>%</small></strong></div><div><span>BEST LAP</span><strong>01:46<small>.12</small></strong></div></div>
       </div>
     </section>
-    <RaceSidebar isRacing={isRacing} startRace={startRace} triggerBoost={triggerBoost} boost={boost} selectedCar={car} setToast={setToast} />
+    <RaceSidebar isRacing={isRacing} startRace={startRace} setToast={setToast} />
   </main>
 );
 
@@ -304,11 +308,11 @@ const GaragePage = ({ selectedIndex, setSelectedIndex, setToast }) => {
         <section className="garage-showcase panel-card">
           <div className="showcase-glow" /><div className="showcase-top"><span className="card-label">CURRENTLY EQUIPPED</span><button className="small-icon-button" onClick={() => setToast("Paint shop opens after the next cup")} aria-label="Customize car"><Icon name="settings" size={16} /></button></div>
           <div className="showcase-art"><span className="showcase-speed-lines" /><CarArt car={car} animate /></div>
-          <div className="showcase-info"><div><span className="car-class">{car.className}</span><h2>{car.name}</h2><p>“{car.quote}”</p></div><div className="rating-bubble"><strong>{Math.round((car.topSpeed + car.handling + car.boost) / 3)}</strong><span>RATING</span></div></div>
-          <div className="showcase-stats"><StatBar label="TOP SPEED" value={car.topSpeed} tone="lime" /><StatBar label="HANDLING" value={car.handling} tone="coral" /><StatBar label="BOOST" value={car.boost} tone="cyan" /></div>
+          <div className="showcase-info"><div><span className="car-class">{car.className}</span><h2>{car.name}</h2><p>“{car.quote}”</p></div><div className="rating-bubble"><strong>{Math.round((car.topSpeed + car.handling + car.acceleration) / 3)}</strong><span>RATING</span></div></div>
+          <div className="showcase-stats"><StatBar label="TOP SPEED" value={car.topSpeed} tone="lime" /><StatBar label="HANDLING" value={car.handling} tone="coral" /><StatBar label="ACCELERATION" value={car.acceleration} tone="cyan" /></div>
           <button className="equip-button" onClick={() => setToast(`${car.name} is ready for the grid!`)}>EQUIPPED <Icon name="bolt" size={15} /></button>
         </section>
-        <section className="garage-list"><div className="list-heading"><span className="card-label">YOUR COLLECTION</span><span>{cars.length} / 6</span></div>{cars.map((item, index) => <button className={`garage-car-card ${index === selectedIndex ? "garage-car-selected" : ""}`} key={item.name} onClick={() => setSelectedIndex(index)}><div className="garage-car-art"><CarArt car={item} compact /></div><div className="garage-car-copy"><span>{item.className}</span><strong>{item.name}</strong><div className="tiny-bars"><i style={{ width: `${item.topSpeed}%`, background: "var(--lime)" }} /><i style={{ width: `${item.handling}%`, background: "var(--coral)" }} /><i style={{ width: `${item.boost}%`, background: "var(--cyan)" }} /></div></div><span className="garage-check">{index === selectedIndex ? <Icon name="bolt" size={15} /> : <Icon name="arrow" size={15} />}</span></button>)}<button className="locked-car"><span className="locked-icon"><Icon name="lock" size={15} /></span><span><strong>???</strong><small>Win CUP 04 to unlock</small></span></button></section>
+        <section className="garage-list"><div className="list-heading"><span className="card-label">YOUR COLLECTION</span><span>{cars.length} / 6</span></div>{cars.map((item, index) => <button className={`garage-car-card ${index === selectedIndex ? "garage-car-selected" : ""}`} key={item.name} onClick={() => setSelectedIndex(index)}><div className="garage-car-art"><CarArt car={item} compact /></div><div className="garage-car-copy"><span>{item.className}</span><strong>{item.name}</strong><div className="tiny-bars"><i style={{ width: `${item.topSpeed}%`, background: "var(--lime)" }} /><i style={{ width: `${item.handling}%`, background: "var(--coral)" }} /><i style={{ width: `${item.acceleration}%`, background: "var(--cyan)" }} /></div></div><span className="garage-check">{index === selectedIndex ? <Icon name="bolt" size={15} /> : <Icon name="arrow" size={15} />}</span></button>)}<button className="locked-car"><span className="locked-icon"><Icon name="lock" size={15} /></span><span><strong>???</strong><small>Win CUP 04 to unlock</small></span></button></section>
       </div>
     </main>
   );
@@ -329,7 +333,6 @@ const App = () => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isRacing, setIsRacing] = useState(false);
   const [progress, setProgress] = useState(38);
-  const [boost, setBoost] = useState(62);
   const [lane, setLane] = useState(0);
   const [credits, setCredits] = useState(2480);
   const [toast, setToast] = useState("");
@@ -348,18 +351,11 @@ const App = () => {
     }
     setActivePage("race");
     setProgress(0);
-    setBoost(100);
     setLane(0);
     setIsRacing(true);
     showToast("GO! Find your racing line.");
   }, [isRacing, showToast]);
 
-  const triggerBoost = useCallback(() => {
-    if (!isRacing || boost < 15) return;
-    setBoost((current) => Math.max(0, current - 18));
-    setProgress((current) => Math.min(100, current + 7));
-    showToast("NITRO BURST! Nice and spicy.");
-  }, [boost, isRacing, showToast]);
 
   useEffect(() => {
     if (!isRacing) return undefined;
@@ -373,7 +369,6 @@ const App = () => {
         }
         return current + 0.55;
       });
-      setBoost((current) => Math.max(0, current - 0.45));
     }, 100);
     return () => window.clearInterval(timer);
   }, [isRacing, showToast]);
@@ -386,14 +381,13 @@ const App = () => {
       if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") {
         setLane((current) => Math.min(1, current + 1));
       }
-      if (event.code === "Space") {
-        event.preventDefault();
-        triggerBoost();
+      if (event.key.toLowerCase() === "r") {
+        startRace();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [triggerBoost]);
+  }, [startRace]);
 
   const changePage = (page) => {
     setActivePage(page);
@@ -409,7 +403,7 @@ const App = () => {
     <div className="app-shell">
       <Header activePage={activePage} setActivePage={changePage} credits={credits} />
       <div className="app-body">
-        {activePage === "race" && <RacePage car={currentCar} isRacing={isRacing} startRace={startRace} triggerBoost={triggerBoost} boost={boost} lane={lane} setLane={setLane} progress={progress} setToast={showToast} />}
+        {activePage === "race" && <RacePage car={currentCar} isRacing={isRacing} startRace={startRace} lane={lane} progress={progress} setToast={showToast} />}
         {activePage === "garage" && <GaragePage selectedIndex={selectedIndex} setSelectedIndex={setSelectedIndex} setToast={showToast} />}
         {activePage === "league" && <LeaguePage setToast={showToast} />}
       </div>
