@@ -1,0 +1,87 @@
+name: Build Kartoon Karts APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - arena/01a0f910-spotify
+
+permissions:
+  contents: write
+
+jobs:
+  build-debug-apk:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Set up Android SDK
+        run: |
+          SDK_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDK_HOME" -type f -name sdkmanager -perm -u+x | head -n 1)"
+          if [ -z "$SDKMANAGER" ]; then
+            echo "Could not find sdkmanager below $SDK_HOME"
+            find "$SDK_HOME" -maxdepth 4 -type f | head -50 || true
+            exit 1
+          fi
+          echo "ANDROID_HOME=$SDK_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_HOME" >> "$GITHUB_ENV"
+          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+
+      - name: Install Android SDK components
+        run: |
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Install web dependencies
+        run: npm ci
+
+      - name: Build web bundle and sync Capacitor
+        run: npm run cap:sync
+
+      - name: Assemble debug APK
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload Kartoon Karts APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: kartoon-karts-debug-apk
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish APK to branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p ../artifacts
+          cp android/app/build/outputs/apk/debug/app-debug.apk ../artifacts/kartoon-karts-debug.apk
+          cd ..
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/kartoon-karts-debug.apk
+          git commit -m "chore: publish Kartoon Karts APK [skip ci]"
+          git push origin HEAD:${GITHUB_REF_NAME}
