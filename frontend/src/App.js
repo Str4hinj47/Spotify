@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useState } from "react";
+import Game3D from "./Game3D";
 import "./App.css";
 
 const cars = [
@@ -289,21 +290,21 @@ const RaceSidebar = ({ isRacing, startRace, surface, isDrifting, driftScore, set
   </aside>
 );
 
-const RacePage = ({ car, isRacing, startRace, lane, progress, surface, isDrifting, driftAngle, driftScore, setToast }) => (
-  <main className="content-grid">
-    <section className="stage-card panel-card">
+const RacePage = ({ car, isRacing, startRace, surface, isDrifting, driftScore, setToast, onTelemetry }) => (
+  <main className="content-grid game-content-grid">
+    <section className="stage-card panel-card game-stage-card">
       <div className="stage-heading">
         <div>
-          <div className="eyebrow"><span className="eyebrow-line" /> QUICK RACE <span className="eyebrow-slash">/</span> 01</div>
+          <div className="eyebrow"><span className="eyebrow-line" /> 3D QUICK RACE <span className="eyebrow-slash">/</span> 01</div>
           <h1>Tokyo Twilight <span>Cup</span></h1>
-          <p>Pick a line. Hit the gas. Own the night.</p>
+          <p>Actually drive the line. Grip. Slide. Repeat.</p>
         </div>
-        <div className="stage-actions"><span className="weather-pill"><Icon name="moon" size={14} /> 18° <span>NIGHT RUN</span></span><button className="small-icon-button" onClick={() => setToast("Track details pinned to your dashboard")} aria-label="Pin track"><Icon name="flag" size={16} /></button></div>
+        <div className="stage-actions"><span className="weather-pill"><Icon name="moon" size={14} /> 18° <span>NIGHT RUN</span></span><button className="small-icon-button" onClick={() => setToast("3D track details pinned to your dashboard")} aria-label="Pin track"><Icon name="flag" size={16} /></button></div>
       </div>
-      <TrackLandscape car={car} isRacing={isRacing} lane={lane} progress={progress} surface={surface} isDrifting={isDrifting} driftAngle={driftAngle} driftScore={driftScore} />
-      <div className="stage-bottom">
-        <div className="driver-card"><div className="driver-car-wrap"><CarArt car={car} compact animate={isRacing} /></div><div className="driver-copy"><span className="card-label">YOUR RIDE</span><strong>{car.name}</strong><span>{car.quote}</span></div><span className="selected-tag">SELECTED</span></div>
-        <div className="quick-stats"><div><span>TOP SPEED</span><strong>{car.topSpeed}<small> MPH</small></strong></div><div><span>HANDLING</span><strong>{car.handling}<small>%</small></strong></div><div><span>BEST LAP</span><strong>01:46<small>.12</small></strong></div></div>
+      <Game3D running={isRacing} selectedCar={car} onToggleRace={startRace} onTelemetry={onTelemetry} />
+      <div className="stage-bottom game-stage-bottom">
+        <div className="driver-card"><div className="driver-car-wrap"><CarArt car={car} compact animate={isRacing} /></div><div className="driver-copy"><span className="card-label">YOUR RIDE</span><strong>{car.name}</strong><span>{car.quote}</span></div><span className="selected-tag">3D READY</span></div>
+        <div className="quick-stats"><div><span>TOP SPEED</span><strong>{car.topSpeed}<small> MPH</small></strong></div><div><span>HANDLING</span><strong>{car.handling}<small>%</small></strong></div><div><span>DRIFT CHAIN</span><strong>{Math.floor(driftScore).toString().padStart(3, "0")}</strong></div></div>
       </div>
     </section>
     <RaceSidebar isRacing={isRacing} startRace={startRace} surface={surface} isDrifting={isDrifting} driftScore={driftScore} setToast={setToast} />
@@ -347,14 +348,10 @@ const App = () => {
   const [activePage, setActivePage] = useState("race");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isRacing, setIsRacing] = useState(false);
-  const [progress, setProgress] = useState(38);
-  const [lane, setLane] = useState(0);
+  const [surface, setSurface] = useState("road");
   const [isDrifting, setIsDrifting] = useState(false);
-  const [driftAngle, setDriftAngle] = useState(0);
   const [driftScore, setDriftScore] = useState(0);
-  const [credits, setCredits] = useState(2480);
-  const inputRef = useRef({ left: false, right: false, drift: false });
-  const physicsRef = useRef({ offset: 0, velocity: 0 });
+  const credits = 2480;
   const [toast, setToast] = useState("");
 
   const showToast = useCallback((message) => {
@@ -367,101 +364,28 @@ const App = () => {
     if (isRacing) {
       setIsRacing(false);
       setIsDrifting(false);
-      setDriftAngle(0);
       showToast("Pit stop! Catch your breath, racer.");
       return;
     }
     setActivePage("race");
-    setProgress(0);
-    setLane(0);
-    setDriftScore(0);
-    physicsRef.current = { offset: 0, velocity: 0 };
+    setSurface("road");
     setIsDrifting(false);
-    setDriftAngle(0);
+    setDriftScore(0);
     setIsRacing(true);
-    showToast("GO! Find your racing line.");
+    showToast("ENGINE ON! Find your racing line.");
   }, [isRacing, showToast]);
 
-
-  useEffect(() => {
-    if (!isRacing) return undefined;
-    const timer = window.setInterval(() => {
-      setProgress((current) => {
-        if (current >= 100) {
-          setIsRacing(false);
-          setCredits((currentCredits) => currentCredits + 120);
-          showToast("PHOTO FINISH! +120 credits.");
-          return 100;
-        }
-        return current + 0.55;
-      });
-    }, 100);
-    return () => window.clearInterval(timer);
-  }, [isRacing, showToast]);
-
-  const surface = isRacing && progress >= 42 && progress < 72 ? "dirt" : "road";
-
-  useEffect(() => {
-    if (!isRacing) return undefined;
-    let frame;
-    const tick = () => {
-      const { left, right, drift } = inputRef.current;
-      const direction = (right ? 1 : 0) - (left ? 1 : 0);
-      const physics = physicsRef.current;
-      const onDirt = surface === "dirt";
-      const acceleration = onDirt ? 0.045 : 0.075;
-      const drag = onDirt ? 0.985 : 0.86;
-      if (direction !== 0) physics.velocity += direction * acceleration;
-      physics.velocity *= drag;
-      physics.offset = Math.max(-1.25, Math.min(1.25, physics.offset + physics.velocity));
-      if (Math.abs(physics.offset) >= 1.25) physics.velocity *= -0.35;
-      setLane(physics.offset);
-      const sliding = drift && direction !== 0 && Math.abs(physics.velocity) > 0.012;
-      setIsDrifting(sliding);
-      setDriftAngle(sliding ? Math.max(-22, Math.min(22, physics.velocity * 240)) : physics.velocity * 40);
-      if (sliding) setDriftScore((score) => score + 0.34);
-      frame = window.requestAnimationFrame(tick);
-    };
-    frame = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frame);
-  }, [isRacing, surface]);
-
-  useEffect(() => {
-    if (!isRacing) {
-      setIsDrifting(false);
-      setDriftAngle(0);
-    }
-  }, [isRacing]);
-
-  useEffect(() => {
-    const onKeyDown = (event) => {
-      const key = event.key.toLowerCase();
-      if (event.key === "ArrowLeft" || key === "a") inputRef.current.left = true;
-      if (event.key === "ArrowRight" || key === "d") inputRef.current.right = true;
-      if (event.code === "Space" || key === "shift") {
-        event.preventDefault();
-        inputRef.current.drift = true;
-      }
-      if (key === "r") startRace();
-    };
-    const onKeyUp = (event) => {
-      const key = event.key.toLowerCase();
-      if (event.key === "ArrowLeft" || key === "a") inputRef.current.left = false;
-      if (event.key === "ArrowRight" || key === "d") inputRef.current.right = false;
-      if (event.code === "Space" || key === "shift") inputRef.current.drift = false;
-    };
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-    };
-  }, [startRace]);
+  const handleTelemetry = useCallback((telemetry) => {
+    setSurface(telemetry.surface);
+    setIsDrifting(telemetry.drifting);
+    setDriftScore(telemetry.driftScore);
+  }, []);
 
   const changePage = (page) => {
     setActivePage(page);
     if (page !== "race" && isRacing) {
       setIsRacing(false);
+      setIsDrifting(false);
       showToast("Race paused in the pits.");
     }
   };
@@ -472,7 +396,7 @@ const App = () => {
     <div className="app-shell">
       <Header activePage={activePage} setActivePage={changePage} credits={credits} />
       <div className="app-body">
-        {activePage === "race" && <RacePage car={currentCar} isRacing={isRacing} startRace={startRace} lane={lane} progress={progress} surface={surface} isDrifting={isDrifting} driftAngle={driftAngle} driftScore={driftScore} setToast={showToast} />}
+        {activePage === "race" && <RacePage car={currentCar} isRacing={isRacing} startRace={startRace} surface={surface} isDrifting={isDrifting} driftScore={driftScore} setToast={showToast} onTelemetry={handleTelemetry} />}
         {activePage === "garage" && <GaragePage selectedIndex={selectedIndex} setSelectedIndex={setSelectedIndex} setToast={showToast} />}
         {activePage === "league" && <LeaguePage setToast={showToast} />}
       </div>
