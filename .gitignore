@@ -78,3 +78,6 @@ agenthub/agents/youtube/db
 
 # Mobile development
 android-sdk/ 
+# Music library (downloaded MP3s, covers and metadata)
+backend/media/
+frontend/build/

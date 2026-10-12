@@ -1,281 +1,446 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Home, 
-  Search, 
-  Heart, 
-  Library, 
-  Plus, 
-  Play, 
-  Pause, 
-  SkipBack, 
-  SkipForward, 
-  Volume2,
-  Shuffle,
-  Repeat,
-  VolumeX,
-  Volume1,
-  Mic2,
-  List,
-  Monitor,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  MoreHorizontal,
-  Clock,
-  PlayCircle,
-  PauseCircle
-} from 'lucide-react';
-import Components from './components';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ListEnd, ListPlus, ListStart, Minus, Pencil, Trash2, Heart, X, TriangleAlert } from "lucide-react";
+import { Sidebar, TabBar } from "./components/Navigation";
+import PlayerBar from "./components/PlayerBar";
+import NowPlaying from "./components/NowPlaying";
+import QueueSheet from "./components/QueueSheet";
+import SearchView from "./components/SearchView";
+import LibraryView from "./components/LibraryView";
+import PlaylistsView from "./components/PlaylistsView";
+import DownloadsView from "./components/DownloadsView";
+import { ConfirmDialog, EditTrackDialog, NameDialog, PreviewDialog } from "./components/Dialogs";
+import { DownloadButton } from "./components/SearchView";
+import { useLibrary } from "./hooks/useLibrary";
+import { ACTIVE, useDownloads } from "./hooks/useDownloads";
+import { usePlayer } from "./hooks/usePlayer";
+import { usePersistentState } from "./hooks/usePersistentState";
+import { loadValue } from "./lib/storage";
 
-const { 
-  Sidebar, 
-  TopBar, 
-  MainContent, 
-  Player, 
-  PlaylistCard, 
-  TrackRow, 
-  NowPlayingBar,
-  AlbumCard,
-  ArtistCard,
-  SearchCategories,
-  PlaylistView,
-  LibraryView
-} = Components;
+const isTyping = (el) =>
+  el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
 
-const App = () => {
-  const [currentTrack, setCurrentTrack] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentView, setCurrentView] = useState('home');
-  const [selectedPlaylist, setSelectedPlaylist] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [volume, setVolume] = useState(80);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isShuffled, setIsShuffled] = useState(false);
-  const [repeatMode, setRepeatMode] = useState(0); // 0: off, 1: all, 2: one
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(180);
+export default function App() {
+  const [view, setView] = useState("search");
+  const [openPlaylistId, setOpenPlaylistId] = useState(null);
+  const [nowOpen, setNowOpen] = useState(false);
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [nameDialog, setNameDialog] = useState(null); // {mode: 'create' | 'rename', playlist?}
+  const [confirmRequest, setConfirmRequest] = useState(null);
+  const [favorites, setFavorites] = usePersistentState("favorites", []);
+  const [playlists, setPlaylists] = usePersistentState("playlists", []);
+  const [searchFocus, setSearchFocus] = useState(0);
+  const [flash, setFlash] = useState(null);
 
-  // Mock data for tracks
-  const mockTracks = [
-    {
-      id: 1,
-      title: "Blinding Lights",
-      artist: "The Weeknd",
-      album: "After Hours",
-      duration: "3:20",
-      imageUrl: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwxfHxtdXNpY3xlbnwwfHx8fDE3NTI1MDQyNTd8MA&ixlib=rb-4.1.0&q=85",
-      audioUrl: "https://www.soundjay.com/misc/sounds/fail-buzzer-02.wav"
-    },
-    {
-      id: 2,
-      title: "Shape of You",
-      artist: "Ed Sheeran",
-      album: "÷ (Divide)",
-      duration: "3:53",
-      imageUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwzfHxtdXNpY3xlbnwwfHx8fDE3NTI1MDQyNTd8MA&ixlib=rb-4.1.0&q=85",
-      audioUrl: "https://www.soundjay.com/misc/sounds/fail-buzzer-02.wav"
-    },
-    {
-      id: 3,
-      title: "Bohemian Rhapsody",
-      artist: "Queen",
-      album: "A Night at the Opera",
-      duration: "5:55",
-      imageUrl: "https://images.unsplash.com/photo-1624535243357-34369104228c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzR8MHwxfHNlYXJjaHwxfHxhbGJ1bXxlbnwwfHx8fDE3NTI1MTQwMDN8MA&ixlib=rb-4.1.0&q=85",
-      audioUrl: "https://www.soundjay.com/misc/sounds/fail-buzzer-02.wav"
-    },
-    {
-      id: 4,
-      title: "Watermelon Sugar",
-      artist: "Harry Styles",
-      album: "Fine Line",
-      duration: "2:54",
-      imageUrl: "https://images.unsplash.com/photo-1619983081593-e2ba5b543168?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzR8MHwxfHNlYXJjaHwyfHxhbGJ1bXxlbnwwfHx8fDE3NTI1MTQwMDN8MA&ixlib=rb-4.1.0&q=85",
-      audioUrl: "https://www.soundjay.com/misc/sounds/fail-buzzer-02.wav"
-    },
-    {
-      id: 5,
-      title: "Levitating",
-      artist: "Dua Lipa",
-      album: "Future Nostalgia",
-      duration: "3:23",
-      imageUrl: "https://images.unsplash.com/photo-1619983081563-430f63602796?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzR8MHwxfHNlYXJjaHwzfHxhbGJ1bXxlbnwwfHx8fDE3NTI1MTQwMDN8MA&ixlib=rb-4.1.0&q=85",
-      audioUrl: "https://www.soundjay.com/misc/sounds/fail-buzzer-02.wav"
-    }
-  ];
+  const { tracks, loading, error: libraryError, refresh: refreshLibrary, update, remove } = useLibrary();
+  const { jobs, error: downloadsError, start, dismiss } = useDownloads(refreshLibrary);
+  const player = usePlayer();
+  const { state, actions, audioRef } = player;
 
-  // Mock playlists
-  const mockPlaylists = [
-    {
-      id: 1,
-      title: "Today's Top Hits",
-      description: "The most played songs right now",
-      imageUrl: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwxfHxtdXNpY3xlbnwwfHx8fDE3NTI1MDQyNTd8MA&ixlib=rb-4.1.0&q=85",
-      tracks: mockTracks.slice(0, 3)
-    },
-    {
-      id: 2,
-      title: "Rock Classics",
-      description: "Classic rock hits through the decades",
-      imageUrl: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHwxfHxjb25jZXJ0fGVufDB8fHx8MTc1MjUxMzk5NXww&ixlib=rb-4.1.0&q=85",
-      tracks: mockTracks.slice(2, 5)
-    },
-    {
-      id: 3,
-      title: "Chill Vibes",
-      description: "Relaxing music for any time",
-      imageUrl: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHwxfHxoZWFkcGhvbmVzfGVufDB8fHx8MTc1MjQ4NjYwM3ww&ixlib=rb-4.1.0&q=85",
-      tracks: mockTracks.slice(1, 4)
-    },
-    {
-      id: 4,
-      title: "Workout Mix",
-      description: "High-energy tracks for your workout",
-      imageUrl: "https://images.unsplash.com/photo-1628202926206-c63a34b1618f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHwyfHxoZWFkcGhvbmVzfGVufDB8fHx8MTc1MjQ4NjYwM3ww&ixlib=rb-4.1.0&q=85",
-      tracks: mockTracks
-    },
-    {
-      id: 5,
-      title: "Discover Weekly",
-      description: "Your weekly mixtape of fresh music",
-      imageUrl: "https://images.unsplash.com/photo-1588532218970-c2cab983746a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODF8MHwxfHNlYXJjaHwxfHx2aW55bCUyMHJlY29yZHN8ZW58MHx8fHwxNzUyNDY1Nzc1fDA&ixlib=rb-4.1.0&q=85",
-      tracks: mockTracks.slice(0, 4)
-    },
-    {
-      id: 6,
-      title: "Hip Hop Central",
-      description: "The biggest hip hop hits",
-      imageUrl: "https://images.unsplash.com/photo-1582730147924-d92f4da00252?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODF8MHwxfHNlYXJjaHwyfHx2aW55bCUyMHJlY29yZHN8ZW58MHx8fHwxNzUyNDY1Nzc1fDA&ixlib=rb-4.1.0&q=85",
-      tracks: mockTracks.slice(1, 5)
-    }
-  ];
+  const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
+  const libraryById = useMemo(() => new Map(tracks.map((t) => [t.id, t])), [tracks]);
+  const activeJobs = jobs.filter((j) => ACTIVE.includes(j.status));
 
-  const playTrack = (track) => {
-    setCurrentTrack(track);
-    setIsPlaying(true);
-    setCurrentTime(0);
-  };
+  // Latest job per video, so search results can show progress or failure.
+  const jobByVideo = useMemo(() => {
+    const map = new Map();
+    jobs.forEach((j) => {
+      const existing = map.get(j.video_id);
+      if (!existing || (ACTIVE.includes(j.status) && !ACTIVE.includes(existing.status))) map.set(j.video_id, j);
+    });
+    return map;
+  }, [jobs]);
 
-  const togglePlay = () => {
-    setIsPlaying(!isPlaying);
-  };
+  const notify = useCallback((message) => {
+    setFlash({ message, id: Date.now() });
+  }, []);
 
-  const handleVolumeChange = (newVolume) => {
-    setVolume(newVolume);
-    setIsMuted(newVolume === 0);
-  };
-
-  const toggleMute = () => {
-    setIsMuted(!isMuted);
-  };
-
-  const toggleShuffle = () => {
-    setIsShuffled(!isShuffled);
-  };
-
-  const toggleRepeat = () => {
-    setRepeatMode((prev) => (prev + 1) % 3);
-  };
-
-  const skipToPrevious = () => {
-    // Logic to skip to previous track
-    console.log('Skip to previous');
-  };
-
-  const skipToNext = () => {
-    // Logic to skip to next track
-    console.log('Skip to next');
-  };
-
-  const openPlaylist = (playlist) => {
-    setSelectedPlaylist(playlist);
-    setCurrentView('playlist');
-  };
-
-  const searchTracks = (query) => {
-    setSearchQuery(query);
-    // In a real app, this would search through a database
-    return mockTracks.filter(track => 
-      track.title.toLowerCase().includes(query.toLowerCase()) ||
-      track.artist.toLowerCase().includes(query.toLowerCase())
-    );
-  };
-
-  // Simulate time progression
   useEffect(() => {
-    let interval;
-    if (isPlaying && currentTrack) {
-      interval = setInterval(() => {
-        setCurrentTime(prev => {
-          if (prev >= duration) {
-            setIsPlaying(false);
-            return 0;
-          }
-          return prev + 1;
-        });
-      }, 1000);
+    if (!flash) return undefined;
+    const t = setTimeout(() => setFlash(null), 2600);
+    return () => clearTimeout(t);
+  }, [flash]);
+
+  // Resume the last song (paused) once the library has loaded.
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current || loading) return;
+    restoredRef.current = true;
+    const session = loadValue("session", null);
+    const track = session && libraryById.get(session.trackId);
+    if (track) actions.restore(track, session.time || 0);
+  }, [loading, libraryById, actions]);
+
+  // ---- navigation -------------------------------------------------------
+  const go = (next) => {
+    setView(next);
+    setOpenPlaylistId(null);
+    if (next !== "search") setPreview(null);
+  };
+  const openPlaylist = (id) => {
+    setView("playlists");
+    setOpenPlaylistId(id);
+  };
+
+  // ---- library and downloads -------------------------------------------
+  const downloadVideo = async (video) => {
+    try {
+      const { track } = await start({
+        id: video.id,
+        title: video.title,
+        channel: video.channel,
+        duration: video.duration,
+        thumbnail: video.thumbnail,
+      });
+      notify(track ? "Already in your library" : "Download started");
+    } catch (err) {
+      notify(err.message);
     }
-    return () => clearInterval(interval);
-  }, [isPlaying, currentTrack, duration]);
+  };
+
+  const downloadStateFor = (videoId) => {
+    if (libraryById.has(videoId)) return { status: "library" };
+    const job = jobByVideo.get(videoId);
+    if (!job) return { status: "idle" };
+    if (ACTIVE.includes(job.status)) {
+      return { status: "active", progress: job.progress, jobStatus: job.status };
+    }
+    if (job.status === "error") return { status: "error", error: job.error };
+    return { status: "idle" };
+  };
+
+  const playTrackById = (id) => {
+    const track = libraryById.get(id);
+    if (track) actions.playList([track], 0);
+  };
+
+  const saveTrackInfo = async (id, patch) => {
+    await update(id, patch);
+    notify("Song info saved");
+  };
+
+  const deleteTrack = (track) => {
+    setConfirmRequest({
+      title: "Delete this song?",
+      message: `“${track.title}” will be removed from your library and from every playlist. This can’t be undone.`,
+      confirmLabel: "Delete song",
+      onConfirm: async () => {
+        try {
+          await remove(track.id);
+          setFavorites((list) => list.filter((id) => id !== track.id));
+          setPlaylists((list) => list.map((p) => ({ ...p, trackIds: p.trackIds.filter((id) => id !== track.id) })));
+          actions.purgeTrack(track.id);
+          notify("Song deleted");
+        } catch (err) {
+          notify(err.message);
+        }
+      },
+    });
+  };
+
+  // ---- favorites and playlists -----------------------------------------
+  const toggleFavorite = (id) => {
+    setFavorites((list) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]));
+  };
+
+  const addToPlaylist = (playlistId, trackId) => {
+    const pl = playlists.find((p) => p.id === playlistId);
+    if (pl && pl.trackIds.includes(trackId)) {
+      notify(`Already in “${pl.name}”`);
+      return;
+    }
+    setPlaylists((list) => list.map((p) => (p.id === playlistId ? { ...p, trackIds: [...p.trackIds, trackId] } : p)));
+    if (pl) notify(`Added to “${pl.name}”`);
+  };
+
+  const removeFromPlaylist = (playlistId, trackId) => {
+    setPlaylists((list) => list.map((p) => (p.id === playlistId ? { ...p, trackIds: p.trackIds.filter((id) => id !== trackId) } : p)));
+    notify("Removed from playlist");
+  };
+
+  const createPlaylist = (name) => {
+    const id = `pl_${Date.now().toString(36)}`;
+    setPlaylists((list) => [...list, { id, name, trackIds: [], createdAt: new Date().toISOString() }]);
+    setNameDialog(null);
+    setOpenPlaylistId(id);
+    setView("playlists");
+  };
+
+  const renamePlaylist = (id, name) => {
+    setPlaylists((list) => list.map((p) => (p.id === id ? { ...p, name } : p)));
+    setNameDialog(null);
+  };
+
+  const deletePlaylist = (pl) => {
+    setConfirmRequest({
+      title: "Delete this playlist?",
+      message: `“${pl.name}” will be deleted. Its songs stay in your library.`,
+      confirmLabel: "Delete playlist",
+      onConfirm: () => {
+        setPlaylists((list) => list.filter((p) => p.id !== pl.id));
+        setOpenPlaylistId(null);
+        notify("Playlist deleted");
+      },
+    });
+  };
+
+  // ---- playback helpers --------------------------------------------------
+  const shuffleList = (list) => {
+    if (!list.length) return;
+    if (!state.shuffle) actions.toggleShuffle();
+    actions.playList(list, Math.floor(Math.random() * list.length));
+  };
+
+  // Menu for a song in a list. `list` is the context the song plays from.
+  const menuFor = (track, index, list, extra = {}) => {
+    const inPlaylists = playlists.map((pl) => ({
+      id: pl.id,
+      label: pl.name,
+      onSelect: () => addToPlaylist(pl.id, track.id),
+    }));
+    const items = [
+      { id: "next", label: "Play next", icon: ListStart, onSelect: () => { actions.enqueue(track, true); notify("Playing next"); } },
+      { id: "queue", label: "Add to queue", icon: ListEnd, onSelect: () => { actions.enqueue(track, false); notify("Added to queue"); } },
+      { separator: true },
+      { id: "playlist", label: "Add to playlist", icon: ListPlus, submenu: inPlaylists, emptyLabel: "No playlists yet. Create one in Playlists." },
+      { id: "fav", label: favoriteSet.has(track.id) ? "Remove from favorites" : "Add to favorites", icon: Heart, onSelect: () => toggleFavorite(track.id) },
+    ];
+    if (extra.playlistId) {
+      items.push({ id: "remove", label: "Remove from playlist", icon: Minus, onSelect: () => removeFromPlaylist(extra.playlistId, track.id) });
+    }
+    items.push(
+      { separator: true },
+      { id: "edit", label: "Edit info", icon: Pencil, onSelect: () => setEditing(track) },
+      { id: "delete", label: "Delete from library", icon: Trash2, danger: true, onSelect: () => deleteTrack(track) }
+    );
+    return items;
+  };
+
+  const nowPlayingMenu = (track) => menuFor(track, -1, state.context);
+
+  // ---- keyboard shortcuts ------------------------------------------------
+  const keyHandler = useRef(null);
+  keyHandler.current = (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (isTyping(e.target)) return;
+    const el = e.target;
+    const onControl = el && (el.tagName === "BUTTON" || el.tagName === "A" || el.getAttribute?.("role") === "slider");
+    const audio = audioRef.current;
+    const now = audio ? audio.currentTime : 0;
+    switch (e.key) {
+      case " ":
+        if (onControl) return;
+        e.preventDefault();
+        actions.togglePlay();
+        break;
+      case "ArrowRight":
+        if (el && el.type === "range") return;
+        e.preventDefault();
+        if (e.shiftKey) actions.next();
+        else actions.seek(now + 5);
+        break;
+      case "ArrowLeft":
+        if (el && el.type === "range") return;
+        e.preventDefault();
+        if (e.shiftKey) actions.previous();
+        else actions.seek(now - 5);
+        break;
+      case "ArrowUp":
+        if (el !== document.body) return;
+        e.preventDefault();
+        actions.setVolume(state.volume + 0.05);
+        break;
+      case "ArrowDown":
+        if (el !== document.body) return;
+        e.preventDefault();
+        actions.setVolume(state.volume - 0.05);
+        break;
+      case "m":
+      case "M":
+        actions.toggleMute();
+        break;
+      case "s":
+      case "S":
+        actions.toggleShuffle();
+        break;
+      case "r":
+      case "R":
+        actions.cycleRepeat();
+        break;
+      case "/":
+        e.preventDefault();
+        go("search");
+        setSearchFocus((n) => n + 1);
+        break;
+      default:
+        break;
+    }
+  };
+  useEffect(() => {
+    const onKey = (e) => keyHandler.current(e);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  // ---- render -------------------------------------------------------------
+  const currentId = state.current ? state.current.id : null;
+  const playList = (list, index) => actions.playList(list, index);
+  const errorText = state.error;
+  const currentFav = state.current ? favoriteSet.has(state.current.id) : false;
+
+  let content;
+  if (view === "search") {
+    content = (
+      <SearchView
+        focusKey={searchFocus}
+        downloadStateFor={downloadStateFor}
+        onDownload={downloadVideo}
+        onPlay={playTrackById}
+        onPreview={setPreview}
+      />
+    );
+  } else if (view === "library" || view === "favorites") {
+    content = (
+      <LibraryView
+        mode={view}
+        tracks={tracks}
+        loading={loading}
+        error={libraryError}
+        favorites={favoriteSet}
+        currentId={currentId}
+        isPlaying={state.playing}
+        onPlayList={playList}
+        onShuffle={shuffleList}
+        onToggleFavorite={toggleFavorite}
+        menuFor={menuFor}
+        onGoSearch={() => go("search")}
+        onRetry={refreshLibrary}
+      />
+    );
+  } else if (view === "playlists") {
+    content = (
+      <PlaylistsView
+        playlists={playlists}
+        libraryById={libraryById}
+        openId={openPlaylistId}
+        setOpenId={setOpenPlaylistId}
+        onCreate={() => setNameDialog({ mode: "create" })}
+        onRename={(pl) => setNameDialog({ mode: "rename", playlist: pl })}
+        onDelete={deletePlaylist}
+        onPlayList={playList}
+        onShuffle={shuffleList}
+        currentId={currentId}
+        isPlaying={state.playing}
+        favorites={favoriteSet}
+        onToggleFavorite={toggleFavorite}
+        menuFor={menuFor}
+        onGoSearch={() => go("search")}
+      />
+    );
+  } else {
+    content = (
+      <DownloadsView
+        jobs={jobs}
+        onDismiss={dismiss}
+        onRetry={(job) => downloadVideo({ id: job.video_id, title: job.title, channel: job.channel, duration: job.duration, thumbnail: job.thumbnail })}
+        onClearFinished={() => jobs.filter((j) => j.status === "done" || j.status === "error").forEach((j) => dismiss(j.id))}
+        onGoSearch={() => go("search")}
+      />
+    );
+  }
 
   return (
-    <div className="h-screen bg-black text-white flex flex-col">
-      {/* Main container */}
-      <div className="flex-1 flex min-h-0">
-        {/* Sidebar */}
-        <Sidebar 
-          currentView={currentView} 
-          setCurrentView={setCurrentView} 
-          playlists={mockPlaylists}
+    <div className="h-dvh flex flex-col bg-bg text-ink">
+      <div className="flex flex-1 min-h-0">
+        <Sidebar
+          view={view}
+          go={go}
+          activeDownloads={activeJobs.length}
+          playlists={playlists}
           openPlaylist={openPlaylist}
+          openPlaylistId={view === "playlists" ? openPlaylistId : null}
         />
-        
-        {/* Main content area */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Top bar */}
-          <TopBar 
-            currentView={currentView} 
-            setCurrentView={setCurrentView}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-          />
-          
-          {/* Content */}
-          <MainContent 
-            currentView={currentView}
-            playlists={mockPlaylists}
-            tracks={mockTracks}
-            selectedPlaylist={selectedPlaylist}
-            searchResults={searchTracks(searchQuery)}
-            playTrack={playTrack}
-            openPlaylist={openPlaylist}
-            isPlaying={isPlaying}
-            currentTrack={currentTrack}
-          />
-        </div>
+        <main id="main" className="flex-1 min-w-0 overflow-y-auto scroll-thin">
+          <div className="mx-auto max-w-6xl px-4 md:px-8 pt-6 md:pt-8 pb-8">
+            {(downloadsError || libraryError) && view !== "downloads" && (
+              <p role="alert" className="mb-4 text-sm text-danger flex items-center gap-2">
+                <TriangleAlert size={16} aria-hidden="true" /> {downloadsError || libraryError}
+              </p>
+            )}
+            {content}
+          </div>
+        </main>
       </div>
-      
-      {/* Bottom player */}
-      <Player 
-        currentTrack={currentTrack}
-        isPlaying={isPlaying}
-        togglePlay={togglePlay}
-        skipToPrevious={skipToPrevious}
-        skipToNext={skipToNext}
-        volume={volume}
-        isMuted={isMuted}
-        handleVolumeChange={handleVolumeChange}
-        toggleMute={toggleMute}
-        isShuffled={isShuffled}
-        toggleShuffle={toggleShuffle}
-        repeatMode={repeatMode}
-        toggleRepeat={toggleRepeat}
-        currentTime={currentTime}
-        duration={duration}
-        setCurrentTime={setCurrentTime}
+
+      {errorText && (
+        <div role="alert" className="mx-3 md:mx-5 mb-2 flex items-center gap-3 rounded-xl bg-surface2 border border-danger/40 px-4 py-2.5 text-sm">
+          <TriangleAlert size={16} className="text-danger shrink-0" aria-hidden="true" />
+          <span className="flex-1 min-w-0">{errorText}</span>
+          <button
+            type="button"
+            className="p-1 rounded-full text-ink2 hover:text-ink"
+            aria-label="Dismiss message"
+            onClick={() => {
+              actions.clearError();
+            }}
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
+      {flash && (
+        <div role="status" key={flash.id} className="pointer-events-none fixed left-1/2 -translate-x-1/2 bottom-28 md:bottom-32 z-50 rounded-full bg-ink text-bg px-4 py-2 text-sm font-semibold shadow-xl">
+          {flash.message}
+        </div>
+      )}
+
+      <PlayerBar
+        state={state}
+        actions={actions}
+        openNowPlaying={() => setNowOpen(true)}
+        openQueue={() => setQueueOpen(true)}
+        isFavorite={currentFav}
+        onToggleFavorite={toggleFavorite}
       />
+      <TabBar view={view} go={go} activeDownloads={activeJobs.length} />
+
+      {nowOpen && (
+        <NowPlaying
+          state={state}
+          actions={actions}
+          onClose={() => setNowOpen(false)}
+          openQueue={() => setQueueOpen(true)}
+          isFavorite={currentFav}
+          onToggleFavorite={toggleFavorite}
+          menuItems={nowPlayingMenu}
+        />
+      )}
+
+      <QueueSheet open={queueOpen} onClose={() => setQueueOpen(false)} state={state} actions={actions} />
+
+      <PreviewDialog video={preview} onClose={() => setPreview(null)}>
+        {preview && (
+          <>
+            <DownloadButton state={downloadStateFor(preview.id)} video={preview} onDownload={() => downloadVideo(preview)} onPlay={() => playTrackById(preview.id)} />
+          </>
+        )}
+      </PreviewDialog>
+
+      <EditTrackDialog track={editing} onClose={() => setEditing(null)} onSave={saveTrackInfo} />
+
+      <NameDialog
+        open={!!nameDialog}
+        title={nameDialog?.mode === "rename" ? "Rename playlist" : "New playlist"}
+        initial={nameDialog?.mode === "rename" ? nameDialog.playlist.name : ""}
+        confirmLabel={nameDialog?.mode === "rename" ? "Rename" : "Create"}
+        onClose={() => setNameDialog(null)}
+        onSubmit={(name) => (nameDialog?.mode === "rename" ? renamePlaylist(nameDialog.playlist.id, name) : createPlaylist(name))}
+      />
+
+      <ConfirmDialog request={confirmRequest} onClose={() => setConfirmRequest(null)} />
     </div>
   );
-};
+}
 
-export default App;
