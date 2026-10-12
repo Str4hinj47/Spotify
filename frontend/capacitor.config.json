@@ -1,0 +1,12 @@
+{
+  "appId": "com.tonal.player",
+  "appName": "Tonal",
+  "webDir": "build",
+  "backgroundColor": "#0E0E10",
+  "android": {
+    "backgroundColor": "#0E0E10"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
