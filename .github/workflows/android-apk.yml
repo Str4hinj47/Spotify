@@ -80,3 +80,12 @@ jobs:
             gh release create "$TAG" --prerelease --title "Tonal Android (latest debug build)" --notes "$notes" --target "$GITHUB_SHA"
           fi
           gh release upload "$TAG" tonal-debug.apk --clobber
+
+      - name: Upload APK as a workflow artifact
+        # Optional copy. Fails softly when the account's Actions storage quota is full.
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: tonal-debug-apk
+          path: tonal-debug.apk
+          if-no-files-found: error
