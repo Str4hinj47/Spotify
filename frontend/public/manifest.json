@@ -1,0 +1,15 @@
+{
+  "short_name": "Tonal",
+  "name": "Tonal music player",
+  "description": "Search YouTube, save songs as MP3, and listen to your own offline library.",
+  "icons": [
+    { "src": "logo192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "logo512.png", "type": "image/png", "sizes": "512x512" },
+    { "src": "logo-maskable-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0E0E10",
+  "theme_color": "#0E0E10"
+}
