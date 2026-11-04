@@ -58,3 +58,22 @@ test('curvature feed-forward tracks the road tangent without steering input', ()
   assert.ok(Math.abs(st.yawRate - 0.004 * 25) < 0.03);
   assert.ok(Math.abs(st.offset) < 0.5);
 });
+
+test('wet and snowy surfaces increase braking distance and reduce acceleration', () => {
+  const dry = createVehicleState(), wet = createVehicleState(), snow = createVehicleState();
+  for (const s of [dry, wet, snow]) s.speed = 30;
+  const input = { throttle: false, brake: true, left: false, right: false, handbrake: false };
+  for (let i = 0; i < 100; i++) {
+    stepVehicle(dry, input, {brake: 11, surfaceGrip: 1}, .01);
+    stepVehicle(wet, input, {brake: 11, surfaceGrip: .82}, .01);
+    stepVehicle(snow, input, {brake: 11, surfaceGrip: .65}, .01);
+  }
+  assert.ok(dry.speed < wet.speed && wet.speed < snow.speed);
+  const throttle = {...input, brake: false, throttle: true};
+  const a = createVehicleState(), b = createVehicleState();
+  for (let i = 0; i < 100; i++) {
+    stepVehicle(a, throttle, {accel: 9, surfaceGrip: 1}, .01);
+    stepVehicle(b, throttle, {accel: 9, surfaceGrip: .65}, .01);
+  }
+  assert.ok(a.speed > b.speed);
+});

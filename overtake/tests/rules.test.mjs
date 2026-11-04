@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   multiplierFor, passScore, coastSpeed, steerRate,
-  canSpawnSame, canSpawnOncoming, sameSpawnInterval, oncomingSpawnInterval,
+  canSpawnSame, canSpawnOncoming, findOncomingSpawn, sameSpawnInterval, oncomingSpawnInterval,
   ROAD_HALF, PLAYER_LANE, ONCOMING_LANE, BARRIER_OFFSET,
 } from '../src/rules.mjs';
 
@@ -43,7 +43,7 @@ test('same-direction traffic keeps a passable gap', () => {
 test('oncoming traffic is spaced and not paired into an unavoidable wall', () => {
   assert.equal(canSpawnOncoming(500, [], []), true);
   assert.equal(canSpawnOncoming(500, [{ s: 550 }], []), false);
-  assert.equal(canSpawnOncoming(500, [], [{ s: 240 }]), false);
+  assert.equal(canSpawnOncoming(500, [], [{ s: 490 }]), false);
 });
 
 test('spawn intervals tighten with speed but keep a floor', () => {
@@ -56,7 +56,7 @@ test('spawn intervals tighten with speed but keep a floor', () => {
 test('oncoming traffic is denser but leaves overtaking windows', () => {
   assert.equal(canSpawnOncoming(500, [{ s: 580 }], []), true);
   assert.equal(canSpawnOncoming(500, [{ s: 560 }], []), false);
-  assert.equal(canSpawnOncoming(500, [], [{ s: 250 }]), false);
+  assert.equal(canSpawnOncoming(500, [], [{ s: 510 }]), false);
   assert.equal(canSpawnOncoming(500, [], [{ s: 100 }]), true);
 });
 
@@ -65,4 +65,20 @@ test('road layout has two opposing lanes and a barrier', () => {
   assert.ok(PLAYER_LANE > 0);
   assert.ok(BARRIER_OFFSET > ROAD_HALF);
   assert.ok(ROAD_HALF > PLAYER_LANE + 0.9);
+});
+
+// Keep a stream of traffic even in dense, slow-moving same-direction traffic.
+test('oncoming spawn searches all safe gaps and retries as traffic moves', () => {
+  const same = Array.from({length: 12}, (_, i) => ({s: 60 + i * 40}));
+  let traffic = [{s: 230}, {s: 390}, {s: 550}];
+  for (let time = 0; time < 40; time += 0.5) {
+    traffic = traffic.map(c => ({s: c.s - 14})).filter(c => c.s > -40);
+    const s = findOncomingSpawn(0, traffic, same);
+    if (s !== null) {
+      assert.ok(s >= 230 && s <= 550);
+      assert.ok(canSpawnOncoming(s, traffic, same));
+      traffic.push({s});
+    }
+    assert.ok(traffic.some(c => c.s > 0 && c.s < 550));
+  }
 });

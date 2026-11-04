@@ -65,4 +65,4 @@ const state = await g(() => ({
 }));
 console.log(JSON.stringify({ cards, before, afterSteer, state, errors }, null, 2));
 await browser.close();
-if (cards !== 5 || errors.length || state.overtakes < 1 || !state.traffic.includes(-1)) process.exit(1);
+if (cards !== 7 || errors.length || state.overtakes < 1 || !state.traffic.includes(-1)) process.exit(1);

@@ -1,7 +1,7 @@
 # OVERTAKE — Endless Highway
 
 A browser-based, free-steering two-way overtaking game built with Three.js.
-Pick one of five user-provided cars; the other four become traffic.
+Pick one of seven cars; the other models become traffic.
 
 ## Run
 
@@ -67,13 +67,15 @@ Touch devices get on-screen steering, throttle and brake buttons.
 | Audi RS 6 Avant | `Audi_RS_6_Avant_Not+Applied.blend` — user-provided |
 | Ford Mustang GT | `Mustang.zip` — user-provided |
 | Ferrari 458 Italia | `Ferrari 458 Italia.zip` — RainerS, CC BY 3.0 |
+| Audi R8 | `r8.obj` — user-provided |
+| Dodge Challenger | `Challenger.obj` — user-provided |
 
 The original `.blend` files were converted to Draco-compressed glTF with
 `tools/convert_assets.py` (requires Blender's `bpy` module). Geometry is
 preserved; materials were rebuilt as lightweight PBR for real-time rendering.
 Studio helpers, ground planes and light blockers were removed. Headlight and
 taillight lenses are preserved and emissive; the Ferrari's source-mesh yaw is
-corrected so it runs parallel to the road.
+corrected so it runs parallel to the road. Its detached studio artifact was removed and its front wheels straightened. The two OBJ assets use `tools/convert_obj.mjs` to rebuild materials, simplify and Draco-compress the geometry; `tools/fix_ferrari.mjs` documents the Ferrari correction.
 
 ### Paint customization
 
@@ -96,9 +98,9 @@ at 1×. The world panel lets you scrub time, change cycle speed, pause the cycle
 or force **Auto / Clear / Rain / Snow**.
 
 Weather (`src/world/weather.mjs`) damps in/out instead of switching instantly.
-Rain darkens and smooths the asphalt, thickens fog, and adds camera-following
-rain streaks. Snow adds falling flakes, snow cover on ground/shoulders/trees,
-and heavier fog. Both reduce tyre grip. The rain/snow particle approach is
+Rain darkens the asphalt and adds a patchy reflective sheen, thickens fog, and adds camera-following
+rain streaks. Snow adds falling flakes, snow cover and tire tracks on the road as well as ground/shoulders/trees,
+and heavier fog. Both reduce tyre grip, acceleration and braking traction while the surface gradually accumulates and clears. The rain/snow particle approach is
 adapted from [Elemental-Serenity](https://github.com/SahilK-027/Elemental-Serenity)
 (MIT).
 
@@ -125,6 +127,8 @@ vehicle mass/gearing toward the researched production engine:
 | RS 6 Avant (C7) | 4.0 TFSI V8 biturbo, 700 Nm @ 1750 rpm | `v8tt`, sportier |
 | Mustang GT | 5.0L Coyote NA cross-plane V8 | `v8cross` |
 | Ferrari 458 Italia | 4.5L F136 flat-plane V8, 9000 rpm | `v8flat` |
+| Audi R8 | V10-inspired | `v10` |
+| Dodge Challenger | V8-inspired | `v8cross` |
 
 The HUD shows RPM, gear and boost. Audio starts after the **Start engine** user
 gesture, as required by browsers.

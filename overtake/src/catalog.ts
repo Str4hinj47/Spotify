@@ -1,4 +1,4 @@
-export type CarId = 'golf' | 'mercedes' | 'audi' | 'mustang' | 'ferrari';
+export type CarId = 'golf' | 'mercedes' | 'audi' | 'mustang' | 'ferrari' | 'r8' | 'challenger';
 
 export interface CarSpec {
   id: CarId;
@@ -102,6 +102,18 @@ export const CARS: CarSpec[] = [
     color: '#d40f1e',
     credit: 'RainerS · CC BY 3.0',
     physics: { grip: 1.18, brake: 13.0, wheelbase: 2.65, maxSteer: 0.46, understeer: 0.002, yawResponse: 9.0, steerResponse: 9.0, drag: 0.00068 },
+  },
+  {
+    id: 'r8', name: 'R8', maker: 'Audi', tagline: 'Mid-engine balance and supercar pace.', klass: 'Supercar',
+    maxSpeed: 65, accel: 10.6, handling: 8.0, bonus: 1.2, stats: { speed: 5, handling: 5, bonus: 5 },
+    color: '#b3bbc3', credit: 'User-provided Drive asset',
+    physics: { grip: 1.15, brake: 12.8, wheelbase: 2.65, maxSteer: 0.46, understeer: 0.002, yawResponse: 8.5, steerResponse: 8.5, drag: 0.0007 },
+  },
+  {
+    id: 'challenger', name: 'Challenger', maker: 'Dodge', tagline: 'Big V8 attitude, built for the open road.', klass: 'Muscle car',
+    maxSpeed: 59, accel: 9.6, handling: 5.4, bonus: 1.05, stats: { speed: 4, handling: 3, bonus: 3 },
+    color: '#3f7843', credit: 'User-provided Drive asset',
+    physics: { grip: 0.98, brake: 10.6, wheelbase: 2.95, maxSteer: 0.48, understeer: 0.003, yawResponse: 6, steerResponse: 6.5, drag: 0.00085 },
   },
 ];
 

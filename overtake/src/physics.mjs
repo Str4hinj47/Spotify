@@ -53,10 +53,11 @@ export function stepVehicle(st, input, p, dt, curvature = 0) {
   // of snapping the car back to its normal top speed.
   const cap = boosting ? baseMax + (p.boostSpeed ?? 13) : Math.max(baseMax, st.speed);
   const accelRate = (p.accel ?? 8) + (boosting ? (p.boostAccel ?? 6.5) : 0);
-  const power = input.throttle ? accelRate * circle * (1 - 0.45 * Math.pow(st.speed / cap, 2)) : 0;
+  const surfaceGrip = clamp(p.surfaceGrip ?? 1, 0.35, 1);
+  const power = input.throttle ? accelRate * circle * surfaceGrip * (1 - 0.45 * Math.pow(st.speed / cap, 2)) : 0;
   const brake = (input.brake ? (p.brake ?? 11) : 0) + (input.handbrake ? (p.brake ?? 11) * 0.75 : 0);
   const drag = (p.drag ?? 0.0008) * st.speed * st.speed + 0.35 + (input.throttle ? 0 : 1.1);
-  st.accel = power - brake - drag;
+  st.accel = power - brake * circle * surfaceGrip - drag;
   if (st.speed <= 0 && st.accel < 0) st.accel = 0;
   st.speed = clamp(st.speed + st.accel * dt, 0, cap);
   if (!boosting && st.speed > baseMax) st.speed = Math.max(baseMax, st.speed - 7 * dt);

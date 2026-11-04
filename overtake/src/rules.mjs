@@ -45,8 +45,9 @@ export function canSpawnSame(s, existing) {
 export function canSpawnOncoming(s, existing, sameDir) {
   // ~1.3 s at a 60 m/s closing speed: enough to see and react, still busy.
   if (existing.some((c) => Math.abs(c.s - s) < 78)) return false;
-  // Leave an overtaking window around slower same-direction cars.
-  if (sameDir.some((c) => Math.abs(c.s - (s - 220)) < 50)) return false;
+  // Keep some separation from cars at the same road position, not a fixed
+  // offset hundreds of metres away (which eventually blocks every candidate).
+  if (sameDir.some((c) => Math.abs(c.s - s) < 20)) return false;
   return true;
 }
 
@@ -56,4 +57,13 @@ export function sameSpawnInterval(speed) {
 
 export function oncomingSpawnInterval(speed) {
   return Math.max(0.45, 1.05 - speed * 0.01);
+}
+
+/** Find the nearest available spawn point ahead. Returns null if the window is full. */
+export function findOncomingSpawn(playerS, existing, sameDir) {
+  for (let distance = 230; distance <= 550; distance += 20) {
+    const s = playerS + distance;
+    if (canSpawnOncoming(s, existing, sameDir)) return s;
+  }
+  return null;
 }

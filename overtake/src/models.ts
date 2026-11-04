@@ -22,6 +22,8 @@ const ORIENTATION: Record<CarId, number> = {
   audi: Math.PI,
   mustang: 0,
   ferrari: Math.PI + FERRARI_SKEW,
+  r8: Math.PI,
+  challenger: Math.PI,
 };
 
 export class ModelLibrary {
@@ -83,7 +85,8 @@ export class ModelLibrary {
               std.metalness = 0.1;
               std.roughness = 0.06;
               std.transparent = true;
-              std.opacity = 0.82;
+              std.opacity = 0.92;
+              std.side = THREE.DoubleSide;
               std.envMapIntensity = 1.2;
             } else if (m.name.startsWith('chrome__')) {
               std.metalness = 1.0;
@@ -91,10 +94,16 @@ export class ModelLibrary {
               std.envMapIntensity = 1.1;
             } else if (m.name.startsWith('headlight__')) {
               std.emissive = new THREE.Color(0xf6f9ff);
-              std.emissiveIntensity = 1.6;
+              std.emissiveIntensity = 0.85;
             } else if (m.name.startsWith('taillight__')) {
               std.emissive = new THREE.Color(0xff2020);
-              std.emissiveIntensity = 1.8;
+              std.emissiveIntensity = 0.9;
+            } else if (m.name.startsWith('rim__')) {
+              std.metalness = 0.75;
+              std.roughness = 0.28;
+            } else if (m.name.startsWith('trim__') || m.name.startsWith('carbon__')) {
+              std.roughness = 0.55;
+              std.metalness = 0.12;
             } else if (m.name.startsWith('tire__')) {
               std.roughness = 0.9;
               std.metalness = 0.0;

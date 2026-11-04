@@ -4,7 +4,7 @@ import { CARS, getCar, TRAFFIC_COLORS, type CarId } from './catalog';
 import {
   ROAD_HALF, PLAYER_LANE, ONCOMING_LANE, BARRIER_OFFSET,
   multiplierFor, passScore,
-  canSpawnSame, canSpawnOncoming, sameSpawnInterval, oncomingSpawnInterval,
+  canSpawnSame, findOncomingSpawn, sameSpawnInterval, oncomingSpawnInterval,
 } from './rules.mjs';
 import { createVehicleState, stepVehicle } from './physics.mjs';
 import { easing } from 'maath';
@@ -173,6 +173,7 @@ export class OvertakeGame {
   private ground!: THREE.Mesh;
   private asphalt!: THREE.Mesh;
   private asphaltMat!: THREE.MeshStandardMaterial;
+  private roadSurface = { wet: { value: 0 }, snow: { value: 0 } };
   private shoulderMat!: THREE.MeshStandardMaterial;
   private groundMat!: THREE.MeshStandardMaterial;
   private mountainMat!: THREE.MeshStandardMaterial;
@@ -411,6 +412,7 @@ export class OvertakeGame {
       indices.push(a, b, c, b, d, c);
     }
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+    geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array((SEGMENTS + 1) * 4), 2).setUsage(THREE.DynamicDrawUsage));
     geo.setIndex(indices);
     geo.computeVertexNormals();
     const mesh = new THREE.Mesh(geo, mat);
@@ -436,6 +438,12 @@ export class OvertakeGame {
       arr[i * 6 + 3] = ox + r.x * hw; arr[i * 6 + 4] = cy; arr[i * 6 + 5] = oz + r.z * hw;
     }
     attr.needsUpdate = true;
+    const uv = mesh.geometry.getAttribute('uv') as THREE.BufferAttribute;
+    for (let i = 0; i <= SEGMENTS; i++) {
+      const s = start + i * STEP;
+      uv.setXY(i * 2, 0, s); uv.setXY(i * 2 + 1, 1, s);
+    }
+    uv.needsUpdate = true;
     mesh.geometry.computeVertexNormals();
   }
 
@@ -443,6 +451,33 @@ export class OvertakeGame {
     const asphaltMat = new THREE.MeshStandardMaterial({ color: 0x2b2d33, roughness: 0.94, metalness: 0.02 });
     const shoulderMat = new THREE.MeshStandardMaterial({ color: 0x4a463e, roughness: 1 });
     this.asphaltMat = asphaltMat;
+    // Procedural road surface stays anchored to road distance as the ribbon moves.
+    asphaltMat.onBeforeCompile = (shader) => {
+      shader.uniforms.roadWet = this.roadSurface.wet;
+      shader.uniforms.roadSnow = this.roadSurface.snow;
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 roadUV;')
+        .replace('#include <uv_vertex>', '#include <uv_vertex>\nroadUV = uv;');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
+        varying vec2 roadUV;
+        uniform float roadWet;
+        uniform float roadSnow;
+        float roadNoise(vec2 p) { return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+      `).replace('#include <color_fragment>', `#include <color_fragment>
+        float grit = roadNoise(floor(vec2(roadUV.x * 250.0, roadUV.y * 4.0)));
+        float grain = mix(0.83, 1.12, grit);
+        float tracks = 0.0;
+        for (int i = 0; i < 4; i++) {
+          float x = 0.17 + float(i) * 0.22;
+          tracks = max(tracks, 1.0 - smoothstep(0.025, 0.045, abs(roadUV.x - x)));
+        }
+        float snowMask = roadSnow * mix(0.78, 1.0, grit) * (1.0 - tracks * 0.42);
+        float patch = roadNoise(floor(vec2(roadUV.x * 18.0, roadUV.y * 0.32)));
+        float sheen = smoothstep(0.54, 0.9, patch) * roadWet;
+        diffuseColor.rgb *= grain * (1.0 - roadWet * 0.22);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.12, 0.15, 0.18), sheen * 0.35);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.65, 0.72, 0.78), snowMask * 0.88);
+      `);
+    };
     this.shoulderMat = shoulderMat;
     const lineMat = new THREE.MeshStandardMaterial({ color: 0xe9e9e2, roughness: 0.55 });
     const yellowMat = new THREE.MeshStandardMaterial({ color: 0xf2c230, roughness: 0.5 });
@@ -724,7 +759,7 @@ export class OvertakeGame {
     // Seed a busy two-way road: slower traffic ahead and a steady stream of
     // oncoming cars, spaced so there is always a visible overtaking window.
     this.spawnSame(55, 16); this.spawnSame(120, 19); this.spawnSame(195, 15); this.spawnSame(280, 21);
-    this.spawnOncoming(650, 26); this.spawnOncoming(880, 29); this.spawnOncoming(1120, 27); this.spawnOncoming(1360, 28);
+    this.spawnOncoming(230, 26); this.spawnOncoming(390, 29); this.spawnOncoming(550, 27);
     this.updateRoad();
     this.setMode('driving');
     this.emitHud();
@@ -829,12 +864,11 @@ export class OvertakeGame {
       }
       this.sameTimer = sameSpawnInterval(this.speed) * (0.8 + Math.random() * 0.5);
     }
-    if (this.oncomingTimer <= 0 && oncoming.length < 16 && this.speed > 5) {
-      for (let a = 0; a < 12; a++) {
-        const s = this.playerS + 280 + Math.random() * 260;
-        if (canSpawnOncoming(s, oncoming, same)) { this.spawnOncoming(s, 24 + Math.random() * 10); break; }
-      }
-      this.oncomingTimer = oncomingSpawnInterval(this.speed) * (0.75 + Math.random() * 0.5);
+    if (this.oncomingTimer <= 0 && oncoming.length < 16) {
+      const s = findOncomingSpawn(this.playerS, oncoming, same);
+      if (s !== null) this.spawnOncoming(s, 24 + Math.random() * 10);
+      // Retry quickly when the window is temporarily full.
+      this.oncomingTimer = s === null ? 0.25 : oncomingSpawnInterval(this.speed) * (0.75 + Math.random() * 0.5);
     }
   }
 
@@ -908,7 +942,7 @@ export class OvertakeGame {
     this.run.boostHeld = this.input.boost;
     const grip = spec.physics.grip * weatherGrip(this.weather);
     const params = {
-      ...spec.physics, accel: spec.accel, maxSpeed: spec.maxSpeed, grip,
+      ...spec.physics, accel: spec.accel, maxSpeed: spec.maxSpeed, grip, surfaceGrip: weatherGrip(this.weather),
       boost: this.run.boostActive, boostAccel: BOOST.accel, boostSpeed: BOOST.extraSpeed,
     };
     const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
@@ -1048,9 +1082,11 @@ export class OvertakeGame {
     // Wet asphalt / snow cover.
     const wet = this.weather.wet;
     const snow = this.weather.snowCover;
-    this.asphaltMat.roughness = 0.94 - wet * 0.55;
+    this.roadSurface.wet.value = wet;
+    this.roadSurface.snow.value = snow;
+    this.asphaltMat.roughness = Math.min(1, 0.94 - wet * 0.7 + snow * 0.12);
     this.asphaltMat.metalness = 0.02 + wet * 0.25;
-    this.asphaltMat.color.set(0x2b2d33).lerp(new THREE.Color(0x1a1d22), wet * 0.6).lerp(new THREE.Color(0x6f7a84), snow * 0.35);
+    this.asphaltMat.color.set(0x2b2d33).lerp(new THREE.Color(0x1a1d22), wet * 0.5);
     this.lampMat.emissiveIntensity = 0.25 + atm.night * 2.4 + atm.cloud * 0.8;
 
     // Player headlights follow the car and fade in at night / in precipitation.

@@ -50,13 +50,27 @@
   "ferrari": {
     "id": "ferrari",
     "file": "models/ferrari.glb",
-    "bytes": 2299200,
-    "triangles": 145439,
+    "bytes": 2289532,
+    "triangles": 145353,
     "dimensions": [
       2.5,
       4.57,
       1.117
     ],
     "source": "ferrari_studio.blend"
+  },
+  "r8": {
+    "id": "r8",
+    "file": "models/r8.glb",
+    "source": "r8.obj",
+    "bytes": 786380,
+    "triangles": 71211
+  },
+  "challenger": {
+    "id": "challenger",
+    "file": "models/challenger.glb",
+    "source": "Challenger.obj",
+    "bytes": 1504724,
+    "triangles": 369284
   }
 }
