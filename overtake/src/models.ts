@@ -74,11 +74,11 @@ export class ModelLibrary {
             std.envMapIntensity = 0.9;
             if (m.name.startsWith('paint__')) {
               std.metalness = 0.45;
-              std.roughness = 0.3;
+              std.roughness = 0.36;
               const phys = m as THREE.MeshPhysicalMaterial;
               if ('clearcoat' in phys) {
-                phys.clearcoat = 1.0;
-                phys.clearcoatRoughness = 0.08;
+                phys.clearcoat = 0.4;
+                phys.clearcoatRoughness = 0.22;
               }
             } else if (m.name.startsWith('glass__')) {
               std.color.set(0x0a0f14);
@@ -161,9 +161,9 @@ export class ModelLibrary {
             cached = new THREE.MeshPhysicalMaterial({
               color: paint,
               metalness: 0.45,
-              roughness: 0.3,
-              clearcoat: 1.0,
-              clearcoatRoughness: 0.08,
+              roughness: 0.36,
+              clearcoat: 0.4,
+              clearcoatRoughness: 0.22,
               envMapIntensity: 0.9,
             });
             this.paintCache.set(key, cached);

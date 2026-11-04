@@ -40,3 +40,14 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## Road textures
+
+The asphalt, snow and gravel colour and OpenGL normal maps in
+`public/textures/road/` are from [ambientCG](https://ambientcg.com/), dedicated
+to the public domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/):
+[Asphalt031](https://ambientcg.com/view?id=Asphalt031),
+[Snow004](https://ambientcg.com/view?id=Snow004), and
+[Gravel023](https://ambientcg.com/view?id=Gravel023). The 1K JPEG versions were
+re-encoded and distributed in the [Torqa texture assets](https://github.com/bossm8/Torqa/pull/58),
+whose credits identify these sources and the CC0 dedication.

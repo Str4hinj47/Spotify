@@ -11,7 +11,9 @@ import { easing } from 'maath';
 import { EffectComposer, RenderPass, EffectPass, BloomEffect, VignetteEffect } from 'postprocessing';
 import { Atmosphere } from './world/atmosphere';
 import { Precipitation } from './world/precipitation';
+import { createAsphaltMaterial, createSnowMaterial, createShoulderMaterial, createRoadMarkingMaterial } from './world/road-surface';
 import { biomeParams, dominantBiome } from './world/biomes.mjs';
+import { snowDriftHeight } from './world/road-snow.mjs';
 import { createWeatherState, stepWeather, weatherGrip, weatherLabel, type WeatherState } from './world/weather.mjs';
 import { createClock, stepClock, formatHour } from './world/clock.mjs';
 import { createRun, tickRun, registerPass, addSlipstream, finishRun, runSummary, contractProgress, medalFor, BOOST, RUN_MODES, type RunMode, type RunState, type RunEvent, type Medal } from './run.mjs';
@@ -173,7 +175,8 @@ export class OvertakeGame {
   private ground!: THREE.Mesh;
   private asphalt!: THREE.Mesh;
   private asphaltMat!: THREE.MeshStandardMaterial;
-  private roadSurface = { wet: { value: 0 }, snow: { value: 0 } };
+  private roadSurface = { wet: { value: 0 }, snow: { value: 0 }, rain: { value: 0 }, time: { value: 0 } };
+  private snowLayer!: THREE.Mesh;
   private shoulderMat!: THREE.MeshStandardMaterial;
   private groundMat!: THREE.MeshStandardMaterial;
   private mountainMat!: THREE.MeshStandardMaterial;
@@ -447,51 +450,76 @@ export class OvertakeGame {
     mesh.geometry.computeVertexNormals();
   }
 
+  // A raised snow mesh conforms to the curved road and accumulates in shallow
+  // drifts. Its fragment mask exposes asphalt in irregular wheel tracks.
+  private makeSnowLayer(aniso: number) {
+    const columns = 32;
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array((SEGMENTS + 1) * (columns + 1) * 3);
+    const uvs = new Float32Array((SEGMENTS + 1) * (columns + 1) * 2);
+    const indices: number[] = [];
+    for (let row = 0; row < SEGMENTS; row++) for (let col = 0; col < columns; col++) {
+      const a = row * (columns + 1) + col, b = a + 1, c = a + columns + 1, d = c + 1;
+      indices.push(a, b, c, b, d, c);
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+    geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2).setUsage(THREE.DynamicDrawUsage));
+    geo.setIndex(indices);
+    const width = ROAD_HALF * 2 + 1.4;
+    const mesh = new THREE.Mesh(geo, createSnowMaterial(width, aniso, this.roadSurface));
+    mesh.userData = { width, columns };
+    mesh.frustumCulled = false;
+    mesh.receiveShadow = true;
+    mesh.visible = false;
+    return mesh;
+  }
+
+  private updateSnowLayer() {
+    const mesh = this.snowLayer;
+    const cover = this.weather.snowCover;
+    mesh.visible = cover > 0.005;
+    if (!mesh.visible) return;
+    const { width, columns } = mesh.userData as { width: number; columns: number };
+    const pos = mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const uv = mesh.geometry.getAttribute('uv') as THREE.BufferAttribute;
+    const start = this.playerS - BACK;
+    for (let row = 0; row <= SEGMENTS; row++) {
+      const s = start + row * STEP;
+      const cx = centerX(s), cy = centerY(s);
+      const r = rightAt(s, this.tmpA);
+      for (let col = 0; col <= columns; col++) {
+        const u = col / columns, x = (u - 0.5) * width;
+        const height = snowDriftHeight(x, s, cover, ROAD_HALF);
+        const index = row * (columns + 1) + col;
+        pos.setXYZ(index, cx + r.x * x, cy + 0.025 + height, -s + r.z * x);
+        uv.setXY(index, u, s);
+      }
+    }
+    pos.needsUpdate = true;
+    uv.needsUpdate = true;
+    mesh.geometry.computeVertexNormals();
+  }
+
   private buildRoad() {
-    const asphaltMat = new THREE.MeshStandardMaterial({ color: 0x2b2d33, roughness: 0.94, metalness: 0.02 });
-    const shoulderMat = new THREE.MeshStandardMaterial({ color: 0x4a463e, roughness: 1 });
+    const aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+    const asphaltMat = createAsphaltMaterial(ROAD_HALF * 2, aniso, this.roadSurface);
+    const shoulderMat = createShoulderMaterial(ROAD_HALF * 2 + 3.2, aniso);
     this.asphaltMat = asphaltMat;
-    // Procedural road surface stays anchored to road distance as the ribbon moves.
-    asphaltMat.onBeforeCompile = (shader) => {
-      shader.uniforms.roadWet = this.roadSurface.wet;
-      shader.uniforms.roadSnow = this.roadSurface.snow;
-      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 roadUV;')
-        .replace('#include <uv_vertex>', '#include <uv_vertex>\nroadUV = uv;');
-      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
-        varying vec2 roadUV;
-        uniform float roadWet;
-        uniform float roadSnow;
-        float roadNoise(vec2 p) { return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
-      `).replace('#include <color_fragment>', `#include <color_fragment>
-        float grit = roadNoise(floor(vec2(roadUV.x * 250.0, roadUV.y * 4.0)));
-        float grain = mix(0.83, 1.12, grit);
-        float tracks = 0.0;
-        for (int i = 0; i < 4; i++) {
-          float x = 0.17 + float(i) * 0.22;
-          tracks = max(tracks, 1.0 - smoothstep(0.025, 0.045, abs(roadUV.x - x)));
-        }
-        float snowMask = roadSnow * mix(0.78, 1.0, grit) * (1.0 - tracks * 0.42);
-        float patch = roadNoise(floor(vec2(roadUV.x * 18.0, roadUV.y * 0.32)));
-        float sheen = smoothstep(0.54, 0.9, patch) * roadWet;
-        diffuseColor.rgb *= grain * (1.0 - roadWet * 0.22);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.12, 0.15, 0.18), sheen * 0.35);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.65, 0.72, 0.78), snowMask * 0.88);
-      `);
-    };
     this.shoulderMat = shoulderMat;
-    const lineMat = new THREE.MeshStandardMaterial({ color: 0xe9e9e2, roughness: 0.55 });
-    const yellowMat = new THREE.MeshStandardMaterial({ color: 0xf2c230, roughness: 0.5 });
+    const lineMat = createRoadMarkingMaterial(0xd7d9d1, this.roadSurface);
+    const yellowMat = createRoadMarkingMaterial(0xe4b632, this.roadSurface);
     const railMat = new THREE.MeshStandardMaterial({ color: 0x9aa1ab, metalness: 0.85, roughness: 0.3, side: THREE.DoubleSide });
 
     this.groundMat = new THREE.MeshStandardMaterial({ color: 0x33402f, roughness: 1 });
     this.terrain = this.ribbon(320, this.groundMat, -0.6);
     this.shoulder = this.ribbon(ROAD_HALF * 2 + 3.2, shoulderMat, -0.03);
     this.asphalt = this.ribbon(ROAD_HALF * 2, asphaltMat, 0);
+    this.snowLayer = this.makeSnowLayer(aniso);
     this.edgeL = this.ribbon(0.16, lineMat, 0.02);
     this.edgeR = this.ribbon(0.16, lineMat, 0.02);
     this.railL = this.ribbon(0.3, railMat, 0.55);
     this.railR = this.ribbon(0.3, railMat, 0.55);
-    this.roadGroup.add(this.terrain, this.shoulder, this.asphalt, this.edgeL, this.edgeR, this.railL, this.railR);
+    this.roadGroup.add(this.terrain, this.shoulder, this.asphalt, this.edgeL, this.edgeR, this.railL, this.railR, this.snowLayer);
 
     // Dashed centre line (passing zone between the two directions).
     const dashGeo = new THREE.BufferGeometry();
@@ -657,7 +685,7 @@ export class OvertakeGame {
     }
     const p = biomeParams(base);
     this.groundMat.color.set(p.ground).lerp(new THREE.Color(0xe8eef4), snow * 0.8);
-    this.shoulderMat.color.set(p.shoulder).lerp(new THREE.Color(0xdfe6ec), snow * 0.7);
+    this.shoulderMat.color.set(p.shoulder).lerp(new THREE.Color(0xa7a39a), 0.58).lerp(new THREE.Color(0xe0e8ed), snow * 0.65);
     this.mountainMat.color.set(p.mountain).lerp(new THREE.Color(0xe8eef4), snow * 0.5);
     for (const m of this.mountains.children) {
       m.scale.y = p.mountainScale;
@@ -876,6 +904,7 @@ export class OvertakeGame {
     this.updateRibbon(this.terrain, 0);
     this.updateRibbon(this.shoulder, 0);
     this.updateRibbon(this.asphalt, 0);
+    this.updateSnowLayer();
     this.updateRibbon(this.edgeL, 0, undefined, -(ROAD_HALF - 0.25));
     this.updateRibbon(this.edgeR, 0, undefined, ROAD_HALF - 0.25);
     this.updateRibbon(this.railL, 0, undefined, -(ROAD_HALF + 0.55));
@@ -1084,9 +1113,11 @@ export class OvertakeGame {
     const snow = this.weather.snowCover;
     this.roadSurface.wet.value = wet;
     this.roadSurface.snow.value = snow;
-    this.asphaltMat.roughness = Math.min(1, 0.94 - wet * 0.7 + snow * 0.12);
-    this.asphaltMat.metalness = 0.02 + wet * 0.25;
-    this.asphaltMat.color.set(0x2b2d33).lerp(new THREE.Color(0x1a1d22), wet * 0.5);
+    this.roadSurface.rain.value = this.weather.rain;
+    this.roadSurface.time.value = this.worldElapsed;
+    this.asphaltMat.roughness = 0.94 - wet * 0.37;
+    this.asphaltMat.metalness = 0.02 + wet * 0.04;
+    this.asphaltMat.color.set(0xb2b5ba);
     this.lampMat.emissiveIntensity = 0.25 + atm.night * 2.4 + atm.cloud * 0.8;
 
     // Player headlights follow the car and fade in at night / in precipitation.

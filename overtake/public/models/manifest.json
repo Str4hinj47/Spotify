@@ -26,8 +26,8 @@
   "audi": {
     "id": "audi",
     "file": "models/audi.glb",
-    "bytes": 713960,
-    "triangles": 149911,
+    "bytes": 652644,
+    "triangles": 149870,
     "dimensions": [
       2.114,
       4.99,
@@ -38,8 +38,8 @@
   "mustang": {
     "id": "mustang",
     "file": "models/mustang.glb",
-    "bytes": 530548,
-    "triangles": 149991,
+    "bytes": 518352,
+    "triangles": 149985,
     "dimensions": [
       1.88,
       4.78,
@@ -50,7 +50,7 @@
   "ferrari": {
     "id": "ferrari",
     "file": "models/ferrari.glb",
-    "bytes": 2289532,
+    "bytes": 2300240,
     "triangles": 145353,
     "dimensions": [
       2.5,
@@ -70,7 +70,7 @@
     "id": "challenger",
     "file": "models/challenger.glb",
     "source": "Challenger.obj",
-    "bytes": 1504724,
-    "triangles": 369284
+    "bytes": 1386016,
+    "triangles": 392037
   }
 }

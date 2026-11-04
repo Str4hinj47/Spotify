@@ -75,7 +75,7 @@ The original `.blend` files were converted to Draco-compressed glTF with
 preserved; materials were rebuilt as lightweight PBR for real-time rendering.
 Studio helpers, ground planes and light blockers were removed. Headlight and
 taillight lenses are preserved and emissive; the Ferrari's source-mesh yaw is
-corrected so it runs parallel to the road. Its detached studio artifact was removed and its front wheels straightened. The two OBJ assets use `tools/convert_obj.mjs` to rebuild materials, simplify and Draco-compress the geometry; `tools/fix_ferrari.mjs` documents the Ferrari correction.
+corrected so it runs parallel to the road. Its detached studio artifact was removed and its front wheels straightened. The two OBJ assets use `tools/convert_obj.mjs` to rebuild materials, selectively simplify and Draco-compress the geometry while retaining body panel detail; `tools/fix_ferrari.mjs` documents the Ferrari correction. `tools/repair_paint_normals.mjs` regenerates creased body normals on the Audi RS 6, Mustang and Ferrari without changing their geometry, to reduce triangular highlights.
 
 ### Paint customization
 
@@ -98,9 +98,7 @@ at 1×. The world panel lets you scrub time, change cycle speed, pause the cycle
 or force **Auto / Clear / Rain / Snow**.
 
 Weather (`src/world/weather.mjs`) damps in/out instead of switching instantly.
-Rain darkens the asphalt and adds a patchy reflective sheen, thickens fog, and adds camera-following
-rain streaks. Snow adds falling flakes, snow cover and tire tracks on the road as well as ground/shoulders/trees,
-and heavier fog. Both reduce tyre grip, acceleration and braking traction while the surface gradually accumulates and clears. The rain/snow particle approach is
+The road uses ambientCG asphalt and gravel colour/normal maps and weathered painted markings. Rain darkens it and creates irregular reflective puddles with animated raindrop ripples, thickens fog, and adds camera-following rain streaks. Snow adds falling flakes and a separately raised, textured layer with uneven snow banks and exposed tire tracks, as well as snow on the ground/shoulders/trees and heavier fog. Road textures and snow patterns stay anchored to road distance as you drive. Both reduce tyre grip, acceleration and braking traction while the surface gradually accumulates and clears. The rain/snow particle approach is
 adapted from [Elemental-Serenity](https://github.com/SahilK-027/Elemental-Serenity)
 (MIT).
 
@@ -139,5 +137,6 @@ gesture, as required by browsers.
 npm test                     # scoring / spawn / physics / biome / weather / clock
 node scripts/smoke.mjs       # headless browser playthrough (requires local server)
 node scripts/world-shots.mjs # day/night/rain/snow/biome screenshots
+node scripts/road-smoke.mjs  # surface/shader smoke test and weather screenshots
 node scripts/upgrade-smoke.mjs # Rush / contracts / nitro / records browser test
 ```

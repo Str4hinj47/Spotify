@@ -7,7 +7,7 @@ import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import draco3d from 'draco3dgltf';
-import { weld, simplify, dedup, draco } from '@gltf-transform/functions';
+import { weld, simplifyPrimitive, dedup, draco } from '@gltf-transform/functions';
 import { MeshoptSimplifier } from 'meshoptimizer';
 
 globalThis.FileReader = class { readAsArrayBuffer(blob) { blob.arrayBuffer().then(result => { this.result = result; this.onloadend?.(); }); } };
@@ -56,7 +56,23 @@ const bytes = await new GLTFExporter().parseAsync(model, {binary:true});
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'draco3d.encoder': await draco3d.createEncoderModule(), 'draco3d.decoder': await draco3d.createDecoderModule() });
 const doc = await io.readBinary(new Uint8Array(bytes));
 await MeshoptSimplifier.ready;
-await doc.transform(dedup(), weld({tolerance:0.0001}), simplify({simplifier:MeshoptSimplifier, ratio:0.28, error:0.0005}), draco());
+await doc.transform(dedup(), weld({tolerance:0.0001}));
+// Keep body panels close to their authored surfaces: aggressive decimation
+// produced large triangular dents and warped specular highlights. Detail such
+// as the wheel internals can be simplified much more aggressively instead.
+for (const node of doc.getRoot().listNodes()) {
+ const mesh = node.getMesh();
+ if (!mesh) continue;
+ for (const prim of mesh.listPrimitives()) {
+  const body = prim.getMaterial()?.getName().startsWith('paint__') ||
+   (id === 'challenger' && node.getName() === 'Plane_Plane.032'); // hood
+  const wheel = id === 'challenger' && node.getName().includes('Wheel_OBJ');
+  simplifyPrimitive(prim, {simplifier:MeshoptSimplifier,
+   ratio: body ? 1 : wheel ? 0.16 : 0.28,
+   error: body ? 0.00003 : wheel ? 0.01 : 0.0005});
+ }
+}
+await doc.transform(draco());
 const out = `public/models/${id}.glb`;
 await io.write(out,doc);
 console.log(id, 'source dimensions',size.toArray(), 'output bytes',fs.statSync(out).size);
