@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>OVERTAKE — Rush Update</title>
+    <meta name="description" content="Pick your car, hit the highway, complete contracts, and turn traffic into points." />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <!-- Loading -->
+    <div id="loading" class="overlay">
+      <div class="load-card">
+        <div class="logo big">OVER<span>TAKE</span></div>
+        <div class="load-sub">Preparing your garage</div>
+        <div class="bar"><div id="load-bar"></div></div>
+        <div id="load-label" class="load-label">Loading models…</div>
+      </div>
+    </div>
+
+    <!-- Top bar -->
+    <header id="topbar" class="hidden">
+      <div class="brand">
+        <div class="logo">OVER<span>TAKE</span></div>
+        <div class="tag">Rush update</div>
+      </div>
+      <div class="top-actions">
+        <div class="best-pill"><i data-lucide="trophy"></i><span id="best-top">0</span></div>
+        <button id="btn-sound" class="icon-btn" aria-label="Toggle sound">
+          <i data-lucide="volume-2" class="ic-on"></i>
+          <i data-lucide="volume-x" class="ic-off hidden"></i>
+        </button>
+        <button id="btn-help" class="icon-btn" aria-label="Help"><i data-lucide="help-circle"></i></button>
+        <button id="btn-world" class="icon-btn hidden" aria-label="World settings"><i data-lucide="sun-moon"></i></button>
+        <button id="btn-camera" class="icon-btn hidden" aria-label="Toggle camera"><i data-lucide="camera"></i></button>
+        <button id="btn-pause" class="icon-btn hidden" aria-label="Pause"><i data-lucide="pause"></i></button>
+      </div>
+    </header>
+
+    <!-- Garage -->
+    <section id="garage" class="hidden">
+      <aside class="car-list panel">
+        <div class="panel-title">Garage <span class="count">5 cars</span></div>
+        <div id="car-cards"></div>
+      </aside>
+      <aside class="car-detail panel">
+        <div class="maker" id="d-maker">Volkswagen</div>
+        <h1 id="d-name">Golf MK4 GTI</h1>
+        <div class="class-pill" id="d-class">Hot hatch</div>
+        <p id="d-tagline" class="tagline"></p>
+        <div class="stats">
+          <div class="stat"><span>Top speed</span><div class="dots" id="stat-speed"></div></div>
+          <div class="stat"><span>Handling</span><div class="dots" id="stat-handling"></div></div>
+          <div class="stat"><span>Score bonus</span><div class="dots" id="stat-bonus"></div></div>
+        </div>
+        <div class="mode-select" role="group" aria-label="Run mode">
+          <button class="mode-card active" data-mode="endless" type="button">
+            <span class="mode-name">Endless</span>
+            <span class="mode-desc">Survive and chain passes</span>
+            <span class="mode-best">Best <b id="mode-best-endless">0</b></span>
+          </button>
+          <button class="mode-card" data-mode="rush" type="button">
+            <span class="mode-name">Rush</span>
+            <span class="mode-desc">120-second score attack</span>
+            <span class="mode-best">Best <b id="mode-best-rush">0</b></span>
+          </button>
+        </div>
+        <div id="recent-runs" class="recent-runs hidden">
+          <div class="paint-head"><span>Recent runs</span><span id="recent-mode" class="count"></span></div>
+          <div id="recent-list"></div>
+        </div>
+        <div class="paint">
+          <div class="paint-head">
+            <span>Paint</span>
+            <button id="paint-reset" class="mini-btn" type="button">Factory</button>
+          </div>
+          <div id="paint-swatches" class="paint-swatches" role="group" aria-label="Paint colors"></div>
+          <label class="paint-custom">Custom <input id="paint-custom" type="color" value="#9fb0bf" aria-label="Custom paint color" /></label>
+        </div>
+        <button id="btn-start" class="primary">
+          <i data-lucide="play"></i> Start engine
+        </button>
+        <div class="hint">
+          <kbd>←</kbd><kbd>→</kbd> steer &nbsp; <kbd>↑</kbd> throttle &nbsp; <kbd>↓</kbd> brake &nbsp; <kbd>Space</kbd> handbrake &nbsp; <kbd>C</kbd> camera &nbsp; <kbd>P</kbd> pause
+        </div>
+      </aside>
+    </section>
+
+    <!-- Driving HUD -->
+    <section id="hud" class="hidden">
+      <div id="env-chip" class="env-chip">
+        <span class="env-item"><i data-lucide="clock"></i><span id="env-time">09:30</span></span>
+        <span class="env-sep"></span>
+        <span class="env-item"><i data-lucide="cloud-sun"></i><span id="env-weather">Clear</span></span>
+        <span class="env-sep"></span>
+        <span class="env-item"><i data-lucide="mountain"></i><span id="env-biome">Meadow</span></span>
+      </div>
+      <div id="run-clock" class="run-clock">
+        <span id="run-mode-label">Endless</span>
+        <b id="run-time">0:00</b>
+      </div>
+      <div id="contract-card" class="contract-card">
+        <div class="contract-top"><span id="contract-index">Contract 1/3</span><span id="contract-reward">+400</span></div>
+        <div id="contract-title" class="contract-title">Clean five</div>
+        <div id="contract-desc" class="contract-desc">Overtake 5 cars</div>
+        <div class="contract-bar"><div id="contract-fill"></div></div>
+        <div id="contract-count" class="contract-count">0 / 5</div>
+      </div>
+      <div id="boost-meter" class="boost-meter">
+        <div class="boost-head"><span>Nitro</span><span id="boost-state">Shift</span></div>
+        <div class="boost-track"><div id="boost-fill"></div></div>
+      </div>
+      <div class="hud-left">
+        <div class="hud-score">
+          <div class="hud-label">Score</div>
+          <div id="hud-score" class="hud-value">0</div>
+        </div>
+        <div id="hud-combo" class="combo hidden">×<span id="hud-mult">1</span> <small>combo <span id="hud-combo-n">0</span></small></div>
+      </div>
+      <div class="hud-right">
+        <div class="speedo">
+          <span id="hud-speed">0</span><small>km/h</small>
+        </div>
+        <div class="tach">
+          <span id="hud-rpm">0</span> rpm
+          <span class="gear">gear <b id="hud-gear">N</b></span>
+        </div>
+        <div class="boost-bar hidden"><div id="hud-boost"></div></div>
+        <div class="hud-meta">
+          <span><i data-lucide="route"></i> <span id="hud-dist">0.00</span> km</span>
+          <span><i data-lucide="zap"></i> <span id="hud-overtakes">0</span> passed</span>
+        </div>
+      </div>
+      <div id="world-panel" class="panel world-panel hidden">
+        <div class="panel-title">World <button id="world-close" class="mini-btn" aria-label="Close world settings">✕</button></div>
+        <div class="world-row">
+          <label for="world-time">Time</label>
+          <input id="world-time" type="range" min="0" max="24" step="0.05" />
+          <span id="world-time-val">09:30</span>
+        </div>
+        <div class="world-row">
+          <label for="world-speed">Cycle speed</label>
+          <input id="world-speed" type="range" min="0" max="8" step="0.25" />
+          <span id="world-speed-val">1×</span>
+        </div>
+        <label class="world-check"><input id="world-running" type="checkbox" checked /> Run day–night cycle</label>
+        <div class="world-weather" role="group" aria-label="Weather">
+          <button class="weather-btn" data-weather="auto">Auto</button>
+          <button class="weather-btn" data-weather="clear">Clear</button>
+          <button class="weather-btn" data-weather="rain">Rain</button>
+          <button class="weather-btn" data-weather="snow">Snow</button>
+        </div>
+        <div class="hint">Weather and biomes blend gradually. Rain/snow reduce grip.</div>
+      </div>
+      <div id="camera-panel" class="panel camera-panel hidden">
+        <div class="panel-title">Camera <button id="cam-close" class="mini-btn" aria-label="Close camera settings">✕</button></div>
+        <div class="cam-presets">
+          <button class="cam-preset" data-cam="close">Close</button>
+          <button class="cam-preset" data-cam="chase">Chase</button>
+          <button class="cam-preset" data-cam="far">Far</button>
+          <button class="cam-preset" data-cam="hood">Hood</button>
+          <button class="cam-preset" data-cam="bumper">Bumper</button>
+        </div>
+        <label class="cam-slider">Distance <input id="cam-distance" type="range" min="3.2" max="14" step="0.1" /><span id="cam-distance-val"></span></label>
+        <label class="cam-slider">Height <input id="cam-height" type="range" min="0.4" max="6" step="0.1" /><span id="cam-height-val"></span></label>
+        <label class="cam-slider">FOV <input id="cam-fov" type="range" min="45" max="95" step="1" /><span id="cam-fov-val"></span></label>
+        <label class="cam-slider">Look ahead <input id="cam-look" type="range" min="3" max="40" step="1" /><span id="cam-look-val"></span></label>
+        <div class="hint"><kbd>C</kbd> cycles presets · <kbd>V</kbd> toggles this panel</div>
+      </div>
+      <div id="events"></div>
+      <div id="oncoming-warn" class="oncoming-warn hidden">
+        <i data-lucide="alert-triangle"></i> <span id="hazard-label">ONCOMING</span> <span id="oncoming-dist">0</span>m
+      </div>
+      <div class="touch-controls">
+        <button id="t-left" class="touch" aria-label="Left lane"><i data-lucide="chevron-left"></i></button>
+        <button id="t-brake" class="touch small" aria-label="Brake"><i data-lucide="arrow-down"></i></button>
+        <button id="t-gas" class="touch small" aria-label="Accelerate"><i data-lucide="arrow-up"></i></button>
+        <button id="t-boost" class="touch small boost-touch" aria-label="Nitro boost"><i data-lucide="zap"></i></button>
+        <button id="t-right" class="touch" aria-label="Right lane"><i data-lucide="chevron-right"></i></button>
+      </div>
+    </section>
+
+    <!-- Pause -->
+    <div id="pause" class="overlay hidden">
+      <div class="modal">
+        <h2>Paused</h2>
+        <p>The highway will wait.</p>
+        <button id="btn-resume" class="primary"><i data-lucide="play"></i> Resume</button>
+        <button id="btn-quit" class="ghost"><i data-lucide="home"></i> Back to garage</button>
+      </div>
+    </div>
+
+    <!-- Game over -->
+    <div id="gameover" class="overlay hidden">
+      <div class="modal">
+        <div id="final-medal" class="final-medal hidden">Gold</div>
+        <div id="final-title" class="crash-title">Wrecked</div>
+        <div id="new-best" class="new-best hidden">New personal best</div>
+        <div class="final-score"><span id="final-score">0</span><small>points</small></div>
+        <div class="final-grid">
+          <div><b id="final-overtakes">0</b><span>overtakes</span></div>
+          <div><b id="final-near">0</b><span>near misses</span></div>
+          <div><b id="final-dist">0.0</b><span>km</span></div>
+          <div><b id="final-top">0</b><span>top km/h</span></div>
+          <div><b id="final-contracts">0/3</b><span>contracts</span></div>
+          <div><b id="final-best">0</b><span>best</span></div>
+        </div>
+        <button id="btn-retry" class="primary"><i data-lucide="rotate-ccw"></i> Drive again</button>
+        <button id="btn-garage" class="ghost"><i data-lucide="home"></i> Change car</button>
+      </div>
+    </div>
+
+    <!-- Help -->
+    <div id="help" class="overlay hidden">
+      <div class="modal wide">
+        <h2>How to play</h2>
+        <ul class="help-list">
+          <li><b>Drive it yourself:</b> hold <kbd>←</kbd>/<kbd>→</kbd> or <kbd>A</kbd>/<kbd>D</kbd> to steer, <kbd>↑</kbd>/<kbd>W</kbd> for throttle, <kbd>↓</kbd>/<kbd>S</kbd> to brake, <kbd>Space</kbd> for handbrake. The road bends and crests — follow it.</li>
+          <li><b>Two-way road:</b> your lane is the right one. The left lane carries oncoming traffic. Pull out to overtake, then get back in before you meet a car head-on.</li>
+          <li><b>Overtake</b> slower cars in your lane for points. Close passes earn a <b>near-miss bonus</b>; dodging oncoming traffic up close earns extra.</li>
+          <li>Chain clean passes to build a <b>combo multiplier</b>, up to ×5.</li>
+          <li><b>Modes:</b> Endless is classic survival. Rush is a 120-second score attack. Each mode keeps its own best and recent runs on this device.</li>
+          <li><b>Contracts:</b> every run has three sequential objectives. Completing one pays bonus points and nitro.</li>
+          <li><b>Nitro:</b> clean passes, near misses and slipstreaming charge the meter. Hold <kbd>Shift</kbd> (or the touch ⚡ button) with throttle to boost. It does not tilt the car or move the camera.</li>
+          <li><b>Traffic:</b> cars follow slower leaders and brake instead of stacking. The hazard warning shows the nearest closing threat.</li>
+          <li>Hit a car or the barrier and the run ends. In Rush, the clock can also end the run. Medals are awarded by score.</li>
+          <li>The four cars you didn't pick become traffic. Press <kbd>C</kbd> to cycle camera presets (close, chase, far, hood, bumper) or <kbd>V</kbd> for camera settings. In the garage, drag to orbit and scroll to zoom.</li>
+          <li><b>Paint:</b> in the garage, pick a swatch or a custom color for the selected car. Each car remembers its own paint, and traffic uses that color too. <b>Factory</b> resets it.</li>
+          <li><b>World:</b> the road crosses meadow, forest, alpine, desert and outskirts biomes with long cross-fades. A day–night cycle changes the sky, stars, headlights and street lamps. Use the world panel (or <kbd>B</kbd>) to set time, cycle speed, or force clear/rain/snow. Rain and snow reduce grip.</li>
+        </ul>
+        <div class="credits">
+          <b>Model credits</b>
+          <span>Golf MK4 — Jay-Artist (CC BY 3.0) · Ferrari 458 — RainerS (CC BY 3.0) · Mercedes, Audi, Mustang — user-provided Drive assets. Models optimized for real-time rendering.</span>
+          <span>Engine audio: <b>Engine_Sim</b> by YigitSalihEmecen (MIT), procedural Web Audio engine/gearbox/turbo synthesis.</span>
+          <span>World systems: <b>three.js</b> (MIT), <b>simplex-noise</b> (MIT), <b>maath</b> (MIT), <b>postprocessing</b> (Zlib), <b>Inter</b> (OFL). Rain/snow particle approach adapted from <b>Elemental-Serenity</b> by SahilK-027 (MIT).</span>
+        </div>
+        <button id="btn-close-help" class="primary">Got it</button>
+      </div>
+    </div>
+
+    <div id="flash"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

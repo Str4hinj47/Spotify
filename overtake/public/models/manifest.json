@@ -1,0 +1,62 @@
+{
+  "golf": {
+    "id": "golf",
+    "file": "models/golf.glb",
+    "bytes": 1119272,
+    "triangles": 149922,
+    "dimensions": [
+      1.828,
+      4.15,
+      1.674
+    ],
+    "source": "GolfMK4-Cycles-Jay-Hardy-2011.blend"
+  },
+  "mercedes": {
+    "id": "mercedes",
+    "file": "models/mercedes.glb",
+    "bytes": 1242820,
+    "triangles": 27696,
+    "dimensions": [
+      2.108,
+      5.25,
+      1.481
+    ],
+    "source": "MB.W222.AMG.blend"
+  },
+  "audi": {
+    "id": "audi",
+    "file": "models/audi.glb",
+    "bytes": 713960,
+    "triangles": 149911,
+    "dimensions": [
+      2.114,
+      4.99,
+      1.491
+    ],
+    "source": "Audi_RS_6_Avant_Not+Applied.blend"
+  },
+  "mustang": {
+    "id": "mustang",
+    "file": "models/mustang.glb",
+    "bytes": 530548,
+    "triangles": 149991,
+    "dimensions": [
+      1.88,
+      4.78,
+      1.335
+    ],
+    "source": "Mustang.blend"
+  },
+  "ferrari": {
+    "id": "ferrari",
+    "file": "models/ferrari.glb",
+    "bytes": 2299200,
+    "triangles": 145439,
+    "dimensions": [
+      2.5,
+      4.57,
+      1.117
+    ],
+    "source": "ferrari_studio.blend"
+  }
+}

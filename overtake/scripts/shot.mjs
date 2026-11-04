@@ -1,0 +1,15 @@
+import { chromium as pw } from '@playwright/test';
+import chromium from '@sparticuz/chromium';
+const args = chromium.args.filter(a=>a!=='--single-process').concat(['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox']);
+const browser = await pw.launch({executablePath:await chromium.executablePath(),args,headless:true,env:{...process.env,LD_LIBRARY_PATH:'/home/user/.local/lib/chromium-deps'}});
+const page = await browser.newPage({viewport:{width:1280,height:800}});
+page.on('console',m=>console.log('CON',m.type(),m.text()));
+page.on('pageerror',e=>console.log('ERR',String(e)));
+await page.goto('http://localhost:3000/',{waitUntil:'domcontentloaded'});
+await page.waitForSelector('#topbar:not(.hidden)',{timeout:120000});
+await page.addStyleTag({content:'*{backdrop-filter:none!important;filter:none!important;animation:none!important;transition:none!important}'});
+await page.waitForTimeout(2000);
+console.log('title',await page.title(),'cards',await page.locator('.car-card').count());
+await page.screenshot({path:'test-results/shot.png',timeout:90000});
+console.log('saved');
+await browser.close();

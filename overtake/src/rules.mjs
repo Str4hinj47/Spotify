@@ -1,0 +1,59 @@
+// Pure gameplay rules for the two-way, free-steering highway.
+export const ROAD_HALF = 4.2; // metres, half of the paved width
+export const LANE_OFFSET = 2.1; // lane centre offset from road centreline
+export const PLAYER_LANE = LANE_OFFSET; // right-hand lane, direction of travel
+export const ONCOMING_LANE = -LANE_OFFSET; // left-hand lane, opposing traffic
+export const BARRIER_OFFSET = ROAD_HALF + 0.55;
+export const MIN_SPEED = 0;
+
+/** Combo multiplier: +1 every 5 clean passes, capped at x5. */
+export function multiplierFor(combo) {
+  return Math.min(5, 1 + Math.floor(combo / 5));
+}
+
+/**
+ * @param {number} combo
+ * @param {'same'|'oncoming'} kind
+ * @param {boolean} near
+ * @param {number} carBonus
+ */
+export function passScore(combo, kind, near, carBonus = 1) {
+  const mult = multiplierFor(combo);
+  const base = kind === 'oncoming' ? 75 : 100;
+  const bonus = near ? 50 : 0;
+  return Math.round((base + bonus) * mult * carBonus);
+}
+
+/** Gentle drag so lifting off the throttle coasts instead of stopping instantly. */
+export function coastSpeed(speed, dt) {
+  return Math.max(0, speed - (1.6 + speed * 0.035) * dt);
+}
+
+/** Steering authority grows with speed but tapers near top speed. */
+export function steerRate(speed, maxSpeed, handling) {
+  const low = Math.min(1, speed / 9);
+  const high = 1 - 0.35 * Math.min(1, speed / maxSpeed);
+  return handling * low * high;
+}
+
+/** Same-direction traffic must leave a usable gap. */
+export function canSpawnSame(s, existing) {
+  return !existing.some((c) => Math.abs(c.s - s) < 32);
+}
+
+/** Denser opposing traffic, but never an unavoidable wall. */
+export function canSpawnOncoming(s, existing, sameDir) {
+  // ~1.3 s at a 60 m/s closing speed: enough to see and react, still busy.
+  if (existing.some((c) => Math.abs(c.s - s) < 78)) return false;
+  // Leave an overtaking window around slower same-direction cars.
+  if (sameDir.some((c) => Math.abs(c.s - (s - 220)) < 50)) return false;
+  return true;
+}
+
+export function sameSpawnInterval(speed) {
+  return Math.max(0.65, 1.5 - speed * 0.012);
+}
+
+export function oncomingSpawnInterval(speed) {
+  return Math.max(0.45, 1.05 - speed * 0.01);
+}
