@@ -25,6 +25,7 @@ npm test         # gameplay rule unit tests
 | `C` | Cycle camera presets |
 | `V` | Camera settings |
 | `B` | World settings (time / weather) |
+| `R` | Toggle rear-view mirror |
 | `P` / `Esc` | Pause |
 | `M` | Mute |
 | `Enter` | Start / retry |
@@ -45,6 +46,14 @@ Touch devices get on-screen steering, throttle and brake buttons.
 - **Smarter traffic:** same-direction cars follow slower leaders and brake
   instead of stacking; brake glows show deceleration. A time-to-collision hazard
   radar warns about the nearest closing threat.
+- **Driving feel:** wheels are split into pivots at load time, so the player car
+  has rolling wheels and speed-sensitive front-wheel steering. The body still
+  has no acceleration pitch.
+- **Rear-view mirror:** a live rear-facing inset (`R` or the mirror button) helps
+  you judge when to return to the right lane. It can be disabled and remembers
+  the setting.
+- **Pass coach:** an advisory pill estimates whether the current oncoming gap is
+  long enough to complete an overtake. It never steers or brakes for you.
 - Two lanes, **opposing directions**. Your lane is the right one; the left lane
   carries a dense stream of oncoming traffic. Pull out, overtake, and get back in.
 - The road is procedurally generated ahead of you with bends and crests.
@@ -102,10 +111,32 @@ and heavier fog. Both reduce tyre grip. The rain/snow particle approach is
 adapted from [Elemental-Serenity](https://github.com/SahilK-027/Elemental-Serenity)
 (MIT).
 
+## Lighting and car paint
+
+The old canvas-gradient environment map was replaced with a proper image-based
+lighting pipeline:
+
+- **Garage:** three.js's open-source
+  [`RoomEnvironment`](https://github.com/mrdoob/three.js/blob/dev/examples/jsm/environments/RoomEnvironment.js)
+  (MIT, based on Google model-viewer's studio scene) is prefiltered with
+  `PMREMGenerator` and paired with rectangular softbox lights. This gives the
+  clearcoat long, readable highlights instead of a flat grey sheen.
+- **Road:** a small HDR sky environment is generated from the live atmosphere
+  (sky colours, sun direction, weather and biome ground colour) and prefiltered
+  the same way, so reflections match the time of day and weather.
+- **Paint:** cars use a `MeshPhysicalMaterial` basecoat + clearcoat with moderate
+  metalness, smoother clearcoat roughness, tuned glass/chrome/rim response, and
+  head/tail lamps whose emissive strength follows night/weather instead of
+  glowing permanently.
+- **Tone mapping:** the HDR frame is tone-mapped with the Khronos PBR-neutral
+  curve through [postprocessing](https://github.com/pmndrs/postprocessing),
+  which preserves paint colour better than the previous ACES setup.
+
 Rendering uses [three.js](https://github.com/mrdoob/three.js),
 [maath](https://github.com/pmndrs/maath) for frame-rate-independent damping, and
-[postprocessing](https://github.com/pmndrs/postprocessing) for bloom/vignette.
-The cleaner UI uses [Inter](https://github.com/rsms/inter) and
+[postprocessing](https://github.com/pmndrs/postprocessing) for
+bloom/vignette/tone mapping. The cleaner UI uses
+[Inter](https://github.com/rsms/inter) and
 [Lucide](https://github.com/lucide-icons/lucide) icons. See
 `THIRD_PARTY_NOTICES.md`.
 
@@ -136,4 +167,6 @@ npm test                     # scoring / spawn / physics / biome / weather / clo
 node scripts/smoke.mjs       # headless browser playthrough (requires local server)
 node scripts/world-shots.mjs # day/night/rain/snow/biome screenshots
 node scripts/upgrade-smoke.mjs # Rush / contracts / nitro / records browser test
+node scripts/driving-upgrade-smoke.mjs # wheels / mirror / pass coach browser test
+node scripts/lighting-shots.mjs # garage / day / dusk / night / rain lighting shots
 ```

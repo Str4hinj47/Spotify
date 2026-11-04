@@ -4,18 +4,21 @@ import { CARS, getCar, TRAFFIC_COLORS, type CarId } from './catalog';
 import {
   ROAD_HALF, PLAYER_LANE, ONCOMING_LANE, BARRIER_OFFSET,
   multiplierFor, passScore,
-  canSpawnSame, canSpawnOncoming, sameSpawnInterval, oncomingSpawnInterval,
+  canSpawnSame, sameSpawnInterval, oncomingSpawnInterval,
+  createOncomingScheduler, planOncomingSpawn,
 } from './rules.mjs';
 import { createVehicleState, stepVehicle } from './physics.mjs';
 import { easing } from 'maath';
-import { EffectComposer, RenderPass, EffectPass, BloomEffect, VignetteEffect } from 'postprocessing';
+import { EffectComposer, RenderPass, EffectPass, BloomEffect, VignetteEffect, ToneMappingEffect, ToneMappingMode } from 'postprocessing';
 import { Atmosphere } from './world/atmosphere';
+import { createStudioEnvironment, RoadEnvironment, initRectAreaLights } from './world/lighting';
 import { Precipitation } from './world/precipitation';
 import { biomeParams, dominantBiome } from './world/biomes.mjs';
 import { createWeatherState, stepWeather, weatherGrip, weatherLabel, type WeatherState } from './world/weather.mjs';
 import { createClock, stepClock, formatHour } from './world/clock.mjs';
 import { createRun, tickRun, registerPass, addSlipstream, finishRun, runSummary, contractProgress, medalFor, BOOST, RUN_MODES, type RunMode, type RunState, type RunEvent, type Medal } from './run.mjs';
 import { createTrafficAI, findLeader, stepTraffic, hazardAhead, slipstreamGain, type Hazard } from './traffic-ai.mjs';
+import { assessOvertake, type CoachState } from './overtake-coach.mjs';
 import { emptyRecords, sanitizeRecords, recordRun, bestFor, type Records } from './records.mjs';
 
 export type Mode = 'garage' | 'driving' | 'paused' | 'gameover';
@@ -65,6 +68,8 @@ export interface HudState {
   boostReady: boolean;
   slipstream: boolean;
   hazard: Hazard | null;
+  coach: CoachState;
+  mirror: boolean;
 }
 
 export interface RunStats {
@@ -151,6 +156,9 @@ export class OvertakeGame {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
+  private rearCamera = new THREE.PerspectiveCamera(52, 3.6, 0.1, 900);
+  private mirrorEnabled = true;
+  private coach: CoachState = { state: 'clear', label: '', seconds: null };
   private clock = new THREE.Clock();
   private library: ModelLibrary;
   private cb: GameCallbacks;
@@ -158,8 +166,8 @@ export class OvertakeGame {
   private atmosphere!: Atmosphere;
   private precipitation!: Precipitation;
   private composer!: EffectComposer;
-  private roadEnv: THREE.Texture | null = null;
-  private studioEnv: THREE.Texture | null = null;
+  private roadEnv: RoadEnvironment | null = null;
+  private studioEnv: THREE.WebGLRenderTarget | null = null;
   private worldClock = createClock(9.5, 1, true);
   private weather: WeatherState = createWeatherState('auto');
   private worldElapsed = 0;
@@ -226,6 +234,7 @@ export class OvertakeGame {
   private traffic: Traffic[] = [];
   private sameTimer = 0.8;
   private oncomingTimer = 2.0;
+  private oncomingSchedule = createOncomingScheduler(900);
   private input = { throttle: false, brake: false, left: false, right: false, handbrake: false, boost: false };
 
   get distance() { return this.run.distance; }
@@ -248,14 +257,19 @@ export class OvertakeGame {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !testMode, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(testMode ? 1 : Math.min(window.devicePixelRatio, 1.75));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 0.95;
+    // HDR pipeline: scene renders linear into the composer, then a Khronos
+    // PBR-neutral tone mapper preserves paint colour instead of ACES's orange
+    // highlight shift. The rear-view mirror renders directly, so it applies the
+    // same tone map temporarily.
+    this.renderer.toneMapping = THREE.NoToneMapping;
+    this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.enabled = !testMode;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1200);
 
     this.loadRecords();
     this.best = bestFor(this.records, this.runMode);
+    try { this.mirrorEnabled = localStorage.getItem('overtake-mirror') !== '0'; } catch { /* ignore */ }
 
     this.buildEnvironments();
     this.atmosphere = new Atmosphere(this.scene);
@@ -266,11 +280,12 @@ export class OvertakeGame {
     this.buildContactShadow();
     this.buildHeadlights();
     this.scene.add(this.roadGroup, this.garageGroup, this.mountains);
-    this.composer = new EffectComposer(this.renderer);
+    this.composer = new EffectComposer(this.renderer, { frameBufferType: THREE.HalfFloatType });
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    const bloom = new BloomEffect({ intensity: 0.55, luminanceThreshold: 0.72, luminanceSmoothing: 0.25, mipmapBlur: true });
-    const vignette = new VignetteEffect({ offset: 0.42, darkness: 0.24 });
-    this.composer.addPass(new EffectPass(this.camera, bloom, vignette));
+    const bloom = new BloomEffect({ intensity: 0.35, luminanceThreshold: 0.9, luminanceSmoothing: 0.3, mipmapBlur: true });
+    const toneMap = new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL });
+    const vignette = new VignetteEffect({ offset: 0.42, darkness: 0.2 });
+    this.composer.addPass(new EffectPass(this.camera, bloom, toneMap, vignette));
     this.setEnvironment('garage');
 
     window.addEventListener('resize', () => this.resize());
@@ -314,6 +329,13 @@ export class OvertakeGame {
     this.setCameraPreset(CAMERA_ORDER[(i + 1) % CAMERA_ORDER.length]);
   }
 
+  getMirrorEnabled() { return this.mirrorEnabled; }
+  setMirrorEnabled(enabled: boolean) {
+    this.mirrorEnabled = enabled;
+    try { localStorage.setItem('overtake-mirror', enabled ? '1' : '0'); } catch { /* ignore */ }
+  }
+  toggleMirror() { this.setMirrorEnabled(!this.mirrorEnabled); return this.mirrorEnabled; }
+
   private bindGarageOrbit(canvas: HTMLCanvasElement) {
     let lastX = 0, lastY = 0;
     canvas.addEventListener('pointerdown', (e) => {
@@ -340,53 +362,10 @@ export class OvertakeGame {
   }
 
   // --- Environment / lighting -------------------------------------------------
-  private makeEnvTexture(kind: 'road' | 'studio'): THREE.Texture {
-    const c = document.createElement('canvas');
-    c.width = 1024; c.height = 512;
-    const ctx = c.getContext('2d')!;
-    if (kind === 'road') {
-      const g = ctx.createLinearGradient(0, 0, 0, 512);
-      g.addColorStop(0, '#1c3a66');
-      g.addColorStop(0.42, '#7fa4cf');
-      g.addColorStop(0.5, '#f2b070');
-      g.addColorStop(0.55, '#6b6257');
-      g.addColorStop(1, '#2c2c2c');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, 1024, 512);
-      const sun = ctx.createRadialGradient(700, 235, 4, 700, 235, 120);
-      sun.addColorStop(0, 'rgba(255,244,214,1)');
-      sun.addColorStop(0.2, 'rgba(255,214,150,0.8)');
-      sun.addColorStop(1, 'rgba(255,180,100,0)');
-      ctx.fillStyle = sun; ctx.fillRect(0, 0, 1024, 512);
-    } else {
-      ctx.fillStyle = '#0a0c11'; ctx.fillRect(0, 0, 1024, 512);
-      const strip = (y: number, h: number, a: number) => {
-        const g = ctx.createLinearGradient(0, y - h, 0, y + h);
-        g.addColorStop(0, 'rgba(255,255,255,0)');
-        g.addColorStop(0.5, `rgba(235,242,255,${a})`);
-        g.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = g; ctx.fillRect(0, y - h, 1024, h * 2);
-      };
-      strip(120, 46, 0.95);
-      strip(210, 22, 0.55);
-      strip(330, 60, 0.25);
-      const side = ctx.createLinearGradient(0, 0, 1024, 0);
-      side.addColorStop(0, 'rgba(80,140,255,0.18)');
-      side.addColorStop(0.5, 'rgba(0,0,0,0)');
-      side.addColorStop(1, 'rgba(255,170,90,0.16)');
-      ctx.fillStyle = side; ctx.fillRect(0, 0, 1024, 512);
-    }
-    const tex = new THREE.CanvasTexture(c);
-    tex.mapping = THREE.EquirectangularReflectionMapping;
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    const env = pmrem.fromEquirectangular(tex).texture;
-    tex.dispose(); pmrem.dispose();
-    return env;
-  }
-
   private buildEnvironments() {
-    this.roadEnv = this.makeEnvTexture('road');
-    this.studioEnv = this.makeEnvTexture('studio');
+    initRectAreaLights();
+    this.studioEnv = createStudioEnvironment(this.renderer);
+    this.roadEnv = new RoadEnvironment(this.renderer);
   }
 
   private buildHeadlights() {
@@ -632,27 +611,33 @@ export class OvertakeGame {
   }
 
   private buildGarage() {
-    const floor = new THREE.Mesh(new THREE.CircleGeometry(40, 64), new THREE.MeshStandardMaterial({ color: 0x0c0e13, metalness: 0.6, roughness: 0.28 }));
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(40, 64), new THREE.MeshStandardMaterial({ color: 0x0a0c10, metalness: 0.0, roughness: 0.6 }));
     floor.rotation.x = -Math.PI / 2; floor.position.y = -0.1; floor.receiveShadow = true;
     this.garageGroup.add(floor);
-    const platform = new THREE.Mesh(new THREE.CylinderGeometry(4.8, 5.0, 0.18, 64), new THREE.MeshStandardMaterial({ color: 0x171a21, metalness: 0.5, roughness: 0.3 }));
+    const platform = new THREE.Mesh(new THREE.CylinderGeometry(4.8, 5.0, 0.18, 64), new THREE.MeshStandardMaterial({ color: 0x12151c, metalness: 0.1, roughness: 0.45 }));
     platform.position.y = -0.09; platform.receiveShadow = true;
     this.garageGroup.add(platform);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(4.9, 0.03, 8, 96), new THREE.MeshStandardMaterial({ color: 0x37e0ff, emissive: 0x37e0ff, emissiveIntensity: 2 }));
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(4.9, 0.03, 8, 96), new THREE.MeshStandardMaterial({ color: 0x37e0ff, emissive: 0x37e0ff, emissiveIntensity: 1.2 }));
     ring.rotation.x = Math.PI / 2; ring.position.y = 0.02;
     this.garageGroup.add(ring);
 
-    // Soft studio key + rim lights for readable paint highlights.
-    const key = new THREE.SpotLight(0xffffff, 55, 35, Math.PI / 4, 0.6, 1.6);
-    key.position.set(6, 9, 5); key.target.position.set(0, 0.5, 0);
+    // Softbox-style area lights give clearcoat a long, readable highlight.
+    // A single shadow-casting key keeps the car grounded without hard spot rings.
+    const key = new THREE.DirectionalLight(0xffffff, 0.9);
+    key.position.set(5, 8, 4); key.target.position.set(0, 0.5, 0);
     key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
+    key.shadow.camera.left = -8; key.shadow.camera.right = 8;
+    key.shadow.camera.top = 8; key.shadow.camera.bottom = -8;
+    key.shadow.bias = -0.0004;
     this.garageGroup.add(key, key.target);
-    const rim = new THREE.SpotLight(0x88bbff, 35, 35, Math.PI / 4, 0.7, 1.6);
-    rim.position.set(-7, 6, -6); rim.target.position.set(0, 0.5, 0);
-    this.garageGroup.add(rim, rim.target);
-    const warm = new THREE.SpotLight(0xffb070, 20, 30, Math.PI / 5, 0.8, 1.6);
-    warm.position.set(0, 5, -8); warm.target.position.set(0, 0.5, 0);
-    this.garageGroup.add(warm, warm.target);
+    const softbox = (color: number, intensity: number, w: number, h: number, x: number, y: number, z: number) => {
+      const l = new THREE.RectAreaLight(color, intensity, w, h);
+      l.position.set(x, y, z); l.lookAt(0, 0.6, 0);
+      this.garageGroup.add(l);
+    };
+    softbox(0xffffff, 2.2, 6, 3, 5, 6, 4);
+    softbox(0xdfe8ff, 1.4, 5, 3, -6, 4, -2);
+    softbox(0xfff0dd, 1.6, 5, 2, 0, 5, -7);
   }
 
   private buildContactShadow() {
@@ -669,14 +654,18 @@ export class OvertakeGame {
 
   private setEnvironment(mode: 'garage' | 'road') {
     if (mode === 'garage') {
-      this.scene.environment = this.studioEnv;
+      this.scene.environment = this.studioEnv?.texture ?? null;
+      this.library.setLamps(0.02, 0.08);
       this.atmosphere.setGarage();
       this.roadGroup.visible = false; this.garageGroup.visible = true; this.mountains.visible = false;
-      this.contactShadow.visible = false;
+      this.contactShadow.visible = true;
+      this.contactShadow.position.set(0, 0.02, 0);
+      this.contactShadow.rotation.z = 0;
+      this.contactShadow.scale.set(this.playerMeta.width * 1.7, this.playerMeta.length * 1.5, 1);
       this.precipitation.setVisible(false);
       for (const h of this.headlights) h.intensity = 0;
     } else {
-      this.scene.environment = this.roadEnv;
+      this.scene.environment = this.roadEnv?.texture ?? null;
       this.roadGroup.visible = true; this.garageGroup.visible = false; this.mountains.visible = true;
       this.contactShadow.visible = true;
       this.precipitation.setVisible(true);
@@ -725,6 +714,7 @@ export class OvertakeGame {
     // oncoming cars, spaced so there is always a visible overtaking window.
     this.spawnSame(55, 16); this.spawnSame(120, 19); this.spawnSame(195, 15); this.spawnSame(280, 21);
     this.spawnOncoming(650, 26); this.spawnOncoming(880, 29); this.spawnOncoming(1120, 27); this.spawnOncoming(1360, 28);
+    this.oncomingSchedule = createOncomingScheduler(1600);
     this.updateRoad();
     this.setMode('driving');
     this.emitHud();
@@ -830,11 +820,10 @@ export class OvertakeGame {
       this.sameTimer = sameSpawnInterval(this.speed) * (0.8 + Math.random() * 0.5);
     }
     if (this.oncomingTimer <= 0 && oncoming.length < 16 && this.speed > 5) {
-      for (let a = 0; a < 12; a++) {
-        const s = this.playerS + 280 + Math.random() * 260;
-        if (canSpawnOncoming(s, oncoming, same)) { this.spawnOncoming(s, 24 + Math.random() * 10); break; }
-      }
-      this.oncomingTimer = oncomingSpawnInterval(this.speed) * (0.75 + Math.random() * 0.5);
+      const s = planOncomingSpawn(this.oncomingSchedule, this.playerS, oncoming);
+      if (s !== null) this.spawnOncoming(s, 24 + Math.random() * 10);
+      const breather = this.oncomingSchedule.lastBreather ? 2.6 : 1;
+      this.oncomingTimer = oncomingSpawnInterval(this.speed) * (0.75 + Math.random() * 0.5) * breather;
     }
   }
 
@@ -886,6 +875,8 @@ export class OvertakeGame {
       boostReady: this.run.boostCharge >= BOOST.min && this.speed > 9,
       slipstream: this.slipstream > 0.05,
       hazard: this.hazard,
+      coach: this.coach,
+      mirror: this.mirrorEnabled,
     });
   }
 
@@ -951,6 +942,10 @@ export class OvertakeGame {
       flame.visible = flameOn;
       if (flameOn) flame.scale.setScalar(0.8 + Math.random() * 0.5);
     }
+    if (this.player) {
+      const steerAngle = this.steer * spec.physics.maxSteer / (1 + Math.pow(this.speed / 20, 2));
+      this.library.animateWheels(this.player, this.speed, steerAngle, dt);
+    }
 
     this.trySpawn(dt);
 
@@ -967,6 +962,7 @@ export class OvertakeGame {
       const px = centerX(t.s) + r.x * t.offset, pz = -t.s + r.z * t.offset;
       t.group.position.set(px, centerY(t.s), pz);
       t.group.rotation.y = roadYaw(t.s) + (t.dir === -1 ? Math.PI : 0);
+      this.library.animateWheels(t.group, t.speed, 0, dt);
       if (t.brakeGlow) (t.brakeGlow.material as THREE.SpriteMaterial).opacity = t.braking ? 0.9 : 0;
 
       const ds = t.s - this.playerS;
@@ -1000,6 +996,7 @@ export class OvertakeGame {
     this.slipstream = slipstreamGain({ s: this.playerS, offset: this.offset, speed: this.speed }, this.traffic);
     if (this.slipstream > 0) addSlipstream(this.run, dt * this.slipstream);
     this.hazard = hazardAhead({ s: this.playerS, offset: this.offset, speed: this.speed, width: this.playerMeta.width, length: this.playerMeta.length }, this.traffic);
+    this.coach = assessOvertake({ s: this.playerS, offset: this.offset, speed: this.speed, length: this.playerMeta.length }, this.traffic);
 
     const events = tickRun(this.run, dt, this.speed, this.input);
     this.handleRunEvents(events);
@@ -1043,6 +1040,8 @@ export class OvertakeGame {
     stepWeather(this.weather, dt, biome.temperature);
     const atm = this.atmosphere.update(this.worldClock.hour, this.weather, biome, this.camera.position, dt);
     this.nightFactor = atm.night;
+    this.roadEnv?.update(this.worldClock.hour, this.atmosphere, this.weather, biome.ground, dt);
+    if (this.roadEnv) this.scene.environment = this.roadEnv.texture;
     this.precipitation.update(dt, this.camera.position, this.speed, this.weather, this.worldElapsed);
 
     // Wet asphalt / snow cover.
@@ -1055,11 +1054,12 @@ export class OvertakeGame {
 
     // Player headlights follow the car and fade in at night / in precipitation.
     const beam = Math.max(atm.night, atm.cloud * 0.65);
+    this.library.setLamps(0.12 + beam * 1.0, 0.35 + beam * 0.7);
     const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
     const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
     this.headlights.forEach((h, i) => {
       const side = h.userData.side as number;
-      h.intensity = beam * 85;
+      h.intensity = beam * 60;
       h.position.set(this.pos.x + fx * 2.1 + rx * side, this.pos.y + 0.62, this.pos.z + fz * 2.1 + rz * side);
       this.headlightTargets[i].position.set(this.pos.x + fx * 24 + rx * side * 1.5, this.pos.y + 0.2, this.pos.z + fz * 24 + rz * side * 1.5);
     });
@@ -1075,6 +1075,7 @@ export class OvertakeGame {
       this.camera.lookAt(0, 0.65, 0);
       this.camera.fov = 42; this.camera.updateProjectionMatrix();
       this.atmosphere.sky.position.copy(this.camera.position);
+      this.contactShadow.scale.set(this.playerMeta.width * 1.7, this.playerMeta.length * 1.5, 1);
       return;
     }
     // Fixed camera: rigidly attached to the car. No speed-based FOV, no lag,
@@ -1103,7 +1104,46 @@ export class OvertakeGame {
       this.updateCamera(dt);
     }
     this.composer.render();
+    this.renderRearView();
   };
+
+  private renderRearView() {
+    if (!this.mirrorEnabled || (this.mode !== 'driving' && this.mode !== 'paused')) return;
+    const el = document.getElementById('mirror-frame');
+    if (!el || el.classList.contains('hidden')) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 20 || rect.height < 12) return;
+    const cam = this.rearCamera;
+    cam.aspect = rect.width / rect.height;
+    cam.updateProjectionMatrix();
+    const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
+    cam.position.set(this.pos.x + fx * 0.35, this.pos.y + 1.18, this.pos.z + fz * 0.35);
+    cam.lookAt(this.pos.x - fx * 70, this.pos.y + 0.55, this.pos.z - fz * 70);
+
+    const playerVisible = this.player?.visible ?? false;
+    const shadowVisible = this.contactShadow.visible;
+    if (this.player) this.player.visible = false;
+    this.contactShadow.visible = false;
+    const renderer = this.renderer;
+    const prevAutoClear = renderer.autoClear;
+    const prevScissor = renderer.getScissorTest();
+    const w = window.innerWidth, h = window.innerHeight;
+    renderer.setRenderTarget(null);
+    renderer.autoClear = false;
+    renderer.setScissorTest(true);
+    renderer.setScissor(rect.left, h - rect.bottom, rect.width, rect.height);
+    renderer.setViewport(rect.left, h - rect.bottom, rect.width, rect.height);
+    renderer.clearDepth();
+    const prevTone = renderer.toneMapping;
+    renderer.toneMapping = THREE.NeutralToneMapping;
+    renderer.render(this.scene, cam);
+    renderer.toneMapping = prevTone;
+    renderer.setViewport(0, 0, w, h);
+    renderer.setScissorTest(prevScissor);
+    renderer.autoClear = prevAutoClear;
+    if (this.player) this.player.visible = playerVisible;
+    this.contactShadow.visible = shadowVisible;
+  }
 
   private resize() {
     const w = window.innerWidth, h = window.innerHeight;
@@ -1135,5 +1175,10 @@ export class OvertakeGame {
   setCycleRunning(running: boolean) { this.worldClock.running = running; }
 
   getBest() { return this.best; }
-  dispose() { cancelAnimationFrame(this.raf); this.renderer.dispose(); }
+  dispose() {
+    cancelAnimationFrame(this.raf);
+    this.roadEnv?.dispose();
+    this.studioEnv?.dispose();
+    this.renderer.dispose();
+  }
 }

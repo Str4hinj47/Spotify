@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   multiplierFor, passScore, coastSpeed, steerRate,
   canSpawnSame, canSpawnOncoming, sameSpawnInterval, oncomingSpawnInterval,
+  createOncomingScheduler, planOncomingSpawn, ONCOMING_MIN_GAP,
   ROAD_HALF, PLAYER_LANE, ONCOMING_LANE, BARRIER_OFFSET,
 } from '../src/rules.mjs';
 
@@ -41,9 +42,9 @@ test('same-direction traffic keeps a passable gap', () => {
 });
 
 test('oncoming traffic is spaced and not paired into an unavoidable wall', () => {
-  assert.equal(canSpawnOncoming(500, [], []), true);
-  assert.equal(canSpawnOncoming(500, [{ s: 550 }], []), false);
-  assert.equal(canSpawnOncoming(500, [], [{ s: 240 }]), false);
+  assert.equal(canSpawnOncoming(500, []), true);
+  assert.equal(canSpawnOncoming(500, [{ s: 550 }]), false);
+  assert.equal(canSpawnOncoming(500, [{ s: 500 + ONCOMING_MIN_GAP }]), true);
 });
 
 test('spawn intervals tighten with speed but keep a floor', () => {
@@ -54,10 +55,32 @@ test('spawn intervals tighten with speed but keep a floor', () => {
 });
 
 test('oncoming traffic is denser but leaves overtaking windows', () => {
-  assert.equal(canSpawnOncoming(500, [{ s: 580 }], []), true);
-  assert.equal(canSpawnOncoming(500, [{ s: 560 }], []), false);
-  assert.equal(canSpawnOncoming(500, [], [{ s: 250 }]), false);
-  assert.equal(canSpawnOncoming(500, [], [{ s: 100 }]), true);
+  assert.equal(canSpawnOncoming(500, [{ s: 620 }]), true);
+  assert.equal(canSpawnOncoming(500, [{ s: 560 }]), false);
+  const state = createOncomingScheduler();
+  const cars = [];
+  for (let i = 0; i < 4; i++) {
+    const s = planOncomingSpawn(state, 0, cars, () => 0.5);
+    assert.ok(s !== null);
+    cars.push({ s });
+  }
+  cars.sort((a, b) => a.s - b.s);
+  const gaps = cars.slice(1).map((c, i) => c.s - cars[i].s);
+  // Every spawned car keeps a reactable gap; after a short platoon the
+  // scheduler marks a breather window for overtaking.
+  assert.ok(gaps.every((g) => g >= ONCOMING_MIN_GAP));
+  assert.equal(cars.length, 4);
+  assert.equal(state.lastBreather, true);
+});
+
+test('oncoming scheduler keeps a steady stream past same-direction traffic', () => {
+  const state = createOncomingScheduler();
+  const sameDir = [{ s: 1120 }, { s: 1180 }, { s: 1240 }];
+  const s = planOncomingSpawn(state, 800, [], () => 0.25);
+  assert.ok(s !== null && s >= 1140);
+  // Same-direction cars no longer veto the spawn.
+  assert.ok(sameDir.length === 3);
+  assert.ok(state.platoon >= 1);
 });
 
 test('road layout has two opposing lanes and a barrier', () => {

@@ -1,5 +1,5 @@
 import '@fontsource-variable/inter';
-import { createIcons, Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge } from 'lucide';
+import { createIcons, Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, RectangleHorizontal } from 'lucide';
 import { ModelLibrary } from './models';
 import { OvertakeGame, CAMERA_ORDER, type Mode, type HudState, type RunStats, type CameraPreset } from './game';
 import { RUN_MODES, type RunMode } from './run.mjs';
@@ -8,7 +8,7 @@ import { CARS, getCar, PAINT_COLORS, type CarId } from './catalog';
 import { GameAudio } from './audio';
 import { hexToNumber, sanitizePaints } from './paint.mjs';
 
-createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge } });
+createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, RectangleHorizontal } });
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
@@ -107,7 +107,9 @@ function setMode(m: Mode) {
   $('gameover').classList.toggle('hidden', m !== 'gameover');
   $('btn-pause').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
   $('btn-camera').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
+  $('btn-mirror').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
   $('btn-world').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
+  syncMirrorUI();
   if (m !== 'driving' && m !== 'paused') {
     $('camera-panel').classList.add('hidden');
     $('world-panel').classList.add('hidden');
@@ -129,6 +131,21 @@ function syncCameraUI() {
   set('cam-fov', s.fov, `${Math.round(s.fov)}°`);
   set('cam-look', s.lookAhead, `${Math.round(s.lookAhead)}m`);
   audio.setPerspective(s.preset === 'hood' || s.preset === 'bumper' ? 'cabin' : 'exterior');
+}
+
+function syncMirrorUI() {
+  if (!game) return;
+  const enabled = game.getMirrorEnabled();
+  const active = (game.mode === 'driving' || game.mode === 'paused') && enabled;
+  $('btn-mirror').classList.toggle('active', enabled);
+  $('btn-mirror').setAttribute('aria-pressed', String(enabled));
+  $('mirror-frame').classList.toggle('hidden', !active);
+}
+
+function toggleMirror() {
+  game.toggleMirror();
+  syncMirrorUI();
+  audio.click();
 }
 
 function toggleCameraPanel() {
@@ -247,6 +264,15 @@ function onHud(h: HudState) {
   $('boost-meter').classList.toggle('ready', h.boostReady && !h.boostActive);
   $('boost-meter').classList.toggle('slipstream', h.slipstream);
   $('boost-state').textContent = h.boostActive ? 'Boosting' : h.slipstream ? 'Slipstream' : h.boostReady ? 'Shift' : 'Charge';
+  const coach = $('pass-coach');
+  if (h.coach.state === 'clear') {
+    coach.classList.add('hidden');
+  } else {
+    coach.classList.remove('hidden');
+    coach.className = `pass-coach ${h.coach.state}`;
+    $('coach-label').textContent = h.coach.label;
+    $('coach-seconds').textContent = h.coach.seconds !== null ? `${h.coach.seconds.toFixed(1)}s` : '';
+  }
   $('hud').classList.toggle('offroad', h.offroad);
   $('env-time').textContent = h.time;
   $('env-weather').textContent = h.weather;
@@ -347,6 +373,7 @@ function bindUI() {
   });
   $('btn-pause').addEventListener('click', togglePause);
   $('btn-camera').addEventListener('click', toggleCameraPanel);
+  $('btn-mirror').addEventListener('click', toggleMirror);
   $('btn-world').addEventListener('click', toggleWorldPanel);
   $('world-close').addEventListener('click', () => $('world-panel').classList.add('hidden'));
   $('world-time').addEventListener('input', (e) => {
@@ -435,6 +462,7 @@ function bindUI() {
       case 'm': case 'M': toggleMute(); break;
       case 'c': case 'C': game.cycleCamera(); syncCameraUI(); break;
       case 'v': case 'V': toggleCameraPanel(); break;
+      case 'r': case 'R': toggleMirror(); break;
       case 'b': case 'B': toggleWorldPanel(); break;
       case 'Enter':
         if (game.mode === 'garage' || game.mode === 'gameover') startRun();

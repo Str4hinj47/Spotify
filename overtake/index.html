@@ -35,6 +35,7 @@
         <button id="btn-help" class="icon-btn" aria-label="Help"><i data-lucide="help-circle"></i></button>
         <button id="btn-world" class="icon-btn hidden" aria-label="World settings"><i data-lucide="sun-moon"></i></button>
         <button id="btn-camera" class="icon-btn hidden" aria-label="Toggle camera"><i data-lucide="camera"></i></button>
+        <button id="btn-mirror" class="icon-btn hidden" aria-label="Toggle rear-view mirror" aria-pressed="true"><i data-lucide="rectangle-horizontal"></i></button>
         <button id="btn-pause" class="icon-btn hidden" aria-label="Pause"><i data-lucide="pause"></i></button>
       </div>
     </header>
@@ -100,6 +101,12 @@
       <div id="run-clock" class="run-clock">
         <span id="run-mode-label">Endless</span>
         <b id="run-time">0:00</b>
+      </div>
+      <div id="mirror-frame" class="mirror-frame hidden" aria-hidden="true">
+        <span class="mirror-tag">Rear</span><kbd>R</kbd>
+      </div>
+      <div id="pass-coach" class="pass-coach hidden">
+        <span id="coach-label">Pass window</span><b id="coach-seconds"></b>
       </div>
       <div id="contract-card" class="contract-card">
         <div class="contract-top"><span id="contract-index">Contract 1/3</span><span id="contract-reward">+400</span></div>
@@ -225,6 +232,8 @@
           <li><b>Contracts:</b> every run has three sequential objectives. Completing one pays bonus points and nitro.</li>
           <li><b>Nitro:</b> clean passes, near misses and slipstreaming charge the meter. Hold <kbd>Shift</kbd> (or the touch ⚡ button) with throttle to boost. It does not tilt the car or move the camera.</li>
           <li><b>Traffic:</b> cars follow slower leaders and brake instead of stacking. The hazard warning shows the nearest closing threat.</li>
+          <li><b>Rear-view mirror:</b> press <kbd>R</kbd> or the mirror button to see behind you before returning to the right lane.</li>
+          <li><b>Pass coach:</b> an advisory pill estimates whether there is room to overtake. It never steers or brakes for you.</li>
           <li>Hit a car or the barrier and the run ends. In Rush, the clock can also end the run. Medals are awarded by score.</li>
           <li>The four cars you didn't pick become traffic. Press <kbd>C</kbd> to cycle camera presets (close, chase, far, hood, bumper) or <kbd>V</kbd> for camera settings. In the garage, drag to orbit and scroll to zoom.</li>
           <li><b>Paint:</b> in the garage, pick a swatch or a custom color for the selected car. Each car remembers its own paint, and traffic uses that color too. <b>Factory</b> resets it.</li>

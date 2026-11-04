@@ -7,5 +7,16 @@ export default defineConfig({
     allowedHosts: true,
   },
   preview: { host: '0.0.0.0', port: 3000, allowedHosts: true },
-  build: { target: 'es2022', chunkSizeWarningLimit: 900 },
+  build: {
+    target: 'es2022',
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/three')) return 'three';
+          if (id.includes('node_modules/postprocessing')) return 'postprocessing';
+        },
+      },
+    },
+  },
 });

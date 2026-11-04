@@ -41,13 +41,44 @@ export function canSpawnSame(s, existing) {
   return !existing.some((c) => Math.abs(c.s - s) < 32);
 }
 
+/** Minimum longitudinal gap between opposing cars. */
+export const ONCOMING_MIN_GAP = 100;
+
 /** Denser opposing traffic, but never an unavoidable wall. */
-export function canSpawnOncoming(s, existing, sameDir) {
-  // ~1.3 s at a 60 m/s closing speed: enough to see and react, still busy.
-  if (existing.some((c) => Math.abs(c.s - s) < 78)) return false;
-  // Leave an overtaking window around slower same-direction cars.
-  if (sameDir.some((c) => Math.abs(c.s - (s - 220)) < 50)) return false;
-  return true;
+export function canSpawnOncoming(s, existing) {
+  // ~1.6 s at a 60 m/s closing speed: enough to see and react, still busy.
+  return !existing.some((c) => Math.abs(c.s - s) < ONCOMING_MIN_GAP);
+}
+
+/**
+ * Scheduled oncoming flow. The old spawner vetoed a candidate whenever a
+ * same-direction car was anywhere near a fixed 220 m offset; at speed that
+ * could suppress *all* oncoming spawns for kilometres. This cursor instead
+ * guarantees a steady stream, with short platoons separated by a breather gap
+ * long enough to complete an overtake.
+ */
+export function createOncomingScheduler(_nextS = 0) {
+  return { platoon: 0, lastBreather: false };
+}
+
+export function planOncomingSpawn(state, playerS, existing, random = Math.random) {
+  const lo = playerS + 340;
+  const hi = playerS + 620;
+  let s = null;
+  for (let i = 0; i < 16; i++) {
+    const candidate = lo + random() * (hi - lo);
+    if (canSpawnOncoming(candidate, existing)) { s = candidate; break; }
+  }
+  if (s === null) {
+    let far = lo;
+    for (const c of existing) far = Math.max(far, c.s + ONCOMING_MIN_GAP);
+    if (far <= playerS + 900 && canSpawnOncoming(far, existing)) s = far;
+  }
+  if (s === null) return null;
+  const breather = state.platoon >= 3;
+  state.platoon = breather ? 0 : state.platoon + 1;
+  state.lastBreather = breather;
+  return s;
 }
 
 export function sameSpawnInterval(speed) {

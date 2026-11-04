@@ -98,12 +98,12 @@ export class Atmosphere {
     horizon.lerp(new THREE.Color(0xff9a5a), dusk * 0.65 * (1 - cloud));
     const cloudHorizon = new THREE.Color(0x0a1018).lerp(new THREE.Color(0x8f9aa3), day);
     horizon.lerp(cloudHorizon, cloud * 0.75);
-    horizon.lerp(new THREE.Color(biome.fog), 0.18);
+    horizon.lerp(new THREE.Color(biome.fog), 0.18 * day);
     easing.dampC(this.skyMat.uniforms.horizonColor.value, horizon, 0.25, dt);
     this.skyMat.uniforms.sunColor.value.set(0xfff2d0).lerp(new THREE.Color(0xff8a3c), dusk);
 
     // Lights.
-    this.sun.intensity = 2.3 * day * (1 - cloud * 0.65);
+    this.sun.intensity = 1.9 * day * (1 - cloud * 0.65);
     this.sun.color.set(0xfff2d8).lerp(new THREE.Color(0xff9a5a), dusk);
     this.sun.position.copy(cameraPos).addScaledVector(sunDir, 120);
     this.sun.target.position.copy(cameraPos);
@@ -113,12 +113,13 @@ export class Atmosphere {
     this.moonLight.position.copy(cameraPos).addScaledVector(moonDir, 100);
     this.moonLight.target.position.copy(cameraPos);
     this.moon.position.copy(cameraPos).addScaledVector(moonDir, 820);
-    (this.moon.material as THREE.MeshBasicMaterial).opacity = night;
-    this.moon.visible = night > 0.05 && cloud < 0.8;
-    this.hemi.intensity = 0.12 + 0.6 * day * (1 - cloud * 0.45);
+    const starNight = Math.max(0, (night - 0.55) / 0.45);
+    (this.moon.material as THREE.MeshBasicMaterial).opacity = starNight;
+    this.moon.visible = starNight > 0.05 && cloud < 0.8;
+    this.hemi.intensity = 0.1 + 0.32 * day * (1 - cloud * 0.45);
     this.hemi.color.set(0x9db8dd).lerp(new THREE.Color(0x2a3550), night);
-    (this.stars.material as THREE.PointsMaterial).opacity = night * (1 - cloud) * 0.9;
-    this.stars.visible = night > 0.05 && cloud < 0.9;
+    (this.stars.material as THREE.PointsMaterial).opacity = starNight * (1 - cloud) * 0.9;
+    this.stars.visible = starNight > 0.05 && cloud < 0.9;
     this.stars.position.copy(cameraPos);
     this.sky.position.copy(cameraPos);
 
@@ -128,7 +129,7 @@ export class Atmosphere {
     easing.dampC(fog.color, this.fogColor, 0.35, dt);
     fog.near = 70 - cloud * 35;
     fog.far = 640 - cloud * 320 - night * 90;
-    this.scene.environmentIntensity = 0.22 + 0.5 * day * (1 - cloud * 0.4);
+    this.scene.environmentIntensity = 0.16 + 0.72 * day * (1 - cloud * 0.4);
     return { day, night, cloud, dusk };
   }
 
@@ -136,12 +137,12 @@ export class Atmosphere {
     this.skyMat.uniforms.topColor.value.set(0x05070c);
     this.skyMat.uniforms.horizonColor.value.set(0x161d2a);
     this.skyMat.uniforms.sunIntensity.value = 0;
-    this.sun.intensity = 0.5;
+    this.sun.intensity = 0.15;
     this.moonLight.intensity = 0;
-    this.hemi.intensity = 0.35;
+    this.hemi.intensity = 0.12;
     this.stars.visible = false;
     this.moon.visible = false;
     this.scene.fog = new THREE.Fog(0x0a0e16, 26, 110);
-    this.scene.environmentIntensity = 0.75;
+    this.scene.environmentIntensity = 0.55;
   }
 }

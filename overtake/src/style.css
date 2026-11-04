@@ -353,3 +353,38 @@ svg { stroke-width: 1.75; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
+
+/* --- Driving update: rear-view mirror, pass coach ------------------------- */
+#btn-mirror.active { color: var(--accent); border-color: rgba(125,211,252,0.5); }
+.mirror-frame {
+  position: absolute; top: 100px; left: 50%; transform: translateX(-50%);
+  width: 260px; height: 68px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.22);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(0,0,0,0.5);
+  pointer-events: none; overflow: hidden;
+}
+.mirror-frame .mirror-tag {
+  position: absolute; left: 7px; top: 5px; font-size: 9px; letter-spacing: .14em; text-transform: uppercase;
+  color: rgba(255,255,255,0.75); background: rgba(8,10,14,0.55); padding: 2px 5px; border-radius: 5px;
+}
+.mirror-frame kbd { position: absolute; right: 6px; top: 5px; min-width: 16px; padding: 1px 4px; font-size: 9px; opacity: .75; }
+.pass-coach {
+  position: absolute; bottom: 88px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 99px;
+  background: rgba(12,15,20,0.72); border: 1px solid var(--border); font-size: 11px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--muted); backdrop-filter: blur(10px);
+}
+.pass-coach b { font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.pass-coach.go { color: var(--good); border-color: rgba(134,239,172,0.45); }
+.pass-coach.wait { color: var(--warm); border-color: rgba(251,191,36,0.45); }
+.pass-coach.passing { color: var(--accent); border-color: rgba(125,211,252,0.45); }
+.pass-coach.return { color: var(--accent); border-color: rgba(125,211,252,0.45); }
+.pass-coach.danger { color: var(--danger); border-color: rgba(248,113,113,0.65); animation: pulse .7s ease-in-out infinite; }
+/* Keep the hazard pill and score popups clear of the rear-view inset. */
+.oncoming-warn { top: 184px; }
+#events { top: 236px; }
+@media (max-width: 900px) {
+  .mirror-frame { top: 132px; width: 184px; height: 52px; }
+  .pass-coach { bottom: 244px; font-size: 10px; padding: 5px 10px; }
+  .oncoming-warn { top: 25%; }
+  #events { top: 31%; }
+}

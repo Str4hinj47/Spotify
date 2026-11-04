@@ -71,6 +71,10 @@ def category(name: str) -> str:
         return "glass"
     if re.search(r"tyre|tire|wheel.?tread", n):
         return "tire"
+    # Mercedes W222 source names the rubber simply "W222 - Wheel"; the rims are
+    # separate materials. Without this it falls through to light-grey "other".
+    if re.search(r"w222 - wheel$", n):
+        return "tire"
     if re.search(r"chrome|mirror|reflect", n):
         return "chrome"
     if re.search(r"carbon|grill|grille", n):
