@@ -64,6 +64,38 @@ function roofExtension(width:number,z:number,y:number,track:boolean) {
   }
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
 }
+// RS6 roof was surveyed across the hatch. The outer edge ends before the
+// roof rail, while the trailing corners sweep forward with the hatch line.
+function audiRoofExtension(track:boolean) {
+  const vertices:number[]=[], indices:number[]=[], n=32, width=.53;
+  for(let i=0;i<=n;i++) {
+    const t=2*i/n-1, edge=t*t, x=t*width;
+    const front=1.62+.03*edge, back=1.88-.13*edge;
+    const frontY=1.415-.055*edge, rearY=1.383-.043*edge;
+    const rise=track?.055:.025;
+    for(const [y,z] of [[frontY-.012,front],[frontY+.006,front],[rearY+rise,back],[rearY+rise-.018,back]] as const) vertices.push(x,y,z);
+    if(i<n) for(let j=0;j<4;j++){const a=i*4+j,b=i*4+(j+1)%4,c=(i+1)*4+j,d=(i+1)*4+(j+1)%4;indices.push(a,b,c,b,d,c);}
+  }
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
+}
+
+// Mustang's chin is a shallow extension of its measured lower nose contour,
+// not a generic wide apron underneath the chrome factory bumper.
+function mustangChin(track:boolean) {
+  const xs=[0,.2,.4,.55,.65,.75], zs=[-2.324,-2.311,-2.289,-2.231,-2.148,-2.067];
+  const vertices:number[]=[], indices:number[]=[], n=30;
+  for(let i=0;i<=n;i++) {
+    const x=(i/n*2-1)*.75, abs=Math.abs(x);let j=0;
+    while(j<xs.length-2 && abs>xs[j+1])j++;
+    const t=(abs-xs[j])/(xs[j+1]-xs[j]);
+    const z=THREE.MathUtils.lerp(zs[j],zs[j+1],t);
+    const y=.305+.026*Math.pow(abs/.75,2);
+    for(const [yy,zz] of [[y+.012,z+.035],[y-.054,z-(track?.045:.02)],[y-.065,z+.08],[y-.028,z+.13]] as const) vertices.push(x,yy,zz);
+    if(i<n)for(let k=0;k<4;k++){const a=i*4+k,b=i*4+(k+1)%4,c=(i+1)*4+k,d=(i+1)*4+(k+1)%4;indices.push(a,b,c,b,d,c);}
+  }
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
+}
+
 // Body-surface samples measured from the actual normalized paint meshes at
 // y=.30 and .38, on each side. The wheel-to-wheel ranges exclude the tires.
 // Each section is a shaped panel, not a box across the wheel opening.
@@ -152,27 +184,41 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   if(config.front!=='stock') {
     const a=reg('front'), track=isTrack('front'), panel=config.frontFinish==='carbon'?woven:body;
     const nose=f.frontZ-.015;
-    const sweep=f.character==='muscle'?.10:f.character==='classic'?.16:.23;
-    const fascia=new THREE.Mesh(apron(f.frontW*(track?1.02:.97),nose,f.bumperY+.015,track?.18:.12,.22,sweep),panel);
-    fascia.name='front-fascia';a.add(fascia);
-    const splitter=new THREE.Mesh(taperedBand(f.frontW*(track?1.04:.99),nose-(track?.10:.06),f.bumperY-.005,track?.46:.35,.028,sweep),carbon);
-    splitter.name='front-splitter';a.add(splitter);
-    // Keep the track splitter clean: the former floating corner blades did
-    // not follow the different bumper surfaces closely enough to look fitted.
+    if(id==='mustang') {
+      const chin=new THREE.Mesh(mustangChin(track),panel);chin.name='front-fascia';a.add(chin);
+      if(track) {
+        const blade=new THREE.Mesh(taperedBand(.73,-2.335,.239,.16,.012,.26),carbon);
+        blade.name='front-splitter';a.add(blade);
+      }
+    } else {
+      const sweep=f.character==='muscle'?.10:.23;
+      const fascia=new THREE.Mesh(apron(f.frontW*(track?1.02:.97),nose,f.bumperY+.015,track?.18:.12,.22,sweep),panel);
+      fascia.name='front-fascia';a.add(fascia);
+      const splitter=new THREE.Mesh(taperedBand(f.frontW*(track?1.04:.99),nose-(track?.10:.06),f.bumperY-.005,track?.46:.35,.028,sweep),carbon);
+      splitter.name='front-splitter';a.add(splitter);
+    }
     if(id==='mercedes') box(f.frontW*1.35,.015,.035,0,f.bumperY+.11,nose+.04,metal,a,'bright-fascia-trim');
   }
   if(config.rear!=='stock') {
     const a=reg('rear'),track=isTrack('rear'), tail=f.rearZ-.035, panel=config.rearFinish==='carbon'?woven:body;
-    const valance=new THREE.Mesh(apron(f.rearW*.98,tail,f.bumperY+.005,track?.16:.11,.20,.16,true),panel);
-    valance.name='rear-valance';a.add(valance);
-    // Keep the diffuser between the exhaust outlets rather than covering them.
-    const diffuserWidth=id==='golf'?.39:id==='ferrari'?.70:.48;
-    const diffuser=new THREE.Mesh(apron(f.rearW*diffuserWidth,tail+.05,f.bumperY-.005,track?.13:.08,.25,.04,true),carbon);
-    diffuser.name='rear-diffuser';a.add(diffuser);
-    const finCount=id==='ferrari'?7:id==='golf'?3:5;
-    if(track) for(let i=0;i<finCount;i++) {
-      const x=(i-(finCount-1)/2)*f.rearW*diffuserWidth*1.6/Math.max(1,finCount-1);
-      const fin=box(.016,.09,.24,x,f.bumperY-.015,tail-.025,carbon,a,'diffuser-fin');fin.rotation.x=-.13;
+    if(id==='mustang') {
+      // Tuck a shallow lower valance under the factory bumper and keep it
+      // below the four exhaust outlets instead of hanging a slab off the tail.
+      const valance=new THREE.Mesh(taperedBand(.68,2.04,.305,.18,.055,-.06),panel);
+      valance.name='rear-valance';a.add(valance);
+      if(track) {const diffuser=new THREE.Mesh(taperedBand(.46,2.06,.297,.12,.012,0),carbon);diffuser.name='rear-diffuser';a.add(diffuser);}
+    } else {
+      const valance=new THREE.Mesh(apron(f.rearW*.98,tail,f.bumperY+.005,track?.16:.11,.20,.16,true),panel);
+      valance.name='rear-valance';a.add(valance);
+      // Keep the diffuser between the exhaust outlets rather than covering them.
+      const diffuserWidth=id==='golf'?.39:id==='ferrari'?.70:.48;
+      const diffuser=new THREE.Mesh(apron(f.rearW*diffuserWidth,tail+.05,f.bumperY-.005,track?.13:.08,.25,.04,true),carbon);
+      diffuser.name='rear-diffuser';a.add(diffuser);
+      const finCount=id==='ferrari'?7:id==='golf'?3:5;
+      if(track) for(let i=0;i<finCount;i++) {
+        const x=(i-(finCount-1)/2)*f.rearW*diffuserWidth*1.6/Math.max(1,finCount-1);
+        const fin=box(.016,.09,.24,x,f.bumperY-.015,tail-.025,carbon,a,'diffuser-fin');fin.rotation.x=-.13;
+      }
     }
   }
   if(config.skirts!=='stock') {
@@ -188,7 +234,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     const a=reg('spoiler'),track=isTrack('spoiler'),panel=config.spoilerFinish==='carbon'?woven:body;
     const roof=f.character==='compact'||f.character==='wagon';
     if(roof) {
-      const lip=new THREE.Mesh(roofExtension(f.spoilerW,f.spoilerZ,f.spoilerY,track),panel);
+      const lip=new THREE.Mesh(id==='audi'?audiRoofExtension(track):roofExtension(f.spoilerW,f.spoilerZ,f.spoilerY,track),panel);
       lip.name='roof-extension';a.add(lip);
     } else if(track) {
       const h=f.character==='luxury'?.13:f.character==='classic'?.19:.23;
@@ -211,16 +257,20 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     const oval=f.character==='luxury'||f.character==='wagon'||f.character==='midengine';
     // One mouth position is shared by the pipe and flame. The measured rear
     // offsets place the rim just beyond the stock bumper, not inside it.
-    const z=f.rearZ-.06, mouthZ=z+.054, y=f.tipY+.08;
+    const z=id==='mustang' ? 2.240 : f.rearZ-.06, mouthZ=z+.054, y=id==='mustang' ? .401 : f.tipY+.08;
     // The exact same outlet descriptions drive rims and flame origins.
     const ferrariFactoryFlame=id==='ferrari' && config.exhaust==='flame';
-    const centers=track && id==='ferrari' ? [-.061,.048,.150] : id==='golf'
+    const mustangFactoryFlame=id==='mustang' && config.exhaust==='flame';
+    const centers=mustangFactoryFlame ? [-.598,-.515,.526,.609] : track && id==='ferrari' ? [-.061,.048,.150] : id==='golf'
       ? [-f.tipX-f.tipSpacing*.5,-f.tipX+f.tipSpacing*.5]
       : track ? [-f.tipX-f.tipSpacing*.5,-f.tipX+f.tipSpacing*.5,f.tipX-f.tipSpacing*.5,f.tipX+f.tipSpacing*.5]
       : [-f.tipX,f.tipX];
     const radius=track && id==='ferrari' ? f.tipRadius*.85 : id==='golf'
       ? f.tipRadius*(track?.85:.72) : f.tipRadius*(track?.64:.85);
-    if(ferrariFactoryFlame) {
+    if(mustangFactoryFlame) {
+      // Four real factory tailpipes, measured from the source mesh.
+      for(const x of centers) {const mouth=new THREE.Object3D();mouth.name='exhaust-mouth';mouth.position.set(x,.401,2.294);a.add(mouth);}
+    } else if(ferrariFactoryFlame) {
       // The source 458 mesh already contains three outlets. Their centers were
       // measured after its yaw correction; do not layer fake pipes over them.
       for(const x of centers) {const mouth=new THREE.Object3D();mouth.name='exhaust-mouth';mouth.position.set(x,.334,2.002);a.add(mouth);}

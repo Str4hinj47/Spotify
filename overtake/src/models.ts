@@ -304,6 +304,10 @@ export class ModelLibrary {
       if (config) {
         // These separate rear outlet meshes belong to the source R8, not the
         // bumper. Hide them only when this player clone has replacement tips.
+        if (id === 'mustang' && config.exhaust !== 'stock' && config.exhaust !== 'flame') {
+          const outlets = inner.getObjectByName('mustang_mesh_9');
+          if (outlets) outlets.visible = false;
+        }
         if (id === 'r8' && config.exhaust !== 'stock') {
           for (const name of ['black_gloss_13', 'metal_2_10', 'black_matt_18']) {
             const outlet = inner.getObjectByName(name);
