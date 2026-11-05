@@ -29,7 +29,7 @@ import { chooseTrafficModel, chooseTrafficPaint } from './traffic-appearance.mjs
 import { emptyRecords, sanitizeRecords, recordRun, bestFor, type Records } from './records.mjs';
 
 export type Mode = 'garage' | 'driving' | 'paused' | 'gameover';
-export type CameraPreset = 'close' | 'chase' | 'far' | 'hood' | 'bumper';
+export type CameraPreset = 'close' | 'chase' | 'far' | 'hood' | 'bumper' | 'free';
 
 export interface CameraSettings {
   preset: CameraPreset;
@@ -45,8 +45,9 @@ export const CAMERA_PRESETS: Record<CameraPreset, Omit<CameraSettings, 'preset'>
   far: { distance: 10.0, height: 3.8, fov: 56, lookAhead: 12 },
   hood: { distance: 1.15, height: 1.12, fov: 68, lookAhead: 30 },
   bumper: { distance: 2.25, height: 0.55, fov: 70, lookAhead: 30 },
+  free: { distance: 7, height: 2.6, fov: 60, lookAhead: 9 },
 };
-export const CAMERA_ORDER: CameraPreset[] = ['close', 'chase', 'far', 'hood', 'bumper'];
+export const CAMERA_ORDER: CameraPreset[] = ['close', 'chase', 'far', 'hood', 'bumper', 'free'];
 
 export interface HudState {
   score: number;
@@ -224,6 +225,11 @@ export class OvertakeGame {
   private selected: CarId = 'golf';
   mode: Mode = 'garage';
   private cam: CameraSettings = { preset: 'close', ...CAMERA_PRESETS.close };
+  private freeCamera = { sensitivity: 1, autoCenter: true };
+  private freeYaw = 0;
+  private freePitch = 0;
+  private freeIdle = 0;
+  private freeDragging = false;
   private garageZoom = 6.2;
   private garageDragging = false;
   private garageWorkshop = false;
@@ -318,7 +324,17 @@ export class OvertakeGame {
         const s = JSON.parse(raw) as CameraSettings;
         if (s.preset && CAMERA_PRESETS[s.preset]) this.cam = { ...CAMERA_PRESETS[s.preset], ...s };
       }
+      const free = JSON.parse(localStorage.getItem('overtake-free-camera') || '{}');
+      if (typeof free.sensitivity === 'number' && Number.isFinite(free.sensitivity)) this.freeCamera.sensitivity = THREE.MathUtils.clamp(free.sensitivity, .25, 3);
+      if (typeof free.autoCenter === 'boolean') this.freeCamera.autoCenter = free.autoCenter;
     } catch { /* ignore */ }
+  }
+
+  getFreeCameraSettings() { return { ...this.freeCamera }; }
+  setFreeCameraSettings(value: Partial<{sensitivity:number; autoCenter:boolean}>) {
+    if (typeof value.sensitivity === 'number' && Number.isFinite(value.sensitivity)) this.freeCamera.sensitivity = THREE.MathUtils.clamp(value.sensitivity, .25, 3);
+    if (typeof value.autoCenter === 'boolean') this.freeCamera.autoCenter = value.autoCenter;
+    try { localStorage.setItem('overtake-free-camera', JSON.stringify(this.freeCamera)); } catch { /* ignore */ }
   }
 
   private saveCameraSettings() {
@@ -329,6 +345,7 @@ export class OvertakeGame {
 
   setCameraPreset(preset: CameraPreset) {
     this.cam = { preset, ...CAMERA_PRESETS[preset] };
+    this.freeYaw = 0; this.freePitch = 0; this.freeIdle = 0; this.freeDragging = false;
     this.saveCameraSettings();
   }
 
@@ -347,18 +364,27 @@ export class OvertakeGame {
   private bindGarageOrbit(canvas: HTMLCanvasElement) {
     let lastX = 0, lastY = 0;
     canvas.addEventListener('pointerdown', (e) => {
+      if (this.mode === 'driving' && this.cam.preset === 'free') {
+        this.freeDragging = true; this.freeIdle = 0; lastX = e.clientX; lastY = e.clientY;
+        canvas.setPointerCapture(e.pointerId); return;
+      }
       if (this.mode !== 'garage') return;
       this.garageDragging = true; this.garageAuto = false;
       lastX = e.clientX; lastY = e.clientY;
       canvas.setPointerCapture(e.pointerId);
     });
     canvas.addEventListener('pointermove', (e) => {
+      if (this.freeDragging && this.mode === 'driving' && this.cam.preset === 'free') {
+        this.freeYaw -= (e.clientX - lastX) * .006 * this.freeCamera.sensitivity;
+        this.freePitch = THREE.MathUtils.clamp(this.freePitch + (e.clientY - lastY) * .004 * this.freeCamera.sensitivity, -.42, 1.12);
+        this.freeIdle = 0; lastX = e.clientX; lastY = e.clientY; return;
+      }
       if (!this.garageDragging || this.mode !== 'garage') return;
       this.garageAngle -= (e.clientX - lastX) * 0.006;
       this.garagePitch = Math.max(0.15, Math.min(1.2, this.garagePitch + (e.clientY - lastY) * 0.004));
       lastX = e.clientX; lastY = e.clientY;
     });
-    const up = () => { this.garageDragging = false; };
+    const up = () => { this.garageDragging = false; this.freeDragging = false; };
     canvas.addEventListener('pointerup', up);
     canvas.addEventListener('pointercancel', up);
     canvas.addEventListener('wheel', (e) => {
@@ -928,6 +954,37 @@ export class OvertakeGame {
     mesh.scale.set(width, 1, length);
   }
 
+  private updateUnderglow() {
+    if (!this.player) return;
+    const glow = this.player.getObjectByName('underglow-pool') as THREE.Mesh | undefined;
+    if (!glow) return;
+    // Counter the body roll so the decal remains horizontal and follows yaw,
+    // then conform its tessellated surface to the current road profile.
+    this.player.updateMatrixWorld(true);
+    const yawRotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), this.yaw);
+    const flat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), -Math.PI / 2);
+    glow.quaternion.copy(this.player.quaternion).invert().multiply(yawRotation).multiply(flat);
+    glow.position.set(0, .075, 0);
+    glow.updateWorldMatrix(true, false);
+    const center = new THREE.Vector3().setFromMatrixPosition(glow.matrixWorld);
+    const positions = glow.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const c = Math.cos(this.yaw), sn = Math.sin(this.yaw), start = this.playerS - BACK;
+    for (let i=0; i<positions.count; i++) {
+      const x=positions.getX(i), z=-positions.getY(i);
+      const wx=center.x+c*x+sn*z, wz=center.z-sn*x+c*z;
+      let s=-wz, lateral=0;
+      for (let iteration=0; iteration<2; iteration++) {
+        const r=rightAt(s,this.tmpA); lateral=(wx-centerX(s))/r.x; s=-wz+r.z*lateral;
+      }
+      const row=Math.floor((s-start)/STEP), a=start+row*STEP;
+      const road=THREE.MathUtils.lerp(centerY(a),centerY(a+STEP),(s-a)/STEP);
+      const snow=snowDriftHeight(lateral,s,this.weather.snowCover,ROAD_HALF);
+      positions.setZ(i,road + .07 + snow - center.y);
+    }
+    positions.needsUpdate=true;
+    glow.frustumCulled=false;
+  }
+
   private setEnvironment(mode: 'garage' | 'road') {
     if (mode === 'garage') {
       this.scene.environment = this.studioEnv;
@@ -1012,7 +1069,7 @@ export class OvertakeGame {
     this.setEnvironment('garage');
     this.signal = null; this.input.brake = false; this.input.handbrake = false;
     this.updatePlayerLights(0);
-    if (this.player) { this.player.position.set(0, 0, 0); this.player.rotation.set(0, 0, 0); const glow = this.player.getObjectByName('underglow-pool'); if (glow) glow.position.y = 0.035; }
+    if (this.player) { this.player.position.set(0, 0, 0); this.player.rotation.set(0, 0, 0); const glow = this.player.getObjectByName('underglow-pool'); if (glow) { glow.position.y = 0.035; glow.rotation.set(-Math.PI / 2, 0, 0); const positions = (glow as THREE.Mesh).geometry.getAttribute('position') as THREE.BufferAttribute; for (let i=0;i<positions.count;i++) positions.setZ(i,0); positions.needsUpdate=true; } }
     this.setMode('garage');
   }
 
@@ -1263,9 +1320,10 @@ export class OvertakeGame {
     if (this.player) {
       this.player.position.copy(this.pos);
       // Keep the body level under throttle/brake; only a small cornering roll.
-      const roll = THREE.MathUtils.clamp(-this.vehicle.latAccel / 9.81 * 0.09, -0.12, 0.12);
+      const roll = THREE.MathUtils.clamp(-this.vehicle.latAccel / 9.81 * 0.025, -0.035, 0.035);
       this.player.rotation.set(0, this.yaw, roll);
       this.updateContactShadow();
+      this.updateUnderglow();
     }
     this.trySpawn(dt);
 
@@ -1394,8 +1452,7 @@ export class OvertakeGame {
     // Wet asphalt / snow cover.
     const wet = this.weather.wet;
     const snow = this.weather.snowCover;
-    const glow = this.player?.getObjectByName('underglow-pool');
-    if (glow) glow.position.y = 0.075 + snow * 0.11; // follow the raised snow surface
+    // The glow decal is aligned to the road after the player pose is updated.
     this.roadSurface.wet.value = wet;
     this.roadSurface.snow.value = snow;
     this.roadSurface.rain.value = this.weather.rain;
@@ -1439,7 +1496,21 @@ export class OvertakeGame {
     const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
     this.shake = 0;
     const { preset, distance, height, lookAhead } = this.cam;
-    if (preset === 'hood' || preset === 'bumper') {
+    if (preset === 'free') {
+      if (!this.freeDragging) this.freeIdle += dt;
+      if (this.freeCamera.autoCenter && !this.freeDragging && this.freeIdle > 2.5) {
+        const ease = 1 - Math.exp(-3 * dt);
+        this.freeYaw -= Math.atan2(Math.sin(this.freeYaw), Math.cos(this.freeYaw)) * ease;
+        this.freePitch *= 1 - ease;
+      }
+      const angle = this.yaw + this.freeYaw;
+      const basePitch = Math.atan2(height - .9, distance);
+      const pitch = THREE.MathUtils.clamp(basePitch + this.freePitch, -.15, 1.4);
+      const radius = Math.hypot(distance, height - .9);
+      const horizontal = Math.cos(pitch) * radius;
+      this.camera.position.set(this.pos.x + Math.sin(angle) * horizontal, this.pos.y + .9 + Math.sin(pitch) * radius, this.pos.z + Math.cos(angle) * horizontal);
+      this.camera.lookAt(this.pos.x, this.pos.y + .9, this.pos.z);
+    } else if (preset === 'hood' || preset === 'bumper') {
       this.camera.position.set(this.pos.x + fx * distance, this.pos.y + height, this.pos.z + fz * distance);
       this.camera.lookAt(this.pos.x + fx * lookAhead, this.pos.y + (preset === 'bumper' ? 0.5 : 0.9), this.pos.z + fz * lookAhead);
     } else {

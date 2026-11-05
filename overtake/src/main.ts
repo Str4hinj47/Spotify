@@ -221,6 +221,9 @@ function syncCameraUI() {
   set('cam-height', s.height, `${s.height.toFixed(1)}m`);
   set('cam-fov', s.fov, `${Math.round(s.fov)}°`);
   set('cam-look', s.lookAhead, `${Math.round(s.lookAhead)}m`);
+  const free = game.getFreeCameraSettings();
+  set('cam-sensitivity', free.sensitivity, `${free.sensitivity.toFixed(2)}×`);
+  ($('cam-auto-center') as HTMLInputElement).checked = free.autoCenter;
   audio.setPerspective(s.preset === 'hood' || s.preset === 'bumper' ? 'cabin' : 'exterior');
 }
 
@@ -524,6 +527,8 @@ function bindUI() {
   slider('cam-height', 'height');
   slider('cam-fov', 'fov');
   slider('cam-look', 'lookAhead');
+  $('cam-sensitivity').addEventListener('input', e => { game.setFreeCameraSettings({sensitivity:Number((e.target as HTMLInputElement).value)}); syncCameraUI(); });
+  $('cam-auto-center').addEventListener('change', e => game.setFreeCameraSettings({autoCenter:(e.target as HTMLInputElement).checked}));
   $('btn-resume').addEventListener('click', () => game.resume());
   $('btn-quit').addEventListener('click', () => game.toGarage());
   $('btn-retry').addEventListener('click', startRun);

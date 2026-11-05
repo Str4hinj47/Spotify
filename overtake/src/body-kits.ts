@@ -256,7 +256,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     ctx.putImageData(image,0,0);
     const texture=new THREE.CanvasTexture(canvas);
     const glow=new THREE.MeshBasicMaterial({color:config.glowColor,map:texture,transparent:true,opacity:.85,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
-    const plane=new THREE.Mesh(new THREE.PlaneGeometry(f.sideX*3.6,(f.rearZ-f.frontZ)*1.20),glow);
+    const plane=new THREE.Mesh(new THREE.PlaneGeometry(f.sideX*3.6,(f.rearZ-f.frontZ)*1.20,16,24),glow);
     plane.name='underglow-pool';plane.rotation.x=-Math.PI/2;plane.position.set(0,.035,0);plane.renderOrder=2;a.add(plane);
   }
   // Dispose also the unreferenced materials created for the chosen combination.

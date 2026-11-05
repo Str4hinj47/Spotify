@@ -225,12 +225,15 @@
           <button class="cam-preset" data-cam="far">Far</button>
           <button class="cam-preset" data-cam="hood">Hood</button>
           <button class="cam-preset" data-cam="bumper">Bumper</button>
+          <button class="cam-preset" data-cam="free">Free</button>
         </div>
         <label class="cam-slider">Distance <input id="cam-distance" type="range" min="3.2" max="14" step="0.1" /><span id="cam-distance-val"></span></label>
         <label class="cam-slider">Height <input id="cam-height" type="range" min="0.4" max="6" step="0.1" /><span id="cam-height-val"></span></label>
         <label class="cam-slider">FOV <input id="cam-fov" type="range" min="45" max="95" step="1" /><span id="cam-fov-val"></span></label>
         <label class="cam-slider">Look ahead <input id="cam-look" type="range" min="3" max="40" step="1" /><span id="cam-look-val"></span></label>
-        <div class="hint"><kbd>C</kbd> cycles presets · <kbd>V</kbd> toggles this panel</div>
+        <label class="cam-slider">Sensitivity <input id="cam-sensitivity" type="range" min="0.25" max="3" step="0.05" /><span id="cam-sensitivity-val"></span></label>
+        <label class="world-check"><input id="cam-auto-center" type="checkbox" /> Return free view after 2.5s</label>
+        <div class="hint">Free view: drag to look around. <kbd>C</kbd> cycles presets · <kbd>V</kbd> toggles this panel</div>
       </div>
       <div id="events"></div>
       <div id="oncoming-warn" class="oncoming-warn hidden">
