@@ -1044,6 +1044,7 @@ export class OvertakeGame {
 
   private disposeCarLights(group: THREE.Group) {
     for (const material of (group.userData.customPaintMaterials ?? []) as THREE.Material[]) material.dispose();
+    for (const geometry of (group.userData.customGeometries ?? []) as THREE.BufferGeometry[]) geometry.dispose();
     const kit = group.getObjectByName('custom-body-kit');
     if (kit) disposeBodyKit(kit as THREE.Group);
     const owned = new Set<THREE.Material>([...(group.userData.brakeMaterials ?? []), ...(group.userData.indicatorMaterials ?? [])]);

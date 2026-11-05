@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { CarId } from './catalog';
 import type { Customization } from './customization.mjs';
 import { createCarbonMaterial } from './livery';
+import sillProfiles from './sill-profiles.json';
 
 // Individually measured against the normalized, oriented car bodies (not the
 // overall bounding boxes, which can include mirrors or detached helpers).
@@ -16,12 +17,12 @@ interface Fit {
 }
 export const BODY_FITS: Record<CarId, Fit> = {
   golf: { frontZ:-2.02,rearZ:2.04,frontW:.77,rearW:.80,sideX:.82,sillFront:-.84,sillRear:.90,sillY:.22,bumperY:.21,spoilerZ:1.61,spoilerY:1.38,spoilerW:.61,tipX:.52,tipY:.21,tipRadius:.055,tipSpacing:.10,character:'compact', labels:{front:['GT lip','Cup splitter'],rear:['Clean valance','Cup diffuser'],skirts:['GT sills','Cup blades'],spoiler:['Roof lip','Cup roof wing'],exhaust:['Twin round','Cup twin']} },
-  mercedes: { frontZ:-2.58,rearZ:2.58,frontW:.91,rearW:.88,sideX:.94,sillFront:-1.17,sillRear:1.18,sillY:.19,bumperY:.20,spoilerZ:2.12,spoilerY:1.08,spoilerW:.79,tipX:.62,tipY:.22,tipRadius:.072,tipSpacing:.13,character:'luxury', labels:{front:['Executive lip','Aero splitter'],rear:['Sport valance','Aero diffuser'],skirts:['Executive sills','Aero blades'],spoiler:['Deck lip','Touring wing'],exhaust:['Polished oval','Quad sport']} },
+  mercedes: { frontZ:-2.58,rearZ:2.58,frontW:.91,rearW:.88,sideX:.94,sillFront:-1.17,sillRear:1.18,sillY:.19,bumperY:.20,spoilerZ:2.23,spoilerY:1.07,spoilerW:.67,tipX:.62,tipY:.22,tipRadius:.072,tipSpacing:.13,character:'luxury', labels:{front:['Executive lip','Aero splitter'],rear:['Sport valance','Aero diffuser'],skirts:['Executive sills','Aero blades'],spoiler:['Deck lip','Touring wing'],exhaust:['Polished oval','Quad sport']} },
   audi: { frontZ:-2.43,rearZ:2.46,frontW:.93,rearW:.92,sideX:.95,sillFront:-1.10,sillRear:1.08,sillY:.19,bumperY:.20,spoilerZ:1.81,spoilerY:1.39,spoilerW:.70,tipX:.62,tipY:.22,tipRadius:.075,tipSpacing:.13,character:'wagon', labels:{front:['Touring lip','Performance splitter'],rear:['Touring valance','Sport diffuser'],skirts:['Touring sills','Extended blades'],spoiler:['Tailgate lip','Touring roof wing'],exhaust:['Oval outlets','Quad outlets']} },
-  mustang: { frontZ:-2.27,rearZ:2.31,frontW:.83,rearW:.82,sideX:.86,sillFront:-.95,sillRear:1.08,sillY:.20,bumperY:.21,spoilerZ:1.97,spoilerY:1.00,spoilerW:.76,tipX:.58,tipY:.23,tipRadius:.065,tipSpacing:.12,character:'classic', labels:{front:['Heritage chin','Race chin'],rear:['Heritage valance','Race diffuser'],skirts:['Rocker trim','Race rockers'],spoiler:['Ducktail','Pedestal wing'],exhaust:['Dual round','Side-by-side quad']} },
-  ferrari: { frontZ:-2.03,rearZ:2.00,frontW:.74,rearW:.86,sideX:.91,sillFront:-.90,sillRear:.86,sillY:.16,bumperY:.17,spoilerZ:1.65,spoilerY:.83,spoilerW:.76,tipX:.54,tipY:.24,tipRadius:.055,tipSpacing:.10,character:'supercar', labels:{front:['Road blade','Circuit splitter'],rear:['Road diffuser','Circuit diffuser'],skirts:['Road blades','Circuit skirts'],spoiler:['Low deck lip','Circuit wing'],exhaust:['Twin titanium','Center triple']} },
-  r8: { frontZ:-2.17,rearZ:2.18,frontW:.86,rearW:.91,sideX:.94,sillFront:-.88,sillRear:.93,sillY:.17,bumperY:.19,spoilerZ:1.72,spoilerY:.91,spoilerW:.80,tipX:.65,tipY:.22,tipRadius:.07,tipSpacing:.12,character:'midengine', labels:{front:['Road splitter','GT splitter'],rear:['Road diffuser','GT diffuser'],skirts:['Road blades','GT skirts'],spoiler:['Deck lip','GT wing'],exhaust:['Twin oval','Quad titanium']} },
-  challenger: { frontZ:-2.47,rearZ:2.47,frontW:.91,rearW:.89,sideX:.96,sillFront:-1.02,sillRear:1.07,sillY:.22,bumperY:.22,spoilerZ:2.10,spoilerY:1.03,spoilerW:.84,tipX:.61,tipY:.23,tipRadius:.07,tipSpacing:.13,character:'muscle', labels:{front:['Street chin','Wide splitter'],rear:['Street valance','Wide diffuser'],skirts:['Street rockers','Wide rockers'],spoiler:['Ducktail','Drag wing'],exhaust:['Dual round','Quad muscle']} },
+  mustang: { frontZ:-2.27,rearZ:2.31,frontW:.83,rearW:.82,sideX:.86,sillFront:-.95,sillRear:1.08,sillY:.20,bumperY:.21,spoilerZ:2.12,spoilerY:.958,spoilerW:.69,tipX:.58,tipY:.23,tipRadius:.065,tipSpacing:.12,character:'classic', labels:{front:['Heritage chin','Race chin'],rear:['Heritage valance','Race diffuser'],skirts:['Rocker trim','Race rockers'],spoiler:['Ducktail','Pedestal wing'],exhaust:['Dual round','Side-by-side quad']} },
+  ferrari: { frontZ:-2.03,rearZ:2.00,frontW:.74,rearW:.86,sideX:.91,sillFront:-.90,sillRear:.86,sillY:.16,bumperY:.17,spoilerZ:1.80,spoilerY:.84,spoilerW:.53,tipX:.54,tipY:.24,tipRadius:.055,tipSpacing:.10,character:'supercar', labels:{front:['Road blade','Circuit splitter'],rear:['Road diffuser','Circuit diffuser'],skirts:['Road blades','Circuit skirts'],spoiler:['Low deck lip','Circuit wing'],exhaust:['Twin titanium','Center triple']} },
+  r8: { frontZ:-2.17,rearZ:2.18,frontW:.86,rearW:.91,sideX:.94,sillFront:-.88,sillRear:.93,sillY:.17,bumperY:.19,spoilerZ:1.90,spoilerY:.84,spoilerW:.62,tipX:.65,tipY:.22,tipRadius:.07,tipSpacing:.12,character:'midengine', labels:{front:['Road splitter','GT splitter'],rear:['Road diffuser','GT diffuser'],skirts:['Road blades','GT skirts'],spoiler:['Deck lip','GT wing'],exhaust:['Twin oval','Quad titanium']} },
+  challenger: { frontZ:-2.47,rearZ:2.47,frontW:.91,rearW:.89,sideX:.96,sillFront:-1.02,sillRear:1.07,sillY:.22,bumperY:.22,spoilerZ:2.22,spoilerY:1.065,spoilerW:.72,tipX:.61,tipY:.23,tipRadius:.07,tipSpacing:.13,character:'muscle', labels:{front:['Street chin','Wide splitter'],rear:['Street valance','Wide diffuser'],skirts:['Street rockers','Wide rockers'],spoiler:['Ducktail','Drag wing'],exhaust:['Dual round','Quad muscle']} },
 };
 
 function taperedBand(width:number, frontZ:number, y:number, depth:number, height:number, sweep:number) {
@@ -63,28 +64,81 @@ function roofExtension(width:number,z:number,y:number,track:boolean) {
   }
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
 }
-// Sill shells taper back into the wheel openings and flare outward towards the
-// lower edge; the top is buried just inside the original rocker panel.
-function skirtShell(side:number, f:Fit, track:boolean) {
-  const positions:number[]=[],indices:number[]=[], n=20;
+// Body-surface samples measured from the actual normalized paint meshes at
+// y=.30 and .38, on each side. The wheel-to-wheel ranges exclude the tires.
+// Each section is a shaped panel, not a box across the wheel opening.
+function skirtShell(id:CarId, side:number, track:boolean) {
+  const fit=sillProfiles[id], samples=fit.sides[side<0?0:1], n=samples[0].length-1;
+  const positions:number[]=[], indices:number[]=[];
   for(let i=0;i<=n;i++) {
-    const t=i/n, end=Math.pow(Math.abs(2*t-1),4), z=THREE.MathUtils.lerp(f.sillFront,f.sillRear,t);
-    const inner=side*(f.sideX-.055), outer=side*(f.sideX+(track?.075:.035)*(1-.6*end));
-    const bottom=f.sillY+.015+.035*end, top=f.sillY+(track?.19:.14)-.025*end;
-    for(const [x,y] of [[inner,bottom],[outer,bottom],[outer-side*.025,top],[inner,top]] as const) positions.push(x,y,z);
-    if(i<n) for(let j=0;j<4;j++) {const a=i*4+j,b=i*4+(j+1)%4,c=(i+1)*4+j,d=(i+1)*4+(j+1)%4;indices.push(a,b,c,b,d,c);}
+    const t=i/n, taper=Math.pow(Math.sin(Math.PI*t),.6), z=THREE.MathUtils.lerp(fit.range[0],fit.range[1],t);
+    const rearFlare=(id==='ferrari'||id==='r8') ? Math.pow(t,3)*.035*taper : id==='audi' ? Math.pow(t,2)*.015*taper : 0;
+    const top=samples[1][i]+.005, mid=samples[0][i]+.004+(track?.025:.014)*taper+rearFlare*.45;
+    const low=samples[0][i]-.025+(track?.045:.028)*taper+rearFlare;
+    for(const [x,y] of [[top,.38],[mid,.30],[low,.22],[samples[0][i]-.045,.205],[samples[0][i]-.045,.37]] as const) positions.push(side*x,y,z);
+    if(i<n) for(let j=0;j<5;j++) {const a=i*5+j,b=i*5+(j+1)%5,c=(i+1)*5+j,d=(i+1)*5+(j+1)%5;
+      if(side>0)indices.push(a,c,b,b,c,d);else indices.push(a,b,c,b,d,c);}
+  }
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
+}
+function skirtBlade(id:CarId, side:number) {
+  const fit=sillProfiles[id], samples=fit.sides[side<0?0:1][0], n=samples.length-1;
+  const positions:number[]=[],indices:number[]=[];
+  for(let i=0;i<=n;i++) {
+    const t=i/n,taper=Math.pow(Math.sin(Math.PI*t),.7),z=THREE.MathUtils.lerp(fit.range[0],fit.range[1],t),x=samples[i];
+    for(const [xx,y] of [[x-.04,.215],[x+.085*taper,.205],[x+.085*taper,.188],[x-.04,.198]] as const)positions.push(side*xx,y,z);
+    if(i<n)for(let j=0;j<4;j++){const a=i*4+j,b=i*4+(j+1)%4,c=(i+1)*4+j,d=(i+1)*4+(j+1)%4;
+      if(side>0)indices.push(a,c,b,b,c,d);else indices.push(a,b,c,b,d,c);}
+  }
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
+}
+// Integrated ducktail: leading edge merges into the rear deck, ends taper into
+// the shoulders, and a raised trailing edge provides an actual aero section.
+function deckLip(f:Fit,id:CarId) {
+  const positions:number[]=[],indices:number[]=[], n=32;
+  const drop=id==='mercedes'?.045:id==='r8'?.055:id==='ferrari'?.025:.012;
+  const rise=id==='mercedes'?.055:id==='ferrari'?.075:.085;
+  for(let i=0;i<=n;i++) {
+    const t=2*i/n-1,edge=t*t, taper=Math.pow(Math.max(0,1-Math.pow(Math.abs(t),5)),.5);
+    const x=t*f.spoilerW, y=f.spoilerY-drop*edge, front=f.spoilerZ-.14-.025*edge, back=f.spoilerZ+.13-.10*edge;
+    for(const [yy,zz] of [[y-.018,front],[y+.018*taper,f.spoilerZ],[y+rise*taper,back],[y+(rise-.025)*taper-.01,back],[y-.03,front]] as const)positions.push(x,yy,zz);
+    if(i<n)for(let j=0;j<5;j++){const a=i*5+j,b=i*5+(j+1)%5,c=(i+1)*5+j,d=(i+1)*5+(j+1)%5;indices.push(a,b,c,b,d,c);}
   }
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
 }
 // Horizontal aerodynamic plane with a cambered top, swept tips and a closed edge.
 function wingProfile(width:number,z:number,y:number,chord:number) {
-  const positions:number[]=[],indices:number[]=[], n=24;
+  const positions:number[]=[],indices:number[]=[], n=32;
   for(let i=0;i<=n;i++) {
-    const t=2*i/n-1, edge=t*t, x=t*width, shift=-.045*edge;
-    for(const [yy,zz] of [[y,z-chord*.5+shift],[y+.025,z+shift],[y+.012,z+chord*.5+shift],[y-.012,z+chord*.5+shift],[y-.014,z-chord*.5+shift]] as const) positions.push(x,yy,zz);
-    if(i<n) for(let j=0;j<5;j++) {const a=i*5+j,b=i*5+(j+1)%5,c=(i+1)*5+j,d=(i+1)*5+(j+1)%5;indices.push(a,b,c,b,d,c);}
+    const t=2*i/n-1, edge=t*t, x=t*width, shift=-.075*edge;
+    const c=chord*(1-.14*Math.pow(Math.abs(t),4));
+    // Cambered five-point section, rounded leading edge and thin trailing edge.
+    for(const [yy,zz] of [[y-.008,z-c*.52+shift],[y+.024,z-c*.30+shift],[y+.035,z+shift],[y+.017,z+c*.49+shift],[y-.008,z+c*.50+shift],[y-.012,z-c*.30+shift]] as const) positions.push(x,yy,zz);
+    if(i<n) for(let j=0;j<6;j++) {const a=i*6+j,b=i*6+(j+1)%6,c=(i+1)*6+j,d=(i+1)*6+(j+1)%6;indices.push(a,b,c,b,d,c);}
   }
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
+}
+// Tapered, swept pedestals with a broad foot buried in the deck and a narrow
+// tip reaching the aerofoil. This replaces the previous rectangular posts.
+function wingSupport(x:number,y:number,z:number,height:number) {
+  const verts:number[]=[],indices:number[]=[];
+  const profile=[[-.13,y-.035],[.10,y-.035],[.045,y+height],[ -.055,y+height]];
+  for(const dx of [-.027,.027]) for(const [dz,yy] of profile)verts.push(x+dx,yy,z+dz);
+  indices.push(0,2,1,0,3,2,4,5,6,4,6,7);
+  for(let i=0;i<4;i++){let j=(i+1)%4;indices.push(i,j,i+4,j,j+4,i+4);}
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
+}
+// Thin swept corner aero surfaces; terminate at the bumper rather than
+// placing rectangular blocks across the intakes.
+function canard(f:Fit,side:number,nose:number,sweep:number,y:number) {
+  const z=nose+sweep*.72, w=f.frontW;
+  const points=[[side*w*.78,y,z+.075],[side*w*1.035,y+.012,z+.005],
+    [side*w*1.035,y+.012,z+.17],[side*w*.84,y,z+.17]];
+  const vertices:number[]=[];
+  for(const dy of [0,-.012]) for(const p of points)vertices.push(p[0],p[1]+dy,p[2]);
+  const faces=[0,1,2,0,2,3,4,6,5,4,7,6,0,4,5,0,5,1,1,5,6,1,6,2,2,6,7,2,7,3,3,7,4,3,4,0];
+  if(side>0) for(let i=0;i<faces.length;i+=3) [faces[i+1],faces[i+2]]=[faces[i+2],faces[i+1]];
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geo.setIndex(faces);geo.computeVertexNormals();return geo;
 }
 function box(w:number,h:number,d:number,x:number,y:number,z:number,mat:THREE.Material, group:THREE.Group, name:string) {
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat); mesh.position.set(x,y,z); mesh.name=name; mesh.castShadow=true; group.add(mesh);return mesh;
@@ -113,15 +167,13 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     const sweep=f.character==='muscle'?.10:f.character==='classic'?.16:.23;
     const fascia=new THREE.Mesh(apron(f.frontW*(track?1.02:.97),nose,f.bumperY+.015,track?.18:.12,.22,sweep),panel);
     fascia.name='front-fascia';a.add(fascia);
-    const splitter=new THREE.Mesh(taperedBand(f.frontW*(track?1.10:1.02),nose-(track?.13:.07),f.bumperY-.005,track?.46:.35,.028,sweep),carbon);
+    const splitter=new THREE.Mesh(taperedBand(f.frontW*(track?1.04:.99),nose-(track?.10:.06),f.bumperY-.005,track?.46:.35,.028,sweep),carbon);
     splitter.name='front-splitter';a.add(splitter);
     // Corner blades are set into the swept bumper, not ahead of its headlights.
     if(track) for(const side of [-1,1]) {
-      const canard=box(.20,.018,.13,side*f.frontW*.84,f.bumperY+.145,nose+sweep*.72,carbon,a,'front-canard');
-      canard.rotation.y=side*.35;canard.rotation.z=side*.10;
+      const lower=new THREE.Mesh(canard(f,side,nose,sweep,f.bumperY+.145),carbon);lower.name='front-canard';a.add(lower);
       if(id==='audi'||id==='r8'||id==='ferrari') {
-        const second=box(.14,.014,.10,side*f.frontW*.85,f.bumperY+.21,nose+sweep*.76,carbon,a,'upper-canard');
-        second.rotation.y=side*.35;second.rotation.z=side*.10;
+        const upper=new THREE.Mesh(canard(f,side,nose,sweep,f.bumperY+.205),carbon);upper.name='upper-canard';a.add(upper);
       }
     }
     if(id==='mercedes') box(f.frontW*1.35,.015,.035,0,f.bumperY+.11,nose+.04,metal,a,'bright-fascia-trim');
@@ -141,14 +193,11 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     }
   }
   if(config.skirts!=='stock') {
-    const a=reg('skirts'),track=isTrack('skirts'),length=f.sillRear-f.sillFront,panel=config.skirtsFinish==='carbon'?woven:body;
+    const a=reg('skirts'),track=isTrack('skirts'),panel=config.skirtsFinish==='carbon'?woven:body;
     for(const side of [-1,1]) {
-      const skirt=new THREE.Mesh(skirtShell(side,f,track),panel);skirt.name='side-skirt';a.add(skirt);
+      const skirt=new THREE.Mesh(skirtShell(id,side,track),panel);skirt.name='side-skirt';a.add(skirt);
       if(track) {
-        box(.095,.025,length*.91,side*(f.sideX+.045),f.sillY+.025,(f.sillRear+f.sillFront)/2,carbon,a,'sill-blade');
-        if(id==='ferrari'||id==='r8'||id==='audi') {
-          const fin=box(.018,.14,.19,side*(f.sideX+.06),f.sillY+.10,f.sillRear-.1,carbon,a,'sill-fin');fin.rotation.x=-.2;
-        }
+        const blade=new THREE.Mesh(skirtBlade(id,side),carbon);blade.name='sill-blade';a.add(blade);
       }
     }
   }
@@ -159,17 +208,19 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       const lip=new THREE.Mesh(roofExtension(f.spoilerW,f.spoilerZ,f.spoilerY,track),panel);
       lip.name='roof-extension';a.add(lip);
     } else if(track) {
-      const h=f.character==='luxury'?.13:f.character==='classic'?.20:.24;
-      const chord=f.character==='luxury'?.22:.30;
+      const h=f.character==='luxury'?.13:f.character==='classic'?.19:.23;
+      const chord=f.character==='luxury'?.24:.34;
+      const wingWidth=id==='ferrari'?.82:id==='r8'?.85:id==='challenger'?.85:id==='mustang'?.78:.76;
       for(const side of [-1,1]) {
-        const support=box(.055,h,.15,side*f.spoilerW*.59,f.spoilerY+h/2-.015,f.spoilerZ-.035,panel,a,'wing-pedestal');support.rotation.x=-.12;
+        const support=new THREE.Mesh(wingSupport(side*f.spoilerW*.62,f.spoilerY,f.spoilerZ-.015,h),panel);
+        support.name='wing-pedestal';a.add(support);
       }
-      const blade=new THREE.Mesh(wingProfile(f.spoilerW*1.05,f.spoilerZ,f.spoilerY+h,chord),panel);blade.name='wing-blade';a.add(blade);
+      const blade=new THREE.Mesh(wingProfile(wingWidth,f.spoilerZ,f.spoilerY+h,chord),panel);blade.name='wing-blade';a.add(blade);
       if(f.character!=='luxury') for(const side of [-1,1]) {
-        const end=box(.022,.085,chord*.94,side*f.spoilerW*1.03,f.spoilerY+h+.012,f.spoilerZ,carbon,a,'wing-endplate');end.rotation.x=-.08;
+        const end=box(.018,.085,chord*.90,side*(wingWidth-.012),f.spoilerY+h+.012,f.spoilerZ-.06,carbon,a,'wing-endplate');end.rotation.x=-.08;
       }
     } else {
-      const lip=new THREE.Mesh(apron(f.spoilerW*.94,f.spoilerZ+.045,f.spoilerY-.01,.065,.14,.045,true),panel);lip.name='deck-lip';a.add(lip);
+      const lip=new THREE.Mesh(deckLip(f,id),panel);lip.name='deck-lip';a.add(lip);
     }
   }
   if(config.exhaust!=='stock') {
@@ -179,19 +230,24 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     // offsets place the rim just beyond the stock bumper, not inside it.
     const z=f.rearZ-.06, mouthZ=z+.054, y=f.tipY+.08;
     // The exact same outlet descriptions drive rims and flame origins.
-    const centers=track && id==='ferrari' ? [-.11,0,.11] : id==='golf'
+    const ferrariFactoryFlame=id==='ferrari' && config.exhaust==='flame';
+    const centers=track && id==='ferrari' ? [-.061,.048,.150] : id==='golf'
       ? [-f.tipX-f.tipSpacing*.5,-f.tipX+f.tipSpacing*.5]
       : track ? [-f.tipX-f.tipSpacing*.5,-f.tipX+f.tipSpacing*.5,f.tipX-f.tipSpacing*.5,f.tipX+f.tipSpacing*.5]
       : [-f.tipX,f.tipX];
     const radius=track && id==='ferrari' ? f.tipRadius*.85 : id==='golf'
       ? f.tipRadius*(track?.85:.72) : f.tipRadius*(track?.64:.85);
-    for(const x of centers) tip(a,x,y,z,radius,finish,dark,!track && oval && id!=='golf');
+    if(ferrariFactoryFlame) {
+      // The source 458 mesh already contains three outlets. Their centers were
+      // measured after its yaw correction; do not layer fake pipes over them.
+      for(const x of centers) {const mouth=new THREE.Object3D();mouth.name='exhaust-mouth';mouth.position.set(x,.334,2.002);a.add(mouth);}
+    } else for(const x of centers) tip(a,x,y,z,radius,finish,dark,!track && oval && id!=='golf');
     if (config.exhaust==='flame') {
       const flames=new THREE.Group(); flames.name='exhaust-flames';
       const outerMat=new THREE.MeshBasicMaterial({color:0xff6b16,transparent:true,opacity:.87,depthWrite:false,blending:THREE.AdditiveBlending});
       const innerMat=new THREE.MeshBasicMaterial({color:0xffe196,transparent:true,opacity:.95,depthWrite:false,blending:THREE.AdditiveBlending});
       for (const x of centers) {
-        const jet=new THREE.Group(); jet.position.set(x,y,mouthZ);
+        const jet=new THREE.Group(); jet.position.set(x,ferrariFactoryFlame ? .334 : y, ferrariFactoryFlame ? 2.002 : mouthZ);
         for (const [radius,length,mat] of [[f.tipRadius*.72,.34,outerMat],[f.tipRadius*.44,.21,innerMat]] as const) {
           const geo=new THREE.ConeGeometry(radius,length,12);geo.translate(0,length/2,0);geo.rotateX(Math.PI/2);
           jet.add(new THREE.Mesh(geo,mat));

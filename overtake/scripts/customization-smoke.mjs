@@ -37,7 +37,7 @@ try {
   await page.evaluate(()=>{const g=window.__overtake;g.clearTraffic();g.trySpawn=()=>{};g.setTimeOfDay(23);g.setCycleRunning(false);for(let i=0;i<20;i++)g.updateWorld(.1);g.composer.render()});
   await page.screenshot({path:'test-results/custom-driving.png',timeout:120000});
   // Reload and verify per-car persistence, then reset only the current car.
-  await page.reload(); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
+  await page.reload({timeout:180000,waitUntil:'domcontentloaded'}); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.click('.car-card[data-car="golf"]');await page.click('#btn-customize');
   assert.equal(await page.locator('#custom-exhaust').inputValue(),'track');
   assert.equal(await page.locator('#custom-glow-color').inputValue(),'#ff32bc');

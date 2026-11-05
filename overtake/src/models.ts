@@ -4,7 +4,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { CARS, TRUCKS, type CarId, type TrafficId } from './catalog';
 import { indicatorMaterial, isIndicatorMaterial, type IndicatorUniforms } from './indicators';
 import { createBodyKit } from './body-kits';
-import { customPaintMaterial } from './livery';
+import { createCarbonMaterial, customPaintMaterial } from './livery';
 import { sanitizeCustomization, type Customization } from './customization.mjs';
 
 export interface CarModel {
@@ -71,6 +71,30 @@ function separateLampLenses(scene: THREE.Group) {
     }
     mesh.geometry=copy;mesh.material=[mesh.material,lens];
   });
+}
+
+// Mustang's original pedestal wing is merged into two trim primitives. Filter
+// only its Blender-identified rear-deck components on the player clone; the
+// stock source and traffic retain their unmodified buffers and window louvers.
+function removeMustangFactoryWing(inner:THREE.Group, wrapper:THREE.Group):THREE.BufferGeometry[] {
+  const owned:THREE.BufferGeometry[]=[];
+  for(const name of ['mustang_mesh_1','mustang_mesh_5']) {
+    const mesh=inner.getObjectByName(name) as THREE.Mesh | undefined;
+    if(!mesh?.isMesh) continue;
+    const geometry=mesh.geometry, index=geometry.index, pos=geometry.getAttribute('position');
+    if(!index || !pos) continue;
+    const transform=new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
+    const point=new THREE.Vector3(), centroid=new THREE.Vector3(), kept:number[]=[];
+    for(let i=0;i+2<index.count;i+=3) {
+      centroid.set(0,0,0);
+      for(let j=0;j<3;j++) centroid.add(point.fromBufferAttribute(pos,index.getX(i+j)).applyMatrix4(transform));
+      centroid.multiplyScalar(1/3);
+      const wing=centroid.z>1.89 && centroid.z<2.18 && centroid.y>.93 && centroid.y<1.15;
+      if(!wing) kept.push(index.getX(i),index.getX(i+1),index.getX(i+2));
+    }
+    const copy=geometry.clone();copy.setIndex(kept);copy.clearGroups();mesh.geometry=copy;owned.push(copy);
+  }
+  return owned;
 }
 
 export class ModelLibrary {
@@ -219,6 +243,7 @@ export class ModelLibrary {
     const signal: IndicatorUniforms = { left: { value: 0 }, right: { value: 0 }, viewZ: { value: 1 } };
     let factoryPaint: number | undefined;
     const customPaintCopies: THREE.Material[] = [];
+    const customGeometries: THREE.BufferGeometry[] = [];
     const config = opts.player && id !== 'semi' && id !== 'kraz' ? this.customization.get(id) : undefined;
     wrapper.updateMatrixWorld(true);
     inner.traverse((o) => {
@@ -277,10 +302,23 @@ export class ModelLibrary {
           const factoryWing = inner.getObjectByName('trim_1');
           if (factoryWing) factoryWing.visible = false;
         }
+        if (id === 'challenger' && config.spoiler !== 'stock') {
+          const factoryWing = inner.getObjectByName('Cube001_Cube003');
+          if (factoryWing) factoryWing.visible = false;
+        }
+        if (id === 'mustang' && config.spoiler !== 'stock') customGeometries.push(...removeMustangFactoryWing(inner,wrapper));
+        if (id === 'ferrari' && config.exhaust !== 'stock') {
+          const factoryExhaust=inner.getObjectByName('ferrari_mesh_23') as THREE.Mesh | undefined;
+          if (factoryExhaust && config.exhaust !== 'flame') factoryExhaust.visible=false;
+          if (factoryExhaust && config.exhaust === 'flame' && config.exhaustFinish === 'carbon') {
+            const finish=createCarbonMaterial();factoryExhaust.material=finish;customPaintCopies.push(finish);
+          }
+        }
         wrapper.add(createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080));
       }
     }
     wrapper.userData.customPaintMaterials = customPaintCopies;
+    wrapper.userData.customGeometries = customGeometries;
     wrapper.userData.brakeMaterials = [...lightCopies.values(), ...brakeIndicatorCopies];
     wrapper.userData.indicatorMaterials = indicatorCopies;
     wrapper.userData.indicatorState = signal;
