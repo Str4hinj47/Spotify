@@ -102,28 +102,40 @@
         <div class="custom-views" role="group" aria-label="Preview angle">
           <button type="button" data-custom-view="front">Front</button><button type="button" data-custom-view="side">Side</button><button type="button" data-custom-view="rear">Rear</button>
         </div>
-        <div class="custom-section-title">PAINT &amp; LIVERY <span>DESIGN STUDIO</span></div>
+        <div class="workshop-tabs" role="group" aria-label="Workshop category">
+          <button type="button" data-workshop-tab="body" aria-pressed="true">Bodywork</button><button type="button" data-workshop-tab="paint" aria-pressed="false">Paint</button><button type="button" data-workshop-tab="lighting" aria-pressed="false">Lighting</button>
+        </div>
+        <div class="workshop-content">
+        <section data-workshop-panel="body" aria-label="Bodywork">
+          <div class="workshop-intro">Choose a part <span>Changes appear instantly</span></div>
+          <div class="workshop-parts" role="group" aria-label="Bodywork part">
+            <button type="button" data-workshop-part="front" aria-pressed="true">Front</button><button type="button" data-workshop-part="rear" aria-pressed="false">Rear</button><button type="button" data-workshop-part="skirts" aria-pressed="false">Skirts</button><button type="button" data-workshop-part="spoiler" aria-pressed="false">Spoiler</button><button type="button" data-workshop-part="exhaust" aria-pressed="false">Exhaust</button>
+          </div>
+<div class="workshop-part" data-part-panel="front">        <label class="custom-row"><span>Front bumper <small>Splitter &amp; fascia</small></span><select id="custom-front" aria-label="Front bumper"></select></label>
+        <label class="finish-row"><span>Front bumper finish</span><select id="custom-front-finish" aria-label="Front bumper finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label></div>
+<div class="workshop-part" data-part-panel="rear" hidden>        <label class="custom-row"><span>Rear bumper <small>Valance &amp; diffuser</small></span><select id="custom-rear" aria-label="Rear bumper"></select></label>
+        <label class="finish-row"><span>Rear bumper finish</span><select id="custom-rear-finish" aria-label="Rear bumper finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label></div>
+<div class="workshop-part" data-part-panel="skirts" hidden>        <label class="custom-row"><span>Side skirts <small>Rocker panels</small></span><select id="custom-skirts" aria-label="Side skirts"></select></label>
+        <label class="finish-row"><span>Side skirts finish</span><select id="custom-skirts-finish" aria-label="Side skirts finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label></div>
+<div class="workshop-part" data-part-panel="spoiler" hidden>        <label class="custom-row"><span>Spoiler <small>Tail aero</small></span><select id="custom-spoiler" aria-label="Spoiler"></select></label>
+        <label class="finish-row"><span>Spoiler finish</span><select id="custom-spoiler-finish" aria-label="Spoiler finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label></div>
+<div class="workshop-part" data-part-panel="exhaust" hidden>        <label class="custom-row"><span>Exhaust <small>Flames while accelerating</small></span><select id="custom-exhaust" aria-label="Exhaust"></select></label>
+        <label class="finish-row"><span>Exhaust finish</span><select id="custom-exhaust-finish" aria-label="Exhaust finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label></div>
+        </section>
+        <section data-workshop-panel="paint" aria-label="Paint and livery" hidden>
         <label class="custom-row"><span>Primary color <small>Base body paint</small></span><input id="custom-primary-color" type="color" value="#9fb0bf" aria-label="Primary paint color" /></label>
         <label class="custom-row"><span>Two-tone layout <small>Works with your primary paint</small></span><select id="custom-paint-scheme" aria-label="Two-tone paint layout"><option value="single">Single color</option><option value="upper">Upper body</option><option value="lower">Lower body</option></select></label>
         <label class="custom-row"><span>Second color <small>Any color</small></span><input id="custom-secondary-color" type="color" value="#141b24" aria-label="Second paint color" /></label>
         <label class="custom-row"><span>Second finish <small>For the second tone</small></span><select id="custom-secondary-finish" aria-label="Second paint finish"><option value="paint">Paint</option><option value="carbon">Carbon fiber</option></select></label>
         <label class="custom-row"><span>Livery <small>Original graphics, fitted to this car</small></span><select id="custom-livery" aria-label="Livery"></select></label>
         <label class="custom-row"><span>Livery color <small>Choose any color</small></span><input id="custom-livery-color" type="color" value="#f2f5f7" aria-label="Livery color" /></label>
-        <div class="custom-section-title">BODYWORK <span>01 — 05</span></div>
-        <label class="custom-row"><span>Front bumper <small>Splitter &amp; fascia</small></span><select id="custom-front" aria-label="Front bumper"></select></label>
-        <label class="finish-row"><span>Front bumper finish</span><select id="custom-front-finish" aria-label="Front bumper finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label>
-        <label class="custom-row"><span>Rear bumper <small>Valance &amp; diffuser</small></span><select id="custom-rear" aria-label="Rear bumper"></select></label>
-        <label class="finish-row"><span>Rear bumper finish</span><select id="custom-rear-finish" aria-label="Rear bumper finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label>
-        <label class="custom-row"><span>Side skirts <small>Rocker panels</small></span><select id="custom-skirts" aria-label="Side skirts"></select></label>
-        <label class="finish-row"><span>Side skirts finish</span><select id="custom-skirts-finish" aria-label="Side skirts finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label>
-        <label class="custom-row"><span>Spoiler <small>Tail aero</small></span><select id="custom-spoiler" aria-label="Spoiler"></select></label>
-        <label class="finish-row"><span>Spoiler finish</span><select id="custom-spoiler-finish" aria-label="Spoiler finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label>
-        <label class="custom-row"><span>Exhaust <small>Flames while accelerating</small></span><select id="custom-exhaust" aria-label="Exhaust"></select></label>
-        <label class="finish-row"><span>Exhaust finish</span><select id="custom-exhaust-finish" aria-label="Exhaust finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label>
-        <div class="custom-section-title">LIGHTING <span>06</span></div>
+        </section>
+        <section data-workshop-panel="lighting" aria-label="Lighting" hidden>
         <label class="custom-row glow-row"><span>Underglow <small>Color beneath the car</small></span><input id="custom-glow-enabled" type="checkbox" aria-label="Enable underglow" /></label>
         <label class="custom-row"><span>Glow color <small>Choose any color</small></span><input id="custom-glow-color" type="color" value="#00ddff" aria-label="Underglow color" /></label>
-        <p class="custom-note">Changes are saved per car. Drag to orbit and scroll to zoom.</p>
+        </section>
+        </div>
+        <p class="custom-note">Saved per car · Drag to orbit · Scroll to zoom</p>
         <div class="custom-actions"><button id="custom-reset" class="ghost" type="button">Reset car</button><button id="custom-done" class="primary" type="button">Done</button></div>
       </aside>
     </section>

@@ -893,9 +893,39 @@ export class OvertakeGame {
     g.addColorStop(0, 'rgba(0,0,0,0.55)'); g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 128);
     const tex = new THREE.CanvasTexture(c);
-    this.contactShadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
-    this.contactShadow.rotation.x = -Math.PI / 2;
+    // A flat decal cuts through the pitched road, producing a dark rectangular
+    // edge as the car crests a hill. Tessellate it to follow the road instead.
+    const geometry = new THREE.PlaneGeometry(1, 1, 16, 24);
+    geometry.rotateX(-Math.PI / 2);
+    this.contactShadow = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+    this.contactShadow.frustumCulled = false;
     this.scene.add(this.contactShadow);
+  }
+
+  private updateContactShadow() {
+    const mesh = this.contactShadow;
+    const width = this.playerMeta.width * 1.7, length = this.playerMeta.length * 1.5;
+    const positions = mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const c = Math.cos(this.yaw), sn = Math.sin(this.yaw), start = this.playerS - BACK;
+    for (let i = 0; i < positions.count; i++) {
+      const x = positions.getX(i) * width, z = positions.getZ(i) * length;
+      const wx = this.pos.x + c * x + sn * z, wz = this.pos.z - sn * x + c * z;
+      // Invert the road's lateral offset approximately, then use the same
+      // linear height interpolation as the ribbon's four-metre segments.
+      let s = -wz;
+      for (let iteration = 0; iteration < 2; iteration++) {
+        const r = rightAt(s, this.tmpA);
+        const lateral = (wx - centerX(s)) / r.x;
+        s = -wz + r.z * lateral;
+      }
+      const row = Math.floor((s - start) / STEP), a = start + row * STEP;
+      const y = THREE.MathUtils.lerp(centerY(a), centerY(a + STEP), (s - a) / STEP);
+      positions.setY(i, y - this.pos.y + 0.07 + this.weather.snowCover * 0.12);
+    }
+    positions.needsUpdate = true;
+    mesh.position.copy(this.pos);
+    mesh.rotation.y = this.yaw;
+    mesh.scale.set(width, 1, length);
   }
 
   private setEnvironment(mode: 'garage' | 'road') {
@@ -1235,9 +1265,7 @@ export class OvertakeGame {
       // Keep the body level under throttle/brake; only a small cornering roll.
       const roll = THREE.MathUtils.clamp(-this.vehicle.latAccel / 9.81 * 0.09, -0.12, 0.12);
       this.player.rotation.set(0, this.yaw, roll);
-      this.contactShadow.position.set(this.pos.x, this.pos.y + 0.03, this.pos.z);
-      this.contactShadow.rotation.z = -this.yaw;
-      this.contactShadow.scale.set(this.playerMeta.width * 1.7, this.playerMeta.length * 1.5, 1);
+      this.updateContactShadow();
     }
     this.trySpawn(dt);
 

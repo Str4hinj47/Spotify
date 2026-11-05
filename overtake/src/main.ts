@@ -36,6 +36,39 @@ function loadCustomizations() {
   catch { customizations = {}; }
 }
 function currentCustomization() { return sanitizeCustomization(customizations[selected] ?? DEFAULT_CUSTOMIZATION); }
+// Keep native selects as the single source of truth while presenting their
+// choices as visible buttons instead of stacked popup menus.
+function syncWorkshopChoices() {
+  document.querySelectorAll<HTMLSelectElement>('#custom-panel select').forEach(select => {
+    let group = select.parentElement?.nextElementSibling as HTMLElement | null;
+    if (!group?.classList.contains('workshop-choices')) {
+      group = document.createElement('div');
+      group.className = 'workshop-choices';
+      group.setAttribute('role', 'group');
+      group.setAttribute('aria-label', select.getAttribute('aria-label') || 'Options');
+      select.parentElement!.after(group);
+      select.hidden = true;
+    }
+    const options = Array.from(select.options);
+    const signature = options.map(option => `${option.value}:${option.text}`).join('|');
+    if (group.dataset.signature !== signature) {
+      group.dataset.signature = signature;
+      group.replaceChildren(...options.map(option => {
+        const button = document.createElement('button');
+        button.type = 'button'; button.textContent = option.text; button.dataset.value = option.value;
+        button.addEventListener('click', () => {
+          select.value = option.value;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        return button;
+      }));
+    }
+    group.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
+      button.disabled = select.disabled;
+      button.setAttribute('aria-pressed', String(button.dataset.value === select.value));
+    });
+  });
+}
 function syncCustomizationUI() {
   const config = currentCustomization();
   $('custom-car-name').textContent = `${getCar(selected).maker} ${getCar(selected).name}`;
@@ -67,6 +100,7 @@ function syncCustomizationUI() {
   ($('custom-glow-enabled') as HTMLInputElement).checked = config.underglow;
   const color = $('custom-glow-color') as HTMLInputElement;
   color.value = config.glowColor; color.disabled = !config.underglow;
+  syncWorkshopChoices();
 }
 function applyCustomization(value: Customization) {
   const config = sanitizeCustomization(value);
@@ -519,6 +553,18 @@ function bindUI() {
   }
   $('paint-custom').addEventListener('change', (e) => applyPaint((e.target as HTMLInputElement).value));
   $('paint-reset').addEventListener('click', () => applyPaint(null));
+  document.querySelectorAll<HTMLButtonElement>('[data-workshop-tab]').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll<HTMLButtonElement>('[data-workshop-tab]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+      document.querySelectorAll<HTMLElement>('[data-workshop-panel]').forEach(panel => { panel.hidden = panel.dataset.workshopPanel !== button.dataset.workshopTab; });
+    });
+  });
+  document.querySelectorAll<HTMLButtonElement>('[data-workshop-part]').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll<HTMLButtonElement>('[data-workshop-part]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+      document.querySelectorAll<HTMLElement>('[data-part-panel]').forEach(panel => { panel.hidden = panel.dataset.partPanel !== button.dataset.workshopPart; });
+    });
+  });
   $('btn-customize').addEventListener('click', () => showCustomization(true));
   $('custom-close').addEventListener('click', () => showCustomization(false));
   $('custom-done').addEventListener('click', () => showCustomization(false));
