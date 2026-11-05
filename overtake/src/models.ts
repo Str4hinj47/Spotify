@@ -183,12 +183,15 @@ export class ModelLibrary {
             } else if (m.name.startsWith('rim__')) {
               std.metalness = 0.75;
               std.roughness = 0.28;
+              // The R8 export has reversed wheel faces on two corners.
+              if (spec.id === 'r8') std.side = THREE.DoubleSide;
             } else if (m.name.startsWith('trim__') || m.name.startsWith('carbon__')) {
               std.roughness = 0.55;
               std.metalness = 0.12;
             } else if (m.name.startsWith('tire__')) {
               std.roughness = 0.9;
               std.metalness = 0.0;
+              if (spec.id === 'r8') std.side = THREE.DoubleSide;
             }
           }
         }
@@ -296,6 +299,14 @@ export class ModelLibrary {
     });
     if (opts.player && id !== 'semi' && id !== 'kraz') {
       if (config) {
+        // These separate rear outlet meshes belong to the source R8, not the
+        // bumper. Hide them only when this player clone has replacement tips.
+        if (id === 'r8' && config.exhaust !== 'stock') {
+          for (const name of ['black_gloss_13', 'metal_2_10', 'black_matt_18']) {
+            const outlet = inner.getObjectByName(name);
+            if (outlet) outlet.visible = false;
+          }
+        }
         // The R8 source has a separate factory wing. Hide it only on this
         // clone when fitting an aftermarket wing; the shared source stays intact.
         if (id === 'r8' && config.spoiler !== 'stock') {

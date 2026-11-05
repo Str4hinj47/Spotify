@@ -128,18 +128,6 @@ function wingSupport(x:number,y:number,z:number,height:number) {
   for(let i=0;i<4;i++){let j=(i+1)%4;indices.push(i,j,i+4,j,j+4,i+4);}
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
 }
-// Thin swept corner aero surfaces; terminate at the bumper rather than
-// placing rectangular blocks across the intakes.
-function canard(f:Fit,side:number,nose:number,sweep:number,y:number) {
-  const z=nose+sweep*.72, w=f.frontW;
-  const points=[[side*w*.78,y,z+.075],[side*w*1.035,y+.012,z+.005],
-    [side*w*1.035,y+.012,z+.17],[side*w*.84,y,z+.17]];
-  const vertices:number[]=[];
-  for(const dy of [0,-.012]) for(const p of points)vertices.push(p[0],p[1]+dy,p[2]);
-  const faces=[0,1,2,0,2,3,4,6,5,4,7,6,0,4,5,0,5,1,1,5,6,1,6,2,2,6,7,2,7,3,3,7,4,3,4,0];
-  if(side>0) for(let i=0;i<faces.length;i+=3) [faces[i+1],faces[i+2]]=[faces[i+2],faces[i+1]];
-  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geo.setIndex(faces);geo.computeVertexNormals();return geo;
-}
 function box(w:number,h:number,d:number,x:number,y:number,z:number,mat:THREE.Material, group:THREE.Group, name:string) {
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat); mesh.position.set(x,y,z); mesh.name=name; mesh.castShadow=true; group.add(mesh);return mesh;
 }
@@ -169,13 +157,8 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     fascia.name='front-fascia';a.add(fascia);
     const splitter=new THREE.Mesh(taperedBand(f.frontW*(track?1.04:.99),nose-(track?.10:.06),f.bumperY-.005,track?.46:.35,.028,sweep),carbon);
     splitter.name='front-splitter';a.add(splitter);
-    // Corner blades are set into the swept bumper, not ahead of its headlights.
-    if(track) for(const side of [-1,1]) {
-      const lower=new THREE.Mesh(canard(f,side,nose,sweep,f.bumperY+.145),carbon);lower.name='front-canard';a.add(lower);
-      if(id==='audi'||id==='r8'||id==='ferrari') {
-        const upper=new THREE.Mesh(canard(f,side,nose,sweep,f.bumperY+.205),carbon);upper.name='upper-canard';a.add(upper);
-      }
-    }
+    // Keep the track splitter clean: the former floating corner blades did
+    // not follow the different bumper surfaces closely enough to look fitted.
     if(id==='mercedes') box(f.frontW*1.35,.015,.035,0,f.bumperY+.11,nose+.04,metal,a,'bright-fascia-trim');
   }
   if(config.rear!=='stock') {
@@ -259,9 +242,18 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   }
   if(config.underglow) {
     const a=reg('underglow'), canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
-    const ctx=canvas.getContext('2d')!, gradient=ctx.createRadialGradient(64,64,4,64,64,64);
-    gradient.addColorStop(0,'rgba(255,255,255,0.72)');gradient.addColorStop(.45,'rgba(255,255,255,0.38)');gradient.addColorStop(1,'rgba(255,255,255,0)');
-    ctx.fillStyle=gradient;ctx.fillRect(0,0,128,128);
+    const ctx=canvas.getContext('2d')!;
+    // Soft rounded-rectangle falloff rather than a circular spotlight. The
+    // superellipse norm rounds the corners while retaining long straight sides.
+    const image=ctx.createImageData(128,128);
+    for(let y=0;y<128;y++) for(let x=0;x<128;x++) {
+      const dx=Math.abs((x+0.5-64)/64), dy=Math.abs((y+0.5-64)/64);
+      const d=Math.pow(Math.pow(dx,4)+Math.pow(dy,4),.25);
+      const t=THREE.MathUtils.clamp((1-d)/.70,0,1);
+      const alpha=.72*t*t*(3-2*t), i=(y*128+x)*4;
+      image.data[i]=image.data[i+1]=image.data[i+2]=255;image.data[i+3]=Math.round(alpha*255);
+    }
+    ctx.putImageData(image,0,0);
     const texture=new THREE.CanvasTexture(canvas);
     const glow=new THREE.MeshBasicMaterial({color:config.glowColor,map:texture,transparent:true,opacity:.85,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
     const plane=new THREE.Mesh(new THREE.PlaneGeometry(f.sideX*3.6,(f.rearZ-f.frontZ)*1.20),glow);
