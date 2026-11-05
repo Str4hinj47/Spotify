@@ -1,0 +1,46 @@
+import { chromium as pw } from '@playwright/test';
+import chromium from '@sparticuz/chromium';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const browser = await pw.launch({executablePath:await chromium.executablePath(), args:chromium.args.filter(a=>a!=='--single-process').concat(['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox']), env:{...process.env,LD_LIBRARY_PATH:`/home/user/.local/lib/chromium-deps:${process.env.LD_LIBRARY_PATH||''}`}});
+const errors=[];
+try {
+  const page=await browser.newPage({viewport:{width:1280,height:800}});
+  page.on('pageerror',e=>errors.push(String(e)));
+  await page.goto('http://localhost:3000/?test=1'); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
+  await page.evaluate(()=>localStorage.removeItem('overtake-customization-v1'));
+  await page.click('.car-card[data-car="r8"]'); await page.click('#btn-customize');
+  assert.equal(await page.locator('#custom-panel select:visible').count(),0);
+  await page.click('[data-workshop-part="exhaust"]');
+  await page.click('[data-part-panel="exhaust"] .workshop-choices button[data-value="street"]');
+  assert.equal(await page.locator('#custom-exhaust').inputValue(),'street');
+  assert.equal(await page.locator('[data-part-panel="exhaust"] .workshop-choices button[data-value="street"]').getAttribute('aria-pressed'),'true');
+  let status=await page.evaluate(()=>{let g=window.__overtake,c=g.player, stock=g.library.create('r8'), traffic=g.library.create('r8',{player:false});return {custom:['black_gloss_13','metal_2_10','black_matt_18'].map(n=>c.getObjectByName(n).visible),stock:['black_gloss_13','metal_2_10','black_matt_18'].map(n=>stock.getObjectByName(n).visible),traffic:['black_gloss_13','metal_2_10','black_matt_18'].map(n=>traffic.getObjectByName(n).visible),tire:c.getObjectByName('tyre_1').material.side,rim:c.getObjectByName('rims_1_1').material.side}});
+  assert.deepEqual(status.custom,[false,false,false]);assert.deepEqual(status.stock,[true,true,true]);assert.deepEqual(status.traffic,[true,true,true]);assert.equal(status.tire,2);assert.equal(status.rim,2);
+  await page.click('[data-workshop-tab="lighting"]');await page.check('#custom-glow-enabled');await page.locator('#custom-glow-color').fill('#248fff');
+  assert.ok(await page.evaluate(()=>!!window.__overtake.player.getObjectByName('underglow-pool')));
+  await page.click('[data-workshop-tab="paint"]');await page.click('[aria-label="Two-tone paint layout"] button[data-value="upper"]');
+  assert.equal(await page.locator('#custom-paint-scheme').inputValue(),'upper');
+  await page.click('[data-workshop-tab="body"]');await page.click('[data-workshop-part="front"]');await page.click('[data-part-panel="front"] .workshop-choices button[data-value="track"]');
+  fs.mkdirSync('test-results',{recursive:true}); await page.screenshot({path:'test-results/workshop-redesign-desktop.png',timeout:120000});
+  await page.setViewportSize({width:390,height:844});
+  assert.equal(await page.locator('.car-list').isVisible(),false);
+  assert.ok(await page.locator('[data-workshop-part="front"]').isVisible());
+  await page.click('[data-workshop-tab="lighting"]');assert.ok(await page.locator('#custom-glow-enabled').isVisible());
+  await page.screenshot({path:'test-results/workshop-redesign-mobile.png',timeout:120000});
+  await page.click('#custom-done');await page.click('#btn-start');
+  const shadow=await page.evaluate(()=>{let g=window.__overtake;g.updateContactShadow();const p=g.contactShadow.geometry.attributes.position;let ys=[];for(let i=0;i<p.count;i++)ys.push(p.getY(i));return {vertices:p.count,min:Math.min(...ys),max:Math.max(...ys),finite:ys.every(Number.isFinite)}});
+  assert.ok(shadow.vertices>4 && shadow.finite);assert.ok(shadow.max>shadow.min);
+  await page.click('#btn-camera'); await page.click('[data-cam="free"]');
+  await page.locator('#cam-sensitivity').fill('2'); await page.uncheck('#cam-auto-center');
+  await page.click('#cam-close');
+  await page.mouse.move(200,250); await page.mouse.down(); await page.mouse.move(300,290); await page.mouse.up();
+  const orbit=await page.evaluate(()=>{const g=window.__overtake;const before=g.freeYaw;g.updateCamera(5);return {before,after:g.freeYaw,sensitivity:g.getFreeCameraSettings().sensitivity,enabled:g.getFreeCameraSettings().autoCenter,stored:JSON.parse(localStorage.getItem('overtake-free-camera'))}});
+  assert.ok(Math.abs(orbit.before)>.5);assert.equal(orbit.after,orbit.before);assert.equal(orbit.sensitivity,2);assert.equal(orbit.enabled,false);assert.equal(orbit.stored.autoCenter,false);
+  const centered=await page.evaluate(()=>{const g=window.__overtake;g.setFreeCameraSettings({autoCenter:true});g.updateCamera(4);return g.freeYaw});
+  assert.ok(Math.abs(centered)<Math.abs(orbit.before)*.1);
+  const glow=await page.evaluate(async()=>{const T=await import('/node_modules/three/build/three.module.js'),g=window.__overtake;g.player.rotation.set(0,g.yaw,.035);g.updateUnderglow();const o=g.player.getObjectByName('underglow-pool'),q=o.getWorldQuaternion(new T.Quaternion()),normal=new T.Vector3(0,0,1).applyQuaternion(q),p=o.geometry.attributes.position;return {normal:normal.toArray(),vertices:p.count,finite:Array.from(p.array).every(Number.isFinite)}});
+  assert.ok(glow.vertices>4 && glow.finite);assert.ok(glow.normal[1]>.999,'glow must not tilt with the body');
+
+  assert.deepEqual(errors,[]);console.log({status,shadow,errors});
+} finally { await browser.close(); }

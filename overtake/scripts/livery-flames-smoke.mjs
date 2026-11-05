@@ -11,6 +11,7 @@ try {
   page.on('console',m=>{if(m.type()==='error')errors.push(m.text())}); page.on('pageerror',e=>errors.push(String(e)));
   await page.goto('http://localhost:3000/?test=1'); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.click('.car-card[data-car="golf"]');await page.click('#btn-customize');
+  await page.click('[data-workshop-tab="paint"]');
   await page.selectOption('#custom-paint-scheme','upper');
   await page.selectOption('#custom-secondary-finish','carbon');
   await page.selectOption('#custom-livery','race');await page.locator('#custom-livery-color').fill('#ffcf20');
@@ -73,6 +74,7 @@ try {
   await mobile.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await mobile.click('#btn-customize');
   assert.equal(await mobile.locator('#custom-front-finish').isDisabled(),true);
   await mobile.selectOption('#custom-front','street');await mobile.selectOption('#custom-front-finish','carbon');
+  await mobile.click('[data-workshop-tab="paint"]');
   await mobile.locator('#custom-primary-color').fill('#da3366');await mobile.selectOption('#custom-paint-scheme','lower');
   await mobile.locator('#custom-secondary-color').fill('#26b3a0');await mobile.selectOption('#custom-livery','stripe');
   const mobileState=await mobile.evaluate(()=>({primary:document.querySelector('#custom-primary-color').value,

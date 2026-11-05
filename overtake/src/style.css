@@ -461,7 +461,7 @@ svg { stroke-width: 1.75; }
 }
 
 /* Workshop: visible choices, grouped by task instead of a long menu stack. */
-.custom-panel { width:370px; padding:20px; }
+.custom-panel { width:370px; padding:20px; touch-action:pan-y; overscroll-behavior:contain; }
 .custom-heading h2 { font-size:22px; }
 .custom-subtitle { margin-bottom:12px; }
 .custom-views { margin-bottom:15px; }

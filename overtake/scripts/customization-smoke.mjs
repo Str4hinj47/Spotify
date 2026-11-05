@@ -13,7 +13,8 @@ try {
   await page.evaluate(()=>{localStorage.removeItem('overtake-customization-v1')});
   await page.click('.car-card[data-car="golf"]'); await page.click('#btn-customize');
   assert.ok(await page.locator('#custom-panel').isVisible());
-  for (const part of ['front','rear','skirts','spoiler','exhaust']) await page.selectOption(`#custom-${part}`,'track');
+  for (const part of ['front','rear','skirts','spoiler','exhaust']) { await page.click(`[data-workshop-part="${part}"]`); await page.click(`[data-part-panel="${part}"] .workshop-choices button[data-value="track"]`); }
+  await page.click('[data-workshop-tab="lighting"]');
   await page.check('#custom-glow-enabled'); await page.locator('#custom-glow-color').fill('#ff32bc');
   await page.click('[data-custom-view="rear"]');
   const custom = await page.evaluate(() => {
@@ -27,7 +28,7 @@ try {
   await page.screenshot({path:'test-results/custom-workshop.png',timeout:120000});
   // Another model starts stock and can have a different setup.
   await page.click('.car-card[data-car="audi"]'); assert.equal(await page.locator('#custom-front').inputValue(),'stock');
-  await page.selectOption('#custom-front','street');
+  await page.click('[data-workshop-tab="body"]'); await page.click('[data-workshop-part="front"]'); await page.click('[data-part-panel="front"] .workshop-choices button[data-value="street"]');
   await page.click('.car-card[data-car="golf"]'); assert.equal(await page.locator('#custom-front').inputValue(),'track');
   assert.equal(await page.locator('#custom-glow-enabled').isChecked(),true);
   await page.click('#custom-done'); await page.click('#btn-start');
