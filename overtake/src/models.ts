@@ -32,6 +32,47 @@ const ORIENTATION: Record<TrafficId, number> = {
   kraz: 0,
 };
 
+// A few source meshes reuse one "glass" material for both the cabin and lamp
+// lenses (notably the W222). Preserve transparent lenses while making cabin
+// glazing depth-writing. Split triangles only where a mesh actually spans both.
+function separateLampLenses(scene: THREE.Group) {
+  scene.updateMatrixWorld(true);
+  const lenses = new Map<THREE.Material, THREE.Material>();
+  const point = new THREE.Vector3();
+  scene.traverse(o => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh || Array.isArray(mesh.material) || !mesh.material.name.startsWith('glass__')) return;
+    const geometry = mesh.geometry, positions = geometry.getAttribute('position');
+    if (!positions) return;
+    const index = geometry.index, count = index ? index.count : positions.count;
+    const classes:number[]=[];
+    for(let i=0;i+2<count;i+=3) {
+      let z=0,y=0;
+      for(let j=0;j<3;j++) {
+        point.fromBufferAttribute(positions,index?index.getX(i+j):i+j).applyMatrix4(mesh.matrixWorld);
+        z+=point.z/3;y+=point.y/3;
+      }
+      classes.push(y<.96 && (z < -1.5 || z > 2.25) ? 1 : 0);
+    }
+    if(!classes.includes(1)) return;
+    let lens=lenses.get(mesh.material);
+    if(!lens) {
+      lens=mesh.material.clone();
+      const material=lens as THREE.MeshStandardMaterial;
+      material.name=mesh.material.name+'__lamp_lens';
+      material.color.set(0x999fa6);material.transparent=true;material.opacity=.18;
+      material.depthWrite=false;material.depthTest=true;material.side=THREE.DoubleSide;
+      lenses.set(mesh.material,lens);
+    }
+    const copy=geometry.clone();copy.clearGroups();
+    let start=0, previous=classes[0];
+    for(let i=1;i<=classes.length;i++) if(i===classes.length || classes[i]!==previous) {
+      copy.addGroup(start*3,(i-start)*3,previous);start=i;previous=classes[i];
+    }
+    mesh.geometry=copy;mesh.material=[mesh.material,lens];
+  });
+}
+
 export class ModelLibrary {
   private loader: GLTFLoader;
   private models = new Map<TrafficId, CarModel>();
@@ -92,10 +133,17 @@ export class ModelLibrary {
               std.color.set(0x0a0f14);
               std.metalness = 0.1;
               std.roughness = 0.06;
-              // The RS6 has no modeled cabin. Opaque smoked glass keeps the
-              // exterior reflections but prevents seeing through an empty shell.
-              std.transparent = spec.id !== 'audi';
-              std.opacity = spec.id === 'audi' ? 1 : 0.92;
+              // Some source GLBs disable depth writes even on nominally opaque
+              // glass. That lets cabin geometry and rear lights render through it.
+              // Treat glazing as smoked, depth-writing exterior bodywork on both
+              // player and traffic clones; never rely on opacity alone.
+              std.transparent = false;
+              std.opacity = 1;
+              std.depthWrite = true;
+              std.depthTest = true;
+              std.alphaTest = 0;
+              std.alphaMap = null;
+              if ('transmission' in std) (std as THREE.MeshPhysicalMaterial).transmission = 0;
               std.side = THREE.DoubleSide;
               std.envMapIntensity = 1.2;
             } else if (m.name.startsWith('chrome__')) {
@@ -121,6 +169,7 @@ export class ModelLibrary {
           }
         }
       });
+      separateLampLenses(scene);
       this.models.set(spec.id, {
         id: spec.id,
         scene,

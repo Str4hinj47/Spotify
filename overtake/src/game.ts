@@ -1284,6 +1284,13 @@ export class OvertakeGame {
         t.passed = true;
         const near = Math.abs(dOff) < 2.6;
         const { points, events } = registerPass(this.run, 'same', near, spec.bonus);
+        // Cancel at the same clearance threshold that awards a completed pass.
+        // Oncoming dodges are not overtakes and must not cancel a signal.
+        if (this.signal) {
+          this.signal = null;
+          this.signalElapsed = 0;
+          this.updatePlayerLights(0);
+        }
         this.cb.onEvent({ kind: near ? 'near' : 'overtake', text: near ? 'NEAR MISS' : 'OVERTAKE', points });
         this.handleRunEvents(events);
       }

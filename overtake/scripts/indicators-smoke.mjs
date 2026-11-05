@@ -16,7 +16,7 @@ try {
   await page.waitForSelector('#topbar:not(.hidden)', { timeout: 180000 });
   await page.evaluate(() => { const g = window.__overtake; cancelAnimationFrame(g.raf); g.garageAuto = false; g.garageZoom = 5.7; g.garagePitch = 0.24; });
   fs.mkdirSync('test-results', { recursive: true });
-  for (const id of ['golf', 'mercedes', 'audi', 'mustang', 'ferrari', 'r8', 'challenger']) {
+  for (const id of (process.env.INDICATOR_CAR ? [process.env.INDICATOR_CAR] : ['golf', 'mercedes', 'audi', 'mustang', 'ferrari', 'r8', 'challenger'])) {
     const result = await page.evaluate(async id => {
       const g = window.__overtake; g.setSelectedCar(id);
       const indicator = g.player.userData.indicatorState;
@@ -40,10 +40,34 @@ try {
         }
         return { left: lhs, right: rhs };
       };
+      let challengerWindowDiff = 0, ringCenterDiff = 0;
+      if (id === 'challenger') {
+        // Turning off the front lamps must not alter the rear-window pixels.
+        // This catches real rendering/depth regressions, not just opacity flags.
+        const frontMeshes = [];
+        g.player.traverse(o => { if (o.isMesh && (o.name === 'Cylinder_Cylinder004' || o.name === 'Cylinder003_Cylinder001' || o.name === 'Sphere001_Sphere002')) frontMeshes.push(o); });
+        frontMeshes.forEach(o=>o.visible=false);
+        const noFront = await pixels(render(0,0,0));
+        frontMeshes.forEach(o=>o.visible=true);
+        for(let y=225;y<292;y++) for(let x=285;x<515;x++) {
+          const i=(y*800+x)*4; challengerWindowDiff+=Math.abs(images[0][i]-noFront[i])+Math.abs(images[0][i+1]-noFront[i+1])+Math.abs(images[0][i+2]-noFront[i+2]);
+        }
+        // Signal should illuminate the rounded perimeter, not the dark center.
+        // Derive its screen bounds from changed pixels so the check follows the camera.
+        let minX=800,maxX=0,minY=600,maxY=0;
+        for(let y=0;y<600;y++) for(let x=0;x<400;x++) {
+          const i=(y*800+x)*4, d=Math.abs(images[0][i]-images[1][i])+Math.abs(images[0][i+1]-images[1][i+1])+Math.abs(images[0][i+2]-images[1][i+2]);
+          if(d>35){minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);}
+        }
+        const cx=Math.round((minX+maxX)/2),cy=Math.round((minY+maxY)/2);
+        for(let y=cy-2;y<=cy+2;y++) for(let x=cx-2;x<=cx+2;x++) {
+          const i=(y*800+x)*4;ringCenterDiff+=Math.abs(images[0][i]-images[1][i])+Math.abs(images[0][i+1]-images[1][i+1])+Math.abs(images[0][i+2]-images[1][i+2]);
+        }
+      }
       let sprites = 0; g.player.traverse(o => { if (o.isSprite && o.material.opacity > 0) sprites++; });
       return { id, left: diff(images[0], images[1]), right: diff(images[0], images[2]),
         off: diff(images[1], images[3]), front: diff(images[4], images[5]),
-        lamps: g.player.userData.indicatorMaterials.length, visibleSprites: sprites, screenshot: left, frontScreenshot: frontOn, frontBase: frontIdle };
+        lamps: g.player.userData.indicatorMaterials.length, visibleSprites: sprites, challengerWindowDiff, ringCenterDiff, screenshot: left, frontScreenshot: frontOn, frontBase: frontIdle };
     }, id);
     if (id === 'audi') { for (const [key, name] of [['frontBase','front-off'],['frontScreenshot','front-on']]) fs.writeFileSync(`test-results/audi-${name}.png`, Buffer.from(result[key].split(',')[1], 'base64')); }
     assert.ok(result.lamps > 0, `${id} has no lens materials`);
@@ -54,6 +78,10 @@ try {
     assert.ok(result.off.left > 20, `${id} indicator does not blink off`);
     assert.ok(result.front.left + result.front.right < 12, `${id} activates a front lamp: ${JSON.stringify(result.front)}`);
     assert.equal(result.visibleSprites, 0, `${id} uses a floating indicator`);
+    if (id === 'challenger') {
+      assert.equal(result.challengerWindowDiff, 0, 'front lamps leaked through the Challenger rear glass');
+      assert.ok(result.ringCenterDiff < 150, `Challenger signal filled its dark lens center: ${result.ringCenterDiff}`);
+    }
     fs.writeFileSync(`test-results/indicator-verified-${id}.png`, Buffer.from(result.screenshot.split(',')[1], 'base64'));
     delete result.screenshot; delete result.frontScreenshot; delete result.frontBase; console.log(result);
   }

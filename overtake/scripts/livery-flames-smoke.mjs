@@ -26,7 +26,7 @@ try {
   });
   assert.equal(state.saved.livery,'race');assert.equal(state.saved.liveryColor,'#ffcf20');assert.equal(state.saved.exhaust,'flame');
   for(const p of ['front','rear','skirts','spoiler','exhaust'])assert.equal(state.saved[`${p}Finish`],'carbon');
-  assert.ok(state.carbon.includes('front-fascia')&&state.carbon.includes('rear-valance')&&state.carbon.includes('side-skirt')&&state.carbon.includes('wing-blade'));
+  assert.ok(state.carbon.includes('front-fascia')&&state.carbon.includes('rear-valance')&&state.carbon.includes('side-skirt')&&state.carbon.includes('roof-extension'));
   assert.ok(state.paintMaterials>0);assert.equal(state.flameCount,2);
   fs.mkdirSync('test-results',{recursive:true});await page.screenshot({path:'test-results/paint-workshop.png',timeout:120000});
   await page.click('#custom-done');await page.click('#btn-start');
@@ -46,12 +46,23 @@ try {
     for(const id of ['golf','mercedes','audi','mustang','ferrari','r8','challenger']) {
       g.library.setCustomization(id,{front:'track',rear:'track',skirts:'track',spoiler:'track',exhaust:'flame',frontFinish:'carbon',rearFinish:'carbon',skirtsFinish:'carbon',spoilerFinish:'carbon',exhaustFinish:'carbon',paintScheme:'lower',secondaryFinish:'carbon',livery:'race',liveryColor:'#ffee11'});
       g.setSelectedCar(id);const flames=g.player.getObjectByName('exhaust-flames');const traffic=g.library.create(id);
-      out.push({id,jets:flames?.children.length,paint:g.player.userData.customPaintMaterials.length,traffic:traffic.getObjectByName('custom-body-kit')!==undefined});
+      g.player.updateMatrixWorld(true);traffic.updateMatrixWorld(true);
+      const mouths=[];g.player.traverse(o=>{if(o.name==='exhaust-mouth')mouths.push(o.getWorldPosition(o.position.clone()).toArray())});
+      const jets=flames.children.map(j=>j.getWorldPosition(j.position.clone()).toArray());
+      const glass=[];traffic.traverse(o=>{if(!o.isMesh)return;for(const m of Array.isArray(o.material)?o.material:[o.material]) if(m.name.startsWith('glass__')&&!m.name.endsWith('__lamp_lens')) glass.push({opacity:m.opacity,transparent:m.transparent,depthWrite:m.depthWrite});});
+      const spoiler=g.player.getObjectByName('custom-spoiler');
+      out.push({id,jets:jets.length,mouths,jetsWorld:jets,glass,roof:!!spoiler.getObjectByName('roof-extension'),pedestals:spoiler.children.filter(o=>o.name==='wing-pedestal').length,paint:g.player.userData.customPaintMaterials.length,traffic:traffic.getObjectByName('custom-body-kit')!==undefined});
       g.composer.render();
     }
     return out;
   });
-  assert.equal(all.length,7);for(const x of all){assert.ok(x.jets>=2&&x.paint>0);assert.equal(x.traffic,false);}
+  assert.equal(all.length,7);for(const x of all){
+    assert.ok(x.jets>=2&&x.paint>0);assert.equal(x.traffic,false);
+    assert.equal(x.jets,x.mouths.length,`${x.id} mouths`);
+    for(let i=0;i<x.jets;i++) assert.ok(x.jetsWorld[i].every((v,j)=>Math.abs(v-x.mouths[i][j])<1e-6),`${x.id} flame ${i} must start at its pipe mouth`);
+    assert.ok(x.glass.length>0);for(const glass of x.glass) assert.deepEqual(glass,{opacity:1,transparent:false,depthWrite:true});
+    if(x.id==='golf'||x.id==='audi'){assert.equal(x.roof,true);assert.equal(x.pedestals,0);}
+  }
   await page.reload({timeout:180000,waitUntil:'domcontentloaded'});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.click('.car-card[data-car="golf"]');await page.click('#btn-customize');
   assert.equal(await page.locator('#custom-livery').inputValue(),'race');assert.equal(await page.locator('#custom-exhaust').inputValue(),'flame');
   assert.equal(await page.locator('#custom-secondary-finish').inputValue(),'carbon');assert.equal(await page.locator('#custom-front-finish').inputValue(),'carbon');

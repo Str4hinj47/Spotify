@@ -13,7 +13,7 @@ export const INDICATOR_LAYOUTS: Record<CarId, Config> = {
   mustang:    { materials: ['taillight__M_Tailight1', 'taillight__M_Tailight2'], x: [0.35, 0.72], y: [0.65, 0.78], z: 2.18, color: 'red' },
   ferrari:    { materials: ['taillight__Rear_Light_Cover.000', 'taillight__Rear_Light_RedSide.000', 'taillight__Rear_Light_Tex.000'], x: [0.55, 0.86], y: [0.67, 0.85], z: 1.61, color: 'amber', ellipse: [0.665, 0.75, 0.76, 0.06] },
   r8:         { materials: ['taillight__r8'], x: [0.36, 0.85], y: [0.62, 0.674], z: 1.80, color: 'amber' },
-  challenger: { materials: ['taillight__challenger', 'glass__challenger'], x: [0.25, 0.80], y: [0.80, 0.96], z: 2.32, color: 'red' },
+  challenger: { materials: ['taillight__challenger'], x: [0.25, 0.80], y: [0.80, 0.96], z: 2.32, color: 'red' },
 };
 
 export function isIndicatorMaterial(id: CarId, material: THREE.Material) {
@@ -29,12 +29,9 @@ export function indicatorMaterial(id: CarId, source: THREE.Material, meshToCar: 
     float cx = indicatorPos.x < 0.0 ? -${f(layout.ellipse[0])} : ${f(layout.ellipse[1])};
     vec2 circle = vec2((indicatorPos.x - cx) / ${f(layout.ellipse[3])}, (indicatorPos.y - ${f(layout.ellipse[2])}) / ${f(layout.ellipse[3])});
     zone *= 1.0 - smoothstep(0.86, 1.0, length(circle));` : '';
-  // The Challenger uses a perimeter LED around a dark center panel. Keep
-  // that center dark rather than illuminating the entire lens cover.
-  const ring = id === 'challenger' ? `
-    float band = max(max(step(indicatorPos.y, 0.833), step(0.925, indicatorPos.y)),
-                     max(step(ax, 0.30), step(0.74, ax)));
-    zone *= band;` : '';
+  // The Challenger's red mesh is already the rounded LED perimeter. Restrict
+  // the signal to that mesh instead of drawing a rectangular mask on the
+  // glass cover; the real lens supplies the corners and thickness.
   const color = layout.color === 'red' ? 'vec3(1.0, 0.015, 0.008)' : 'vec3(1.0, 0.30, 0.008)';
   const dark = layout.color === 'red' ? 'step(sideState, -0.5) * zone' : '0.0';
   material.onBeforeCompile = shader => {
@@ -51,7 +48,6 @@ export function indicatorMaterial(id: CarId, source: THREE.Material, meshToCar: 
         float zone = step(0.0, indicatorViewZ) * step(${f(layout.x[0])}, ax) * step(ax, ${f(layout.x[1])})
           * step(${f(layout.y[0])}, indicatorPos.y) * step(indicatorPos.y, ${f(layout.y[1])}) * step(${f(layout.z)}, indicatorPos.z);
         ${ellipse}
-        ${ring}
         float signalOn = zone * step(0.5, sideState);
         float signalOff = ${dark};
         diffuseColor.rgb = mix(diffuseColor.rgb, ${color}, signalOn);
@@ -61,6 +57,6 @@ export function indicatorMaterial(id: CarId, source: THREE.Material, meshToCar: 
         totalEmissiveRadiance *= 1.0 - signalOff * 0.95;
       `);
   };
-  material.customProgramCacheKey = () => `rear-indicator-${id}-v1`;
+  material.customProgramCacheKey = () => `rear-indicator-${id}-v2`;
   return material;
 }
