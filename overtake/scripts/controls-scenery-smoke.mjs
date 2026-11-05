@@ -24,20 +24,19 @@ try {
   });
   assert.equal(await page.locator('#boost-meter').count(), 0);
   assert.equal(await page.locator('#t-boost').count(), 0);
-  await page.keyboard.press('e');
+  await page.keyboard.press('q');
   assert.equal(await page.locator('#signal-left').getAttribute('aria-pressed'), 'true');
   let state = await page.evaluate(() => {
     const g = window.__overtake; g.signalElapsed = 0; g.updatePlayerLights(0);
-    return { signal: g.signal, left: g.indicators.filter(x => x.side === 'left').map(x => x.sprite.material.opacity),
-      right: g.indicators.filter(x => x.side === 'right').map(x => x.sprite.material.opacity) };
+    return { signal: g.signal, left: g.player.userData.indicatorState.left.value, right: g.player.userData.indicatorState.right.value };
   });
-  assert.equal(state.signal, 'left'); assert.deepEqual(state.left, [1, 1]); assert.deepEqual(state.right, [0, 0]);
-  state = await page.evaluate(() => { const g = window.__overtake; g.signalElapsed = 0.6; g.updatePlayerLights(0); return g.indicators.map(x => x.sprite.material.opacity); });
-  assert.deepEqual(state, [0, 0, 0, 0]);
-  await page.keyboard.press('q');
+  assert.equal(state.signal, 'left'); assert.equal(state.left, 1); assert.equal(state.right, 0);
+  state = await page.evaluate(() => { const g = window.__overtake; g.signalElapsed = 0.6; g.updatePlayerLights(0); return [g.player.userData.indicatorState.left.value, g.player.userData.indicatorState.right.value]; });
+  assert.deepEqual(state, [-1, 0]);
+  await page.keyboard.press('e');
   assert.equal(await page.locator('#signal-right').getAttribute('aria-pressed'), 'true');
   assert.equal(await page.locator('#signal-left').getAttribute('aria-pressed'), 'false');
-  await page.keyboard.press('q');
+  await page.keyboard.press('e');
   assert.equal(await page.locator('#signal-right').getAttribute('aria-pressed'), 'false');
   const brakes = await page.evaluate(() => {
     const g = window.__overtake; const npc = g.library.create('audi');
@@ -74,6 +73,10 @@ try {
     g.vehicle.offset = 0; g.vehicle.speed = 0;
     const s = g.vehicle.s;
     g.spawnSame(s, 0); g.spawnOncoming(s, 0);
+    // Use a controlled formation: model selection is random, but this test
+    // must exercise the gap rule rather than either car's direct hitbox.
+    g.traffic[0].offset = 2.1; g.traffic[1].offset = -2.1;
+    for (const t of g.traffic) t.width = 1.9;
     let message = ''; const old = g.cb.onEvent;
     g.cb.onEvent = event => { if (event.kind === 'crash') message = event.text; old(event); };
     g.updateDriving(0.01);

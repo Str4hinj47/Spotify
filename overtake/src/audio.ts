@@ -3,6 +3,7 @@
 import { EngineSim, type EngineSimState } from './vendor/engine-sim/engine-sim.js';
 import type { CarId } from './catalog';
 import { ENGINE_PRESETS } from './engine-presets';
+import { signalAudioTransition } from './signal-audio.mjs';
 
 export interface EngineHud {
   rpm: number;
@@ -14,15 +15,24 @@ export interface EngineHud {
 export class GameAudio {
   private ctx: AudioContext | null = null;
   private sim: EngineSim | null = null;
+  private effectsGain: GainNode | null = null;
+  private scoreGain: GainNode | null = null;
+  private indicatorGain: GainNode | null = null;
+  private signal: 'left' | 'right' | null = null;
+  private signalLit = false;
   private lastT = 0;
   private active = false;
   private pendingCar: CarId = 'golf';
   private volume = 0.8;
   muted = false;
+  scoreSounds = true;
+  indicatorSounds = true;
 
   constructor() {
     try {
       this.muted = localStorage.getItem('overtake-muted') === '1';
+      this.scoreSounds = localStorage.getItem('overtake-score-sounds') !== '0';
+      this.indicatorSounds = localStorage.getItem('overtake-indicator-sounds') !== '0';
     } catch {
       this.muted = false;
     }
@@ -33,6 +43,14 @@ export class GameAudio {
     const Ctx = window.AudioContext || (window as any).webkitAudioContext;
     if (!Ctx) return;
     this.ctx = new Ctx();
+    const ctx = this.ctx!;
+    this.effectsGain = ctx.createGain();
+    this.scoreGain = ctx.createGain();
+    this.indicatorGain = ctx.createGain();
+    this.effectsGain.connect(ctx.destination);
+    this.scoreGain.connect(this.effectsGain);
+    this.indicatorGain.connect(this.effectsGain);
+    this.applyEffectVolume();
     const setup = ENGINE_PRESETS[this.pendingCar];
     this.sim = new EngineSim(this.ctx, {
       engine: setup.engine,
@@ -91,6 +109,7 @@ export class GameAudio {
 
   setActive(active: boolean) {
     this.active = active;
+    if (!active) { this.signal = null; this.signalLit = false; }
     this.applyVolume();
   }
 
@@ -111,6 +130,53 @@ export class GameAudio {
       /* ignore */
     }
     this.applyVolume();
+    this.applyEffectVolume();
+  }
+
+  private applyEffectVolume() {
+    if (!this.ctx) return;
+    const set = (node: GainNode | null, enabled: boolean) => {
+      if (!node) return;
+      node.gain.cancelScheduledValues(this.ctx!.currentTime);
+      node.gain.setValueAtTime(enabled ? 1 : 0, this.ctx!.currentTime);
+    };
+    set(this.effectsGain, !this.muted);
+    set(this.scoreGain, this.scoreSounds);
+    set(this.indicatorGain, this.indicatorSounds);
+  }
+
+  setScoreSounds(enabled: boolean) {
+    this.scoreSounds = enabled;
+    try { localStorage.setItem('overtake-score-sounds', enabled ? '1' : '0'); } catch { /* ignore */ }
+    this.applyEffectVolume();
+  }
+
+  setIndicatorSounds(enabled: boolean) {
+    this.indicatorSounds = enabled;
+    try { localStorage.setItem('overtake-indicator-sounds', enabled ? '1' : '0'); } catch { /* ignore */ }
+    this.applyEffectVolume();
+  }
+
+  // The game's lamp phase is authoritative: one relay click on each on/off
+  // edge, never a separate timer that can drift while paused or inactive.
+  setSignal(side: 'left' | 'right' | null, lit: boolean) {
+    const next = signalAudioTransition(this.signal, this.signalLit, side, lit, this.active);
+    if (next.click) this.indicatorClick(next.click === 'on');
+    this.signal = next.side;
+    this.signalLit = next.lit;
+  }
+
+  private indicatorClick(on: boolean) {
+    if (!this.ctx || this.ctx.state !== 'running' || this.muted || !this.indicatorSounds || !this.indicatorGain) return;
+    const ctx = this.ctx, t = ctx.currentTime, duration = 0.036;
+    const buffer = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * duration), ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 3);
+    const src = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), gain = ctx.createGain();
+    src.buffer = buffer; filter.type = 'bandpass'; filter.frequency.value = on ? 1500 : 1150; filter.Q.value = 0.9;
+    gain.gain.setValueAtTime(0.16, t);
+    src.connect(filter).connect(gain).connect(this.indicatorGain); src.start(t);
+    this.blip(on ? 690 : 510, 0.035, 'sine', 0.045, 0, this.indicatorGain);
   }
 
   /** Advance the engine sim. Speed is m/s from the game; pedals are 0..1. */
@@ -143,7 +209,7 @@ export class GameAudio {
     };
   }
 
-  private blip(freq: number, dur: number, type: OscillatorType, gain = 0.12, when = 0) {
+  private blip(freq: number, dur: number, type: OscillatorType, gain = 0.12, when = 0, output?: AudioNode) {
     if (!this.ctx || this.muted) return;
     const t = this.ctx.currentTime + when;
     const osc = this.ctx.createOscillator();
@@ -153,14 +219,15 @@ export class GameAudio {
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(gain, t + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    osc.connect(g).connect(this.ctx.destination);
+    osc.connect(g).connect(output ?? this.effectsGain ?? this.ctx.destination);
     osc.start(t);
     osc.stop(t + dur + 0.05);
   }
 
   overtake(near: boolean) {
-    this.blip(660, 0.12, 'triangle', 0.1);
-    this.blip(near ? 990 : 880, 0.16, 'triangle', 0.1, 0.07);
+    if (!this.scoreSounds || !this.scoreGain) return;
+    this.blip(660, 0.12, 'triangle', 0.1, 0, this.scoreGain);
+    this.blip(near ? 990 : 880, 0.16, 'triangle', 0.1, 0.07, this.scoreGain);
   }
 
   click() {
@@ -183,7 +250,7 @@ export class GameAudio {
     filter.frequency.value = 900;
     const g = this.ctx.createGain();
     g.gain.value = 0.35;
-    src.connect(filter).connect(g).connect(this.ctx.destination);
+    src.connect(filter).connect(g).connect(this.effectsGain ?? this.ctx.destination);
     src.start(t);
     this.blip(90, 0.4, 'sawtooth', 0.18);
   }

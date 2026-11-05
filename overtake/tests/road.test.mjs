@@ -24,3 +24,15 @@ test('the local CC0 road texture set contains valid image data', async () => {
     assert.equal(bytes[1], 0xd8);
   }
 });
+
+test('snow ruts and drifting remain bounded and continuous across road distances', () => {
+  for (let s = -100; s < 1500; s += 7.2) {
+    const center = snowDriftHeight(0, s, 1, half);
+    const rut = snowDriftHeight(1.25, s, 1, half);
+    assert.ok(rut >= 0 && rut < 0.08);
+    assert.ok(center >= 0 && center < 0.08);
+    assert.ok(Math.abs(snowDriftHeight(4.6, s + 0.01, 1, half) - snowDriftHeight(4.6, s, 1, half)) < 0.001);
+    assert.equal(snowDriftHeight(1.25, s, -5, half), 0);
+    assert.equal(snowDriftHeight(1.25, s, 5, half), rut);
+  }
+});

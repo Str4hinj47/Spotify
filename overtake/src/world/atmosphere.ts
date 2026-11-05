@@ -24,16 +24,38 @@ export class Atmosphere {
         sunDir: { value: new THREE.Vector3(0, 1, 0) },
         sunColor: { value: new THREE.Color(0xfff2d0) },
         sunIntensity: { value: 1 },
+        cloudCover: { value: 0.25 },
+        cloudLight: { value: 1 },
+        cloudTime: { value: 0 },
       },
       vertexShader: `varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: `
         uniform vec3 topColor; uniform vec3 horizonColor; uniform vec3 sunDir;
-        uniform vec3 sunColor; uniform float sunIntensity; varying vec3 vDir;
+        uniform vec3 sunColor; uniform float sunIntensity;
+        uniform float cloudCover; uniform float cloudLight; uniform float cloudTime;
+        varying vec3 vDir;
+        float hash21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float noise2(vec2 p) {
+          vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+          return mix(mix(hash21(i),hash21(i+vec2(1.,0.)),f.x),mix(hash21(i+vec2(0.,1.)),hash21(i+vec2(1.,1.)),f.x),f.y);
+        }
+        float fbm(vec2 p) {
+          float n = 0.0, amp = 0.5;
+          for (int i=0; i<4; i++) { n += noise2(p)*amp; p = mat2(1.6,-1.2,1.2,1.6)*p; amp *= 0.5; }
+          return n;
+        }
         void main(){
           vec3 d = normalize(vDir);
           float h = max(d.y, 0.0);
           vec3 col = mix(horizonColor, topColor, pow(h, 0.55));
           float s = max(dot(d, normalize(sunDir)), 0.0);
+          // Soft, directional cloud layers with a clear break near the horizon.
+          vec2 cp = d.xz / (max(d.y, 0.0) + 0.32) * 3.0 + vec2(cloudTime * 0.002, cloudTime * 0.0007);
+          float n = fbm(cp);
+          float clouds = smoothstep(0.56 - cloudCover * 0.16, 0.72 - cloudCover * 0.12, n);
+          clouds *= smoothstep(0.015, 0.16, d.y) * cloudLight;
+          vec3 cloudColor = mix(horizonColor * 0.85, vec3(1.0, 0.98, 0.95), 0.65);
+          col = mix(col, cloudColor, clouds * (0.38 + cloudCover * 0.38));
           col += sunColor * (pow(s, 420.0) * 3.0 + pow(s, 18.0) * 0.22) * sunIntensity;
           float below = 1.0 - smoothstep(-0.25, 0.0, d.y);
           col = mix(col, horizonColor * 0.35, below);
@@ -88,6 +110,9 @@ export class Atmosphere {
     const sunDir = new THREE.Vector3(Math.cos(angle) * 0.8, elev, -0.35).normalize();
     this.skyMat.uniforms.sunDir.value.copy(sunDir);
     this.skyMat.uniforms.sunIntensity.value = (1 - cloud * 0.8) * Math.max(0, elev * 2.5);
+    this.skyMat.uniforms.cloudCover.value = 0.22 + cloud * 0.78;
+    this.skyMat.uniforms.cloudLight.value = 0.2 + day * 0.8;
+    this.skyMat.uniforms.cloudTime.value += Math.max(0, dt);
 
     // Sky colours: night -> day, warmed at dusk, greyed by weather.
     const top = this.tmp.set(0x03060e).lerp(new THREE.Color(0x3a7bd5), day);
@@ -136,6 +161,7 @@ export class Atmosphere {
     this.skyMat.uniforms.topColor.value.set(0x05070c);
     this.skyMat.uniforms.horizonColor.value.set(0x161d2a);
     this.skyMat.uniforms.sunIntensity.value = 0;
+    this.skyMat.uniforms.cloudLight.value = 0;
     this.sun.intensity = 0.5;
     this.moonLight.intensity = 0;
     this.hemi.intensity = 0.35;

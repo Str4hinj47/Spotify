@@ -1,0 +1,61 @@
+// Tests actual rendered rear lenses for every car, including side isolation,
+// blink-off and the unchanged front. Run against the local Vite server.
+import { chromium as pw } from '@playwright/test';
+import chromium from '@sparticuz/chromium';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const args = chromium.args.filter(a => a !== '--single-process').concat(['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox']);
+const browser = await pw.launch({ executablePath: await chromium.executablePath(), args, headless: true,
+  env: { ...process.env, LD_LIBRARY_PATH: `/home/user/.local/lib/chromium-deps:${process.env.LD_LIBRARY_PATH || ''}` } });
+const errors = [];
+try {
+  const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
+  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  page.on('pageerror', e => errors.push(String(e)));
+  await page.goto('http://localhost:3000/?test=1');
+  await page.waitForSelector('#topbar:not(.hidden)', { timeout: 180000 });
+  await page.evaluate(() => { const g = window.__overtake; cancelAnimationFrame(g.raf); g.garageAuto = false; g.garageZoom = 5.7; g.garagePitch = 0.24; });
+  fs.mkdirSync('test-results', { recursive: true });
+  for (const id of ['golf', 'mercedes', 'audi', 'mustang', 'ferrari', 'r8', 'challenger']) {
+    const result = await page.evaluate(async id => {
+      const g = window.__overtake; g.setSelectedCar(id);
+      const indicator = g.player.userData.indicatorState;
+      const render = (angle, left, right) => {
+        g.garageAngle = angle; g.updateCamera(0); g.updateIndicatorView();
+        indicator.left.value = left; indicator.right.value = right;
+        g.composer.render();
+        return g.renderer.domElement.toDataURL('image/png');
+      };
+      const idle = render(0, 0, 0), left = render(0, 1, 0), right = render(0, 0, 1);
+      const off = render(0, -1, 0);
+      const frontIdle = render(Math.PI, 0, 0), frontOn = render(Math.PI, 1, 0);
+      const load = url => new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = url; });
+      const pixels = async url => { const img = await load(url); const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0); return ctx.getImageData(0, 0, c.width, c.height).data; };
+      const images = await Promise.all([idle, left, right, off, frontIdle, frontOn].map(pixels));
+      const diff = (a, b) => {
+        let lhs = 0, rhs = 0; const w = 800;
+        for (let i = 0; i < a.length; i += 4) {
+          const d = Math.abs(a[i] - b[i]) + Math.abs(a[i+1] - b[i+1]) + Math.abs(a[i+2] - b[i+2]);
+          if (d > 35) { if ((i / 4) % w < w / 2) lhs++; else rhs++; }
+        }
+        return { left: lhs, right: rhs };
+      };
+      let sprites = 0; g.player.traverse(o => { if (o.isSprite && o.material.opacity > 0) sprites++; });
+      return { id, left: diff(images[0], images[1]), right: diff(images[0], images[2]),
+        off: diff(images[1], images[3]), front: diff(images[4], images[5]),
+        lamps: g.player.userData.indicatorMaterials.length, visibleSprites: sprites, screenshot: left, frontScreenshot: frontOn, frontBase: frontIdle };
+    }, id);
+    if (id === 'audi') { for (const [key, name] of [['frontBase','front-off'],['frontScreenshot','front-on']]) fs.writeFileSync(`test-results/audi-${name}.png`, Buffer.from(result[key].split(',')[1], 'base64')); }
+    assert.ok(result.lamps > 0, `${id} has no lens materials`);
+    assert.ok(result.left.left > 20, `${id} left indicator is not visible: ${JSON.stringify(result.left)}`);
+    assert.ok(result.left.right < result.left.left * 0.05 + 4, `${id} left signal changed right side`);
+    assert.ok(result.right.right > 20, `${id} right indicator is not visible: ${JSON.stringify(result.right)}`);
+    assert.ok(result.right.left < result.right.right * 0.05 + 4, `${id} right signal changed left side`);
+    assert.ok(result.off.left > 20, `${id} indicator does not blink off`);
+    assert.ok(result.front.left + result.front.right < 12, `${id} activates a front lamp: ${JSON.stringify(result.front)}`);
+    assert.equal(result.visibleSprites, 0, `${id} uses a floating indicator`);
+    fs.writeFileSync(`test-results/indicator-verified-${id}.png`, Buffer.from(result.screenshot.split(',')[1], 'base64'));
+    delete result.screenshot; delete result.frontScreenshot; delete result.frontBase; console.log(result);
+  }
+  assert.deepEqual(errors, []);
+} finally { await browser.close(); }

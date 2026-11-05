@@ -103,3 +103,40 @@ test('R8 rear lens geometry is red rather than a white headlight', async () => {
   }
   assert.ok(rear >= 2 && front >= 1);
 });
+
+test('NPC trucks contain recognizable, bounded bodies, tires and rear lamps', async () => {
+  for (const [id, minLength, maxLength] of [['semi', 15, 17], ['kraz', 7, 9]]) {
+    const doc = await io.read(new URL(`../public/models/${id}.glb`, import.meta.url).pathname);
+    const mats = doc.getRoot().listMaterials();
+    for (const prefix of ['paint__', 'tire__', 'taillight__']) {
+      assert.ok(mats.some(m => m.getName().startsWith(prefix)), `${id} has no ${prefix} material`);
+    }
+    const prims = doc.getRoot().listMeshes().flatMap(m => m.listPrimitives());
+    let min = Infinity, max = -Infinity;
+    for (const p of prims) {
+      const arr = p.getAttribute('POSITION').getArray();
+      for (let i = 2; i < arr.length; i += 3) { min = Math.min(min, arr[i]); max = Math.max(max, arr[i]); }
+    }
+    assert.ok(max - min > minLength && max - min < maxLength, `${id} length ${max-min}`);
+  }
+});
+
+test('known branding removals and neutral Golf tires survive asset rebuilds', async () => {
+  const golf = (await io.read(new URL('../public/models/golf.glb', import.meta.url).pathname)).getRoot();
+  const tire = golf.listMaterials().find(m => m.getName() === 'tire__New-Tyre');
+  assert.ok(tire && !tire.getBaseColorTexture());
+  assert.ok(tire.getBaseColorFactor().slice(0, 3).every(v => v < 0.04));
+  const ferrari = (await io.read(new URL('../public/models/ferrari.glb', import.meta.url).pathname)).getRoot();
+  assert.ok(ferrari.listMaterials().every(m => !m.getName().startsWith('logo__')));
+  const challenger = (await io.read(new URL('../public/models/challenger.glb', import.meta.url).pathname)).getRoot();
+  assert.ok(challenger.listNodes().every(n => !/^Text(?:\.\d+)?$/.test(n.getName())));
+});
+
+test('RS6 retains smooth body detail within its traffic triangle budget', async () => {
+  const root = (await io.read(new URL('../public/models/audi.glb', import.meta.url).pathname)).getRoot();
+  const primitives = root.listMeshes().flatMap(mesh => mesh.listPrimitives());
+  const triangles = ps => ps.reduce((sum, p) => sum + (p.getIndices()?.getCount() ?? 0) / 3, 0);
+  const body = triangles(primitives.filter(p => p.getMaterial()?.getName() === 'paint__CARI PAINT'));
+  assert.ok(body >= 30000, `RS6 body was over-simplified: ${body} triangles`);
+  assert.ok(triangles(primitives) < 460000, 'RS6 exceeds its traffic geometry budget');
+});

@@ -1,4 +1,9 @@
 export type CarId = 'golf' | 'mercedes' | 'audi' | 'mustang' | 'ferrari' | 'r8' | 'challenger';
+export type TruckId = 'semi' | 'kraz';
+export type TrafficId = CarId | TruckId;
+export const TRUCKS: { id: TruckId; name: string }[] = [
+  { id: 'semi', name: 'Tractor trailer' }, { id: 'kraz', name: 'KrAZ truck' },
+];
 
 export interface CarSpec {
   id: CarId;

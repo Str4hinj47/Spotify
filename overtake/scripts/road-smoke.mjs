@@ -40,13 +40,21 @@ try {
       return { visible: g.snowLayer.visible, wet: g.roadSurface.wet.value,
         rain: g.roadSurface.rain.value, cover: g.roadSurface.snow.value,
         textureLoaded: !!g.asphaltMat.map.image && !!g.asphaltMat.normalMap.image,
-        firstV: uv.getY(0), bankDifference: y0 - yMid };
+        firstV: uv.getY(0), bankDifference: y0 - yMid,
+        posts: g.posts.count, reflectors: g.reflectors.count,
+        railVertices: g.railL.geometry.getAttribute('position').count,
+        railProfileHeight: g.railL.geometry.getAttribute('position').getY(10) - g.railL.geometry.getAttribute('position').getY(0),
+        capCount: g.railCaps.length };
     }, weather);
     assert.equal(state.visible, weather === 'snow');
     assert.equal(state.wet > 0.9, weather === 'rain');
     assert.equal(state.rain > 0.9, weather === 'rain');
     assert.equal(state.cover > 0.9, weather === 'snow');
     assert.ok(state.textureLoaded);
+    assert.ok(state.posts >= 230 && state.posts === state.reflectors, 'barrier supports and reflectors cover both sides');
+    assert.equal(state.railVertices, 181 * 11);
+    assert.ok(state.railProfileHeight > 0.4, 'guardrail is a vertical corrugated profile');
+    assert.equal(state.capCount, 2);
     if (weather === 'snow') assert.ok(state.bankDifference > 0.04, 'snow mesh has raised shoulders');
     await page.waitForTimeout(300);
     await page.screenshot({ path: `test-results/road-${weather}.png`, timeout: 120000 });
@@ -59,6 +67,26 @@ try {
     return uv.getY(0) - old;
   });
   assert.ok(Math.abs(delta - 32) < 0.0001, 'snow pattern follows road distance rather than the camera');
+  const continuity = await page.evaluate(() => {
+    const g=window.__overtake, rail=g.railL.geometry.getAttribute('position');
+    const old=[rail.getX(11),rail.getY(11),rail.getZ(11)];
+    const oldUV=g.railL.geometry.getAttribute('uv').getY(11);
+    g.playerS+=4; g.updateRoad();
+    return {error:Math.hypot(rail.getX(0)-old[0],rail.getY(0)-old[1],rail.getZ(0)-old[2]),
+      uvError:Math.abs(g.railL.geometry.getAttribute('uv').getY(0)-oldUV)};
+  });
+  assert.ok(continuity.error < 0.001 && continuity.uvError < 0.001, 'guardrail remains fixed to the curved road as it scrolls');
+  const lamps = await page.evaluate(() => { const g=window.__overtake;g.setTimeOfDay(0);g.setWeatherMode('rain');
+    Object.assign(g.weather,{rain:1,wet:1,snow:0,snowCover:0});
+    for(let i=0;i<30;i++) g.updateWorld(0.1);g.updateRoad();
+    const [left,right]=g.lamps;
+    const pole=left.g.getObjectByName('streetlight-pole-and-arm'), lens=left.g.getObjectByName('streetlight-lens');
+    return {count:g.lamps.length, children:left.g.children.length, mirrored:left.g.scale.x===-right.g.scale.x,
+      poleVertices:pole.geometry.attributes.position.count, shared:pole.geometry===right.g.getObjectByName('streetlight-pole-and-arm').geometry,
+      lensVisible:!!lens && lens.material.emissiveIntensity>0.4}; });
+  assert.equal(lamps.count,24);assert.equal(lamps.children,4);assert.equal(lamps.mirrored,true);
+  assert.ok(lamps.poleVertices>500 && lamps.shared && lamps.lensVisible, 'detailed streetlight geometry and lens should be shared and respond to night');
+  await page.screenshot({path:'test-results/road-rain-night.png',timeout:120000});
   assert.deepEqual(errors, []);
   console.log('Road surfaces OK');
 } finally {

@@ -1,7 +1,7 @@
 # OVERTAKE — Endless Highway
 
 A browser-based, free-steering two-way overtaking game built with Three.js.
-Pick one of seven cars; the other models become traffic.
+Pick one of seven cars; the other models become traffic. Two additional truck models appear only as NPCs.
 
 ## Run
 
@@ -21,7 +21,7 @@ npm test         # gameplay rule unit tests
 | `S` / `↓` | Brake |
 | `A` / `←` and `D` / `→` | Steer (continuous, not lane-switching) |
 | `Space` | Handbrake |
-| `E` / `Q` | Toggle left / right turn signal |
+| `Q` / `E` | Toggle left / right turn signal |
 | `C` | Cycle camera presets |
 | `V` | Camera settings |
 | `B` | World settings (time / weather) |
@@ -41,7 +41,11 @@ Touch devices get on-screen steering, throttle and brake buttons.
 - **Smarter traffic:** same-direction cars follow slower leaders and brake
   instead of stacking; rear lights brighten while braking. A time-to-collision hazard
   radar warns about the nearest closing threat. Nearby traffic avoids repeating
-  car models and uses contrasting paint colors where possible.
+  car models and uses contrasting paint colors where possible. Each model has
+  its own cruise speed, with slight driver-to-driver variation. From 1,500 points,
+  rare, slower trucks can create queues; cars may pass them only after checking
+  the projected opposing and return lanes. The opposing lane is reserved against
+  new spawns until the pass is complete.
 - Two lanes, **opposing directions**. Your lane is the right one; the left lane
   carries a dense stream of oncoming traffic. Pull out, overtake, and get back in.
 - The road is procedurally generated ahead of you with bends and crests.
@@ -66,13 +70,44 @@ Touch devices get on-screen steering, throttle and brake buttons.
 | Ferrari 458 Italia | `Ferrari 458 Italia.zip` — RainerS, CC BY 3.0 |
 | Audi R8 | `r8.obj` — user-provided |
 | Dodge Challenger | `Challenger.obj` — user-provided |
+| Tractor trailer (NPC only) | `Peferbuilt Tractor Trailer.zip` — ThePefDispenser, CC BY 3.0 |
+| KrAZ truck (NPC only) | `2078f5d818ddfa83c382576451a4e618.zip` — user-provided, license not specified |
+
+The owner reports permission to redistribute and modify the supplied models.
+Source-license evidence for several models and commercial rights for KrAZ still
+need verification; vehicle designs and trademarks are separate from model
+licenses. Identified badges were removed as a precaution, not as legal clearance.
+See `THIRD_PARTY_NOTICES.md` (also linked from the in-game help) for details.
 
 The original `.blend` files were converted to Draco-compressed glTF with
 `tools/convert_assets.py` (requires Blender's `bpy` module). Geometry is
-preserved; materials were rebuilt as lightweight PBR for real-time rendering.
+adapted; materials were rebuilt as lightweight PBR for real-time rendering.
+Identified badges and branded textures are removed by `tools/sanitize_vehicle_branding.mjs`
+after conversion (the Mercedes atlas step requires Python Pillow).
 Studio helpers, ground planes and light blockers were removed. Headlight and
 taillight lenses are preserved and emissive; the Ferrari's source-mesh yaw is
-corrected so it runs parallel to the road. Its detached studio artifact was removed and its front wheels straightened. The two OBJ assets use `tools/convert_obj.mjs` to rebuild materials, selectively simplify and Draco-compress the geometry while retaining body panel detail; `tools/fix_ferrari.mjs` documents the Ferrari correction. `tools/repair_paint_normals.mjs` regenerates creased body normals on the Audi RS 6, Mustang and Ferrari without changing their geometry, to reduce triangular highlights.
+corrected so it runs parallel to the road. Its detached studio artifact was removed and its front wheels straightened. The two OBJ assets use `tools/convert_obj.mjs` to rebuild materials, selectively simplify and Draco-compress the geometry while retaining body panel detail; `tools/fix_ferrari.mjs` documents the Ferrari correction. `tools/repair_paint_normals.mjs` regenerates creased body normals on the Audi RS 6, Mustang and Ferrari without changing their geometry, to reduce triangular highlights. The RS 6 uses a higher mesh budget to preserve smooth body contours; after converting it, run `node tools/repair_paint_normals.mjs public/models/audi.glb /tmp/audi-smooth.glb`, copy the result back, then run `node tools/sanitize_vehicle_branding.mjs audi` to reapply badge cleanup and update the manifest.
+
+The truck conversion is documented in `tools/convert_trucks.py`; it preserves
+instanced semi wheels, rebuilds real-time materials and normalizes the models
+for the road. `tools/repair_truck_normals.mjs` repairs trailer panel shading.
+
+### Body workshop
+
+Open **Customize body & lighting** in the garage to choose fitted front and
+rear bumper add-ons, skirts, spoilers and exhaust tips independently for each
+of the seven cars. Each offers factory, a road-oriented option and a more
+aggressive option; their dimensions and detailing are tailored to the model.
+Choose carbon fiber independently for each aftermarket part. The afterfire
+exhaust previews flames in the garage and produces flames while accelerating
+on the road. Choose an upper or lower two-tone paint layout, a second paint
+color or carbon finish, and one of two car-specific liveries with a custom
+color. The workshop also offers arbitrary-color underglow and front/side/rear
+views or drag-to-rotate inspection. These workshop settings are saved per car
+in local storage, apply only to the player in the garage and on the road, and
+are cosmetic: they do not change handling or traffic cars. Reset car clears
+that car's workshop choices, including its two-tone and livery, but retains
+its separate primary paint color.
 
 ### Paint customization
 
@@ -84,18 +119,26 @@ of that model.
 ## World, weather and day–night
 
 The background no longer swaps biomes abruptly. Roadside scenery is placed in
-deterministic slots with layered foliage and visible trunks, and cross-faded by distance through **meadow → forest →
+deterministic slots with layered foliage and visible trunks, low-poly middle-distance tree lines, grass tufts and detailed building facades, and cross-faded by distance through **meadow → forest →
 alpine → desert → outskirts** using `simplex-noise` and smoothstep weights
 (`src/world/biomes.mjs`). Ground, shoulder, mountain and fog colours blend with
-the same weights.
+the same weights. Layered continuous ridgelines, world-anchored ground variation
+and drifting procedural clouds add depth while responding to weather and time of day.
 
 A day–night clock (`src/world/clock.mjs`) drives the sky gradient, sun disc,
 moon, stars, street lamps and player headlights. A full cycle takes 10 minutes
 at 1×. The world panel lets you scrub time, change cycle speed, pause the cycle,
-or force **Auto / Clear / Rain / Snow**.
+or force **Auto / Clear / Rain / Snow**. The highway has curved, corrugated
+metal guardrails with regularly spaced posts and reflectors; their upper edges
+collect snow. Streetlights use tapered poles, detailed bases, curved arms,
+rounded housings and weather/time-responsive luminous lenses. Instanced roadside
+warning signs, faceted rocks and more detailed buildings add variety without
+placing obstacles in the driving lane.
 
 Weather (`src/world/weather.mjs`) damps in/out instead of switching instantly.
-The road uses ambientCG asphalt and gravel colour/normal maps and weathered painted markings. Rain darkens it and creates irregular reflective puddles with animated raindrop ripples, thickens fog, and adds camera-following rain streaks. Snow adds dense wind-blown flakes, and a separately raised, textured layer with irregular snow banks, compacted slush and tire tracks, as well as snow on the ground/shoulders/trees and heavier fog. Road textures and snow patterns stay anchored to road distance as you drive. Both reduce tyre grip, acceleration and braking traction while the surface gradually accumulates and clears. The rain/snow particle approach is
+The road uses ambientCG asphalt and gravel colour/normal maps and weathered painted markings. Rain darkens both asphalt and gravel with a varied wet film and creates irregular reflective puddles with animated raindrop ripples, thickens fog, and adds camera-following rain streaks. Snow adds dense wind-blown flakes, and a separately raised, textured layer with irregular snow banks, wind-shaped drifts, compacted slush and shallow tire ruts, as well as snow on the ground/shoulders/trees and heavier fog. Trees catch
+snow on their upward-facing foliage, and the player's tires leave a subtle
+speed-dependent mist or powder trail on wet or snowy roads. Road textures and snow patterns stay anchored to road distance as you drive. Both reduce tyre grip, acceleration and braking traction while the surface gradually accumulates and clears. The rain/snow particle approach is
 adapted from [Elemental-Serenity](https://github.com/SahilK-027/Elemental-Serenity)
 (MIT).
 
@@ -125,7 +168,13 @@ vehicle mass/gearing toward the researched production engine:
 | Audi R8 | V10-inspired | `v10` |
 | Dodge Challenger | V8-inspired | `v8cross` |
 
-The HUD shows RPM, gear and boost. Audio starts after the **Start engine** user
+Use the top-bar **Sound settings** button (also available in the pause menu)
+to switch score/reward sounds and indicator clicks independently. Preferences
+are saved on this device. The speaker button or **M** mutes everything without
+changing those choices; indicator clicks follow the visible blink phase and
+stop while paused.
+
+The digital instrument cluster shows speed in km/h, current automatic gear and RPM. Its speed arc scales to the selected car’s top speed, and the RPM strip highlights the redline. The engine telemetry remains active while audio is muted. Audio starts after the **Start engine** user
 gesture, as required by browsers.
 
 ## Tests
@@ -134,8 +183,16 @@ gesture, as required by browsers.
 npm test                     # scoring / spawn / physics / biome / weather / clock
 node scripts/smoke.mjs       # headless browser playthrough (requires local server)
 node scripts/world-shots.mjs # day/night/rain/snow/biome screenshots
-node scripts/road-smoke.mjs  # surface/shader smoke test and weather screenshots
+node scripts/landscape-smoke.mjs # landscape weather, biome and slot continuity
+node scripts/speedometer-smoke.mjs # speed, gear, RPM and responsive dashboard
+node scripts/sound-settings-smoke.mjs # saved sound controls and synchronized indicator clicks
+node scripts/customization-smoke.mjs # workshop, persistence, model fit and driving
+node scripts/livery-flames-smoke.mjs # paint, carbon, liveries and exhaust flames
+node scripts/road-smoke.mjs  # road, barriers, lamps and weather shader checks
+node scripts/road-detail-smoke.mjs # streetlight close-up and mobile snow view
+node scripts/extra-graphics-smoke.mjs # tire spray, snowy foliage and roadside signs
 node scripts/vehicle-snow-smoke.mjs # car materials, snow density and antialiasing
 node scripts/controls-scenery-smoke.mjs # indicators, brake lights, traffic and collisions
+node scripts/truck-traffic-smoke.mjs # NPC trucks, queues and passing-lane safety
 node scripts/upgrade-smoke.mjs # Rush / contracts / records browser test
 ```

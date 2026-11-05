@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ModelLibrary } from './models';
-import { CARS, getCar, TRAFFIC_COLORS, type CarId } from './catalog';
+import { CARS, getCar, TRAFFIC_COLORS, type CarId, type TrafficId } from './catalog';
 import {
   ROAD_HALF, PLAYER_LANE, ONCOMING_LANE,
   multiplierFor, passScore, vehiclesOverlap, hitsRoadBarrier, blockedTrafficGap,
@@ -11,14 +11,20 @@ import { easing } from 'maath';
 import { EffectComposer, RenderPass, EffectPass, BloomEffect, VignetteEffect, FXAAEffect } from 'postprocessing';
 import { Atmosphere } from './world/atmosphere';
 import { Precipitation } from './world/precipitation';
+import { RoadSpray } from './world/road-spray';
 import { createTreeGeometries } from './world/trees';
+import { createRidgeGeometry, createBuildingGeometry, createGrassGeometry, createDistantTreeGeometries, createRockGeometry } from './world/landscape';
+import { createGroundMaterial } from './world/ground';
+import { createStreetlightGeometry } from './world/streetlight';
+import { addFoliageSnow, createRoadsideSignGeometry } from './world/roadside';
+import { disposeBodyKit, updateExhaustFlames } from './body-kits';
 import { createAsphaltMaterial, createSnowMaterial, createShoulderMaterial, createRoadMarkingMaterial } from './world/road-surface';
 import { biomeParams, dominantBiome } from './world/biomes.mjs';
 import { snowDriftHeight } from './world/road-snow.mjs';
 import { createWeatherState, stepWeather, weatherGrip, weatherLabel, type WeatherState } from './world/weather.mjs';
 import { createClock, stepClock, formatHour } from './world/clock.mjs';
 import { createRun, tickRun, registerPass, finishRun, runSummary, contractProgress, medalFor, RUN_MODES, type RunMode, type RunState, type RunEvent, type Medal } from './run.mjs';
-import { createTrafficAI, findLeader, stepTraffic, hazardAhead, type Hazard } from './traffic-ai.mjs';
+import { createTrafficAI, findLeader, stepTraffic, hazardAhead, trafficCruise, chooseTruck, canOvertakeTruck, startOvertake, stepOvertake, type TrafficAI, type Hazard } from './traffic-ai.mjs';
 import { chooseTrafficModel, chooseTrafficPaint } from './traffic-appearance.mjs';
 import { emptyRecords, sanitizeRecords, recordRun, bestFor, type Records } from './records.mjs';
 
@@ -94,7 +100,7 @@ export interface GameCallbacks {
 
 interface Traffic {
   group: THREE.Group;
-  id: CarId;
+  id: TrafficId;
   paint: number;
   dir: 1 | -1; // 1 = same direction, -1 = oncoming
   s: number;
@@ -103,7 +109,7 @@ interface Traffic {
   passed: boolean;
   length: number;
   width: number;
-  ai: { cruise: number; braking: boolean; accel: number };
+  ai: TrafficAI;
   braking: boolean;
   brakeGlow?: THREE.Sprite;
 }
@@ -160,6 +166,7 @@ export class OvertakeGame {
 
   private atmosphere!: Atmosphere;
   private precipitation!: Precipitation;
+  private spray!: RoadSpray;
   private composer!: EffectComposer;
   private roadEnv: THREE.Texture | null = null;
   private studioEnv: THREE.Texture | null = null;
@@ -189,12 +196,20 @@ export class OvertakeGame {
   private railL!: THREE.Mesh;
   private railR!: THREE.Mesh;
   private posts!: THREE.InstancedMesh;
+  private reflectors!: THREE.InstancedMesh;
+  private roadsideSigns: THREE.InstancedMesh[] = [];
+  private railCaps: THREE.Mesh[] = [];
   private broadleaf!: THREE.InstancedMesh;
   private conifers!: THREE.InstancedMesh;
   private broadTrunks!: THREE.InstancedMesh;
   private pineTrunks!: THREE.InstancedMesh;
   private rocks!: THREE.InstancedMesh;
   private buildings!: THREE.InstancedMesh;
+  private grass!: THREE.InstancedMesh;
+  private distantTrees!: THREE.InstancedMesh;
+  private distantTrunks!: THREE.InstancedMesh;
+  private distantPines!: THREE.InstancedMesh;
+  private distantPineTrunks!: THREE.InstancedMesh;
   private treeMat!: THREE.MeshStandardMaterial;
   private coniferMat!: THREE.MeshStandardMaterial;
   private rockMat!: THREE.MeshStandardMaterial;
@@ -211,6 +226,7 @@ export class OvertakeGame {
   private cam: CameraSettings = { preset: 'close', ...CAMERA_PRESETS.close };
   private garageZoom = 6.2;
   private garageDragging = false;
+  private garageWorkshop = false;
   private garageAuto = true;
 
   // Free-driving state (road-relative vehicle model)
@@ -228,9 +244,7 @@ export class OvertakeGame {
   private best = 0;
   private hazard: Hazard | null = null;
   private brakeTexture: THREE.Texture | null = null;
-  private indicatorTexture: THREE.Texture | null = null;
   private playerBrakes: THREE.Sprite[] = [];
-  private indicators: { side: 'left' | 'right'; sprite: THREE.Sprite }[] = [];
   private signal: 'left' | 'right' | null = null;
   private signalElapsed = 0;
   private traffic: Traffic[] = [];
@@ -270,6 +284,7 @@ export class OvertakeGame {
     this.buildEnvironments();
     this.atmosphere = new Atmosphere(this.scene);
     this.precipitation = new Precipitation(this.scene);
+    this.spray = new RoadSpray(this.scene);
     this.buildRoad();
     this.buildScenery();
     this.buildGarage();
@@ -361,16 +376,16 @@ export class OvertakeGame {
     const ctx = c.getContext('2d')!;
     if (kind === 'road') {
       const g = ctx.createLinearGradient(0, 0, 0, 512);
-      g.addColorStop(0, '#1c3a66');
-      g.addColorStop(0.42, '#7fa4cf');
-      g.addColorStop(0.5, '#f2b070');
-      g.addColorStop(0.55, '#6b6257');
+      g.addColorStop(0, '#314c6c');
+      g.addColorStop(0.42, '#9bacbc');
+      g.addColorStop(0.5, '#c6c9c6');
+      g.addColorStop(0.55, '#777d80');
       g.addColorStop(1, '#2c2c2c');
       ctx.fillStyle = g; ctx.fillRect(0, 0, 1024, 512);
       const sun = ctx.createRadialGradient(700, 235, 4, 700, 235, 120);
-      sun.addColorStop(0, 'rgba(255,244,214,1)');
-      sun.addColorStop(0.2, 'rgba(255,214,150,0.8)');
-      sun.addColorStop(1, 'rgba(255,180,100,0)');
+      sun.addColorStop(0, 'rgba(255,250,238,0.8)');
+      sun.addColorStop(0.2, 'rgba(231,231,218,0.4)');
+      sun.addColorStop(1, 'rgba(210,219,225,0)');
       ctx.fillStyle = sun; ctx.fillRect(0, 0, 1024, 512);
     } else {
       ctx.fillStyle = '#0a0c11'; ctx.fillRect(0, 0, 1024, 512);
@@ -461,6 +476,46 @@ export class OvertakeGame {
     mesh.geometry.computeVertexNormals();
   }
 
+  // A continuous corrugated W-beam barrier, swept along the actual road
+  // curve. The previous horizontal ribbon looked like a flat stripe from the
+  // driving camera. The profile gives the guardrail a real face and silhouette.
+  private makeGuardrail(material: THREE.Material, side: number) {
+    const profile = [0.38, 0.40, 0.44, 0.49, 0.54, 0.59, 0.64, 0.69, 0.74, 0.79, 0.81];
+    const bulge = [0, 0.04, 0.11, 0.12, 0.04, 0, 0.04, 0.12, 0.11, 0.04, 0];
+    const n = profile.length, indices: number[] = [];
+    for (let row = 0; row < SEGMENTS; row++) for (let col = 0; col < n - 1; col++) {
+      const a = row * n + col, b = a + 1, c = a + n, d = c + 1;
+      indices.push(a, c, b, b, c, d);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array((SEGMENTS + 1) * n * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array((SEGMENTS + 1) * n * 2), 2).setUsage(THREE.DynamicDrawUsage));
+    geometry.setIndex(indices);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = side < 0 ? 'guardrail-left' : 'guardrail-right';
+    mesh.userData = { side, profile, bulge };
+    mesh.frustumCulled = false;
+    mesh.receiveShadow = true;
+    return mesh;
+  }
+
+  private updateGuardrail(mesh: THREE.Mesh) {
+    const { side, profile, bulge } = mesh.userData as { side: number; profile: number[]; bulge: number[] };
+    const pos = mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const uv = mesh.geometry.getAttribute('uv') as THREE.BufferAttribute;
+    const start = this.playerS - BACK;
+    for (let row = 0; row <= SEGMENTS; row++) {
+      const s = start + row * STEP, r = rightAt(s, this.tmpA), cx = centerX(s), cy = centerY(s);
+      for (let col = 0; col < profile.length; col++) {
+        const lateral = side * (ROAD_HALF + 0.55 - bulge[col]), i = row * profile.length + col;
+        pos.setXYZ(i, cx + r.x * lateral, cy + profile[col], -s + r.z * lateral);
+        uv.setXY(i, col / (profile.length - 1), s);
+      }
+    }
+    pos.needsUpdate = true; uv.needsUpdate = true;
+    mesh.geometry.computeVertexNormals();
+  }
+
   // A raised snow mesh conforms to the curved road and accumulates in shallow
   // drifts. Its fragment mask exposes asphalt in irregular wheel tracks.
   private makeSnowLayer(aniso: number) {
@@ -514,23 +569,45 @@ export class OvertakeGame {
   private buildRoad() {
     const aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
     const asphaltMat = createAsphaltMaterial(ROAD_HALF * 2, aniso, this.roadSurface);
-    const shoulderMat = createShoulderMaterial(ROAD_HALF * 2 + 3.2, aniso);
+    const shoulderMat = createShoulderMaterial(ROAD_HALF * 2 + 3.2, aniso, this.roadSurface);
     this.asphaltMat = asphaltMat;
     this.shoulderMat = shoulderMat;
     const lineMat = createRoadMarkingMaterial(0xd7d9d1, this.roadSurface);
     const yellowMat = createRoadMarkingMaterial(0xe4b632, this.roadSurface);
-    const railMat = new THREE.MeshStandardMaterial({ color: 0x9aa1ab, metalness: 0.85, roughness: 0.3, side: THREE.DoubleSide });
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x929da5, metalness: 0.72, roughness: 0.46, side: THREE.DoubleSide });
+    railMat.onBeforeCompile = shader => {
+      shader.uniforms.roadSnow = this.roadSurface.snow;
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 railUV;')
+        .replace('#include <uv_vertex>', '#include <uv_vertex>\nrailUV = uv;');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 railUV;\nuniform float roadSnow;')
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          float wear = 0.94 + 0.06 * sin(railUV.y * 1.4) * sin(railUV.y * 0.23);
+          diffuseColor.rgb *= wear;
+          float frost = smoothstep(0.94, 1.0, railUV.x) * smoothstep(0.1, 0.8, roadSnow);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.82, 0.89, 0.94), frost * 0.8);`);
+    };
+    railMat.customProgramCacheKey = () => 'guardrail-galvanized-v1';
+    const capMat = new THREE.MeshStandardMaterial({ color: 0x939da6, metalness: 0.7, roughness: 0.42 });
+    capMat.onBeforeCompile = shader => {
+      shader.uniforms.roadSnow = this.roadSurface.snow;
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform float roadSnow;')
+        .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.84, 0.9, 0.96), smoothstep(0.08, 0.7, roadSnow));');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.95, roadSnow);');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor *= 1.0 - roadSnow;');
+    };
+    capMat.customProgramCacheKey = () => 'guardrail-snow-cap-v1';
 
-    this.groundMat = new THREE.MeshStandardMaterial({ color: 0x33402f, roughness: 1 });
+    this.groundMat = createGroundMaterial();
     this.terrain = this.ribbon(320, this.groundMat, -0.6);
     this.shoulder = this.ribbon(ROAD_HALF * 2 + 3.2, shoulderMat, -0.03);
     this.asphalt = this.ribbon(ROAD_HALF * 2, asphaltMat, 0);
     this.snowLayer = this.makeSnowLayer(aniso);
     this.edgeL = this.ribbon(0.16, lineMat, 0.02);
     this.edgeR = this.ribbon(0.16, lineMat, 0.02);
-    this.railL = this.ribbon(0.3, railMat, 0.55);
-    this.railR = this.ribbon(0.3, railMat, 0.55);
-    this.roadGroup.add(this.terrain, this.shoulder, this.asphalt, this.edgeL, this.edgeR, this.railL, this.railR, this.snowLayer);
+    this.railL = this.makeGuardrail(railMat, -1);
+    this.railR = this.makeGuardrail(railMat, 1);
+    this.railCaps = [this.ribbon(0.16, capMat, 0.815), this.ribbon(0.16, capMat, 0.815)];
+    this.roadGroup.add(this.terrain, this.shoulder, this.asphalt, this.edgeL, this.edgeR, this.railL, this.railR, ...this.railCaps, this.snowLayer);
 
     // Dashed centre line (passing zone between the two directions).
     const dashGeo = new THREE.BufferGeometry();
@@ -544,9 +621,16 @@ export class OvertakeGame {
     this.centerLine.frustumCulled = false;
     this.roadGroup.add(this.centerLine);
 
-    this.posts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.12, 0.75, 0.12), railMat, 160);
+    this.posts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.13, 0.75, 0.16), railMat, 320);
     this.posts.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.roadGroup.add(this.posts);
+    // Small reflectors mounted on the road-facing side, not glowing billboards.
+    this.reflectors = new THREE.InstancedMesh(new THREE.BoxGeometry(0.035, 0.095, 0.20),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x897b56, emissiveIntensity: 0.12, roughness: 0.36 }), 320);
+    this.reflectors.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    const amberReflector = new THREE.Color(0xf5c261), whiteReflector = new THREE.Color(0xe6f1ff);
+    for (let i = 0; i < 320; i++) this.reflectors.setColorAt(i, i % 2 === 0 ? amberReflector : whiteReflector);
+    this.roadGroup.add(this.reflectors);
 
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), this.groundMat);
     ground.rotation.x = -Math.PI / 2;
@@ -576,21 +660,28 @@ export class OvertakeGame {
   }
 
   private updatePosts() {
-    const start = Math.floor((this.playerS - BACK) / 12) * 12;
+    const start = Math.floor((this.playerS - BACK) / 6) * 6;
     let i = 0;
-    for (let s = start; s < this.playerS - BACK + SEGMENTS * STEP && i < 158; s += 12) {
+    for (let s = start; s < this.playerS - BACK + SEGMENTS * STEP && i < 318; s += 6) {
       for (const side of [-1, 1]) {
         const r = rightAt(s, this.tmpA);
-        const off = side * (ROAD_HALF + 0.55);
+        const off = side * (ROAD_HALF + 0.68);
         this.dummy.position.set(centerX(s) + r.x * off, centerY(s) + 0.35, -s + r.z * off);
         this.dummy.rotation.set(0, roadYaw(s), 0);
         this.dummy.scale.set(1, 1, 1);
         this.dummy.updateMatrix();
-        this.posts.setMatrixAt(i++, this.dummy.matrix);
+        this.posts.setMatrixAt(i, this.dummy.matrix);
+        const face = side * (ROAD_HALF + 0.405);
+        this.dummy.position.set(centerX(s) + r.x * face, centerY(s) + 0.68, -s + r.z * face);
+        this.dummy.updateMatrix();
+        this.reflectors.setMatrixAt(i, this.dummy.matrix);
+        i++;
       }
     }
     this.posts.count = i;
     this.posts.instanceMatrix.needsUpdate = true;
+    this.reflectors.count = i;
+    this.reflectors.instanceMatrix.needsUpdate = true;
   }
 
   private buildScenery() {
@@ -599,50 +690,68 @@ export class OvertakeGame {
     // cross-fade instead of swapping the whole background at once.
     this.treeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, vertexColors: true });
     this.coniferMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, vertexColors: true });
-    this.rockMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 });
-    this.buildingMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
+    addFoliageSnow(this.treeMat, this.roadSurface.snow);
+    addFoliageSnow(this.coniferMat, this.roadSurface.snow);
+    this.rockMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, vertexColors: true });
+    this.buildingMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, vertexColors: true });
     const trees = createTreeGeometries();
     const bark = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 });
     this.broadleaf = new THREE.InstancedMesh(trees.broadCrown, this.treeMat, 150);
     this.conifers = new THREE.InstancedMesh(trees.pineCrown, this.coniferMat, 150);
     this.broadTrunks = new THREE.InstancedMesh(trees.broadWood, bark, 150);
     this.pineTrunks = new THREE.InstancedMesh(trees.pineWood, bark, 150);
-    this.rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1.6, 0), this.rockMat, 100);
-    this.buildings = new THREE.InstancedMesh(new THREE.BoxGeometry(8, 13, 8), this.buildingMat, 70);
-    for (const m of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks, this.rocks, this.buildings]) {
+    this.rocks = new THREE.InstancedMesh(createRockGeometry(), this.rockMat, 100);
+    this.buildings = new THREE.InstancedMesh(createBuildingGeometry(), this.buildingMat, 70);
+    this.grass = new THREE.InstancedMesh(createGrassGeometry(), new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 1, side: THREE.DoubleSide }), 420);
+    const distant = createDistantTreeGeometries();
+    this.distantTrees = new THREE.InstancedMesh(distant.crown, this.treeMat, 180);
+    this.distantTrunks = new THREE.InstancedMesh(distant.wood, bark, 180);
+    this.distantPines = new THREE.InstancedMesh(distant.pine, this.coniferMat, 180);
+    this.distantPineTrunks = new THREE.InstancedMesh(distant.wood, bark, 180);
+    for (const m of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks, this.rocks, this.buildings, this.grass, this.distantTrees, this.distantTrunks, this.distantPines, this.distantPineTrunks]) {
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       m.frustumCulled = false;
       this.roadGroup.add(m);
     }
 
-    const poleMat = new THREE.MeshStandardMaterial({ color: 0x5c636d, metalness: 0.7, roughness: 0.4 });
-    this.lampMat = new THREE.MeshStandardMaterial({ color: 0xfff2c0, emissive: 0xffdf8a, emissiveIntensity: 0.4 });
+    const sign = createRoadsideSignGeometry();
+    const signMaterials = [
+      new THREE.MeshStandardMaterial({ color: 0x879199, metalness: 0.7, roughness: 0.48 }),
+      new THREE.MeshStandardMaterial({ color: 0x292a24, metalness: 0.3, roughness: 0.65 }),
+      new THREE.MeshStandardMaterial({ color: 0xe9b93d, roughness: 0.65, emissive: 0x735010, emissiveIntensity: 0.1 }),
+      new THREE.MeshStandardMaterial({ color: 0x22241f, roughness: 0.8 }),
+    ];
+    this.roadsideSigns = [sign.pole, sign.border, sign.face, sign.symbol].map((geo, i) => {
+      const mesh = new THREE.InstancedMesh(geo, signMaterials[i], 8);
+      mesh.name = ['sign-pole', 'sign-border', 'sign-face', 'sign-symbol'][i];
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      mesh.frustumCulled = false; this.roadGroup.add(mesh); return mesh;
+    });
+
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x69737a, metalness: 0.75, roughness: 0.48 });
+    const housingMat = new THREE.MeshStandardMaterial({ color: 0x3e474e, metalness: 0.65, roughness: 0.4 });
+    const rimMat = new THREE.MeshStandardMaterial({ color: 0x252d34, metalness: 0.45, roughness: 0.5 });
+    this.lampMat = new THREE.MeshStandardMaterial({ color: 0xfff2d2, emissive: 0xffdf9e, emissiveIntensity: 0.4, roughness: 0.5 });
+    const streetlight = createStreetlightGeometry();
     for (let i = 0; i < 24; i++) {
       const g = new THREE.Group();
       const side = i % 2 ? 1 : -1;
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 8, 8), poleMat);
-      pole.position.y = 4;
-      const arm = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 0.1), poleMat);
-      arm.position.set(-side * 1.1, 7.8, 0);
-      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.14, 0.32), this.lampMat);
-      lamp.position.set(-side * 2.2, 7.75, 0);
-      g.add(pole, arm, lamp);
+      g.name = 'streetlight';
+      g.scale.x = side; // mirror the arm so the fixture always faces the road
+      const pole = new THREE.Mesh(streetlight.pole, poleMat); pole.name = 'streetlight-pole-and-arm';
+      const housing = new THREE.Mesh(streetlight.housing, housingMat); housing.name = 'streetlight-housing';
+      const rim = new THREE.Mesh(streetlight.rim, rimMat); rim.name = 'streetlight-rim';
+      const lens = new THREE.Mesh(streetlight.lens, this.lampMat); lens.name = 'streetlight-lens';
+      g.add(pole, housing, rim, lens);
       this.lamps.push({ g, s: i * 32, side });
       this.roadGroup.add(g);
     }
 
-    this.mountainMat = new THREE.MeshStandardMaterial({ color: 0x3a4656, roughness: 1 });
-    for (let i = 0; i < 16; i++) {
-      const h = 50 + hash01(i * 7 + 3) * 90;
-      const m = new THREE.Mesh(new THREE.ConeGeometry(70 + hash01(i * 11 + 5) * 80, h, 5), this.mountainMat);
-      const a = (i / 16) * Math.PI * 2;
-      // Keep the background ring well outside the drivable corridor so a
-      // mountain can never intersect the camera at long road distances.
-      const ring = 700 + hash01(i * 19 + 2) * 320;
-      m.position.set(Math.cos(a) * ring, h / 2 - 10, Math.sin(a) * ring);
-      m.rotation.y = hash01(i * 13 + 1) * Math.PI;
-      m.userData.baseH = h;
-      this.mountains.add(m);
+    this.mountainMat = new THREE.MeshStandardMaterial({ color: 0x728598, roughness: 1, vertexColors: true, side: THREE.DoubleSide });
+    for (const [radius, height, phase] of [[525, 110, 0.7], [760, 175, 2.4]]) {
+      const ridge = new THREE.Mesh(createRidgeGeometry(radius, height, phase), this.mountainMat);
+      ridge.frustumCulled = false;
+      this.mountains.add(ridge);
     }
   }
 
@@ -652,15 +761,17 @@ export class OvertakeGame {
     const start = Math.floor((base - 80) / spacing);
     const snow = this.weather.snowCover;
     const color = new THREE.Color();
+    const snowyColor = new THREE.Color(0xe8eef4);
     const place = (mesh: THREE.InstancedMesh, i: number, s: number, side: number, dist: number, sc: number, y: number, hex: number) => {
       const r = rightAt(s, this.tmpA);
       const off = side * dist;
       this.dummy.position.set(centerX(s) + r.x * off, centerY(s) + y * sc - 0.2, -s + r.z * off);
-      this.dummy.rotation.set(0, roadYaw(s) + hash01(i * 17 + 9) * 0.5, 0);
+      this.dummy.rotation.set(0, roadYaw(s) + hash01(Math.floor(s * 100) * 17 + 9) * 0.5, 0);
       this.dummy.scale.set(sc, sc, sc);
       this.dummy.updateMatrix();
       mesh.setMatrixAt(i, this.dummy.matrix);
-      color.set(hex).lerp(new THREE.Color(0xe8eef4), snow * 0.65);
+      const foliage = mesh === this.broadleaf || mesh === this.conifers || mesh === this.distantTrees || mesh === this.distantPines;
+      color.set(hex).lerp(snowyColor, snow * (foliage ? 0.16 : 0.65));
       mesh.setColorAt(i, color);
     };
     for (let i = 0; i < 150; i++) {
@@ -683,13 +794,53 @@ export class OvertakeGame {
       }
       if (i < 70) {
         const bFade = smooth01(hash01(k * 29 + 11), p.buildingDensity);
-        place(this.buildings, i, s + 8, -side, 34 + hash01(k * 31 + 5) * 40, (0.6 + hash01(k * 37 + 1) * 1.5) * bFade, 6.5, p.building);
+        place(this.buildings, i, s + 8, -side, 34 + hash01(k * 31 + 5) * 40, (0.6 + hash01(k * 37 + 1) * 1.5) * bFade, 0, p.building);
       }
     }
-    for (const m of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks, this.rocks, this.buildings]) {
+    // Fill the middle distance and verge without placing anything on the road.
+    // Absolute-distance hashes make slots stable as the player moves.
+    for (let i = 0; i < 420; i++) {
+      const k = Math.floor((base - 40) / 4) + Math.floor(i / 2);
+      const s = k * 4 + hash01(k * 41 + (i % 2) * 7) * 4;
+      const side = i % 2 ? 1 : -1;
+      const p = biomeParams(s);
+      const dist = 9 + hash01(k * 37 + i % 2 * 113) * 70;
+      const density = Math.max(0.12, Math.min(1, p.treeDensity * 0.75 + 0.24)) * (1 - snow * 0.92);
+      const fade = smooth01(hash01(k * 43 + i % 2 * 173), density);
+      place(this.grass, i, s, side, dist, (0.65 + hash01(k * 47 + i % 2) * 1.15) * fade, 0.2, p.tree);
+    }
+    for (let i = 0; i < 180; i++) {
+      const k = Math.floor((base - 80) / 9) + Math.floor(i / 2);
+      const s = k * 9 + hash01(k * 53 + i % 2) * 9;
+      const side = i % 2 ? 1 : -1;
+      const p = biomeParams(s);
+      const dist = 50 + hash01(k * 59 + i % 2 * 97) * 90;
+      const fade = smooth01(hash01(k * 61 + i % 2 * 101), p.treeDensity * 0.8);
+      const scale = (0.8 + hash01(k * 67 + i % 2) * 1.3) * fade;
+      const pine = smooth01(hash01(k * 71 + i % 2 * 109), p.coniferRatio);
+      place(this.distantTrees, i, s, side, dist, scale * (1 - pine), 0, p.tree);
+      place(this.distantTrunks, i, s, side, dist, scale * (1 - pine), 0, 0x564333);
+      place(this.distantPines, i, s, side, dist, scale * pine, 0, p.conifer);
+      place(this.distantPineTrunks, i, s, side, dist, scale * pine, 0, 0x4c392c);
+    }
+    for (const m of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks, this.rocks, this.buildings, this.grass, this.distantTrees, this.distantTrunks, this.distantPines, this.distantPineTrunks]) {
       m.instanceMatrix.needsUpdate = true;
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
+    // Recycled sign slots use absolute road distance, so they never jump as
+    // the road and scenery buffers shift around a moving car.
+    const signStart = Math.floor((base - BACK) / 155) - 1;
+    for (let i = 0; i < 8; i++) {
+      const slot = signStart + i;
+      const s = slot * 155 + hash01(slot * 71 + 13) * 24;
+      const side = slot % 2 === 0 ? 1 : -1;
+      const r = rightAt(s, this.tmpA), off = side * (ROAD_HALF + 2.8);
+      this.dummy.position.set(centerX(s) + r.x * off, centerY(s), -s + r.z * off);
+      this.dummy.rotation.set(0, roadYaw(s) + (side < 0 ? Math.PI : 0), 0);
+      this.dummy.scale.set(1, 1, 1); this.dummy.updateMatrix();
+      for (const mesh of this.roadsideSigns) mesh.setMatrixAt(i, this.dummy.matrix);
+    }
+    for (const mesh of this.roadsideSigns) mesh.instanceMatrix.needsUpdate = true;
     for (const l of this.lamps) {
       let s = l.s;
       while (s < base - 80) s += 768;
@@ -754,6 +905,7 @@ export class OvertakeGame {
       this.roadGroup.visible = false; this.garageGroup.visible = true; this.mountains.visible = false;
       this.contactShadow.visible = false;
       this.precipitation.setVisible(false);
+      this.spray.clear();
       for (const h of this.headlights) h.intensity = 0;
     } else {
       this.scene.environment = this.roadEnv;
@@ -771,21 +923,28 @@ export class OvertakeGame {
     const meta = this.library.get(id);
     this.playerMeta = { length: meta.length, width: meta.width };
     this.playerBrakes = [];
-    this.indicators = [];
-    for (const [side, sign] of [['left', -1], ['right', 1]] as const) {
+    for (const sign of [-1, 1]) {
       const brake = this.makeBrakeGlow();
       brake.scale.set(0.22, 0.13, 1);
       brake.position.set(sign * meta.width * 0.31, meta.height * 0.59, meta.length * 0.5 + 0.03);
       this.player.add(brake); this.playerBrakes.push(brake);
-      for (const end of [-1, 1]) {
-        const sprite = this.makeIndicator();
-        sprite.position.set(sign * meta.width * 0.31, meta.height * 0.59, end * (meta.length * 0.5 + 0.03));
-        this.player.add(sprite); this.indicators.push({ side, sprite });
-      }
     }
     this.player.position.set(0, 0, 0);
     this.player.rotation.set(0, 0, 0);
     this.scene.add(this.player);
+  }
+
+  setGarageWorkshop(open: boolean) {
+    this.garageWorkshop = open;
+    if (this.mode === 'garage') this.updateCamera(0);
+  }
+
+  setGarageView(view: 'front' | 'side' | 'rear') {
+    if (this.mode !== 'garage') return;
+    this.garageAuto = false;
+    this.garageAngle = view === 'front' ? Math.PI : view === 'side' ? Math.PI / 2 : 0;
+    this.garagePitch = 0.22;
+    this.updateCamera(0);
   }
 
   start() {
@@ -823,7 +982,7 @@ export class OvertakeGame {
     this.setEnvironment('garage');
     this.signal = null; this.input.brake = false; this.input.handbrake = false;
     this.updatePlayerLights(0);
-    if (this.player) { this.player.position.set(0, 0, 0); this.player.rotation.set(0, 0, 0); }
+    if (this.player) { this.player.position.set(0, 0, 0); this.player.rotation.set(0, 0, 0); const glow = this.player.getObjectByName('underglow-pool'); if (glow) glow.position.y = 0.035; }
     this.setMode('garage');
   }
 
@@ -848,7 +1007,11 @@ export class OvertakeGame {
     const needsFallback = !(this.player?.userData.brakeMaterials?.length);
     for (const light of this.playerBrakes) (light.material as THREE.SpriteMaterial).opacity = braking && needsFallback ? 0.65 : 0;
     const lit = !!this.signal && (this.signalElapsed % 1.0) < 0.5;
-    for (const light of this.indicators) (light.sprite.material as THREE.SpriteMaterial).opacity = lit && light.side === this.signal ? 1 : 0;
+    const state = this.player?.userData.indicatorState;
+    if (state) {
+      state.left.value = this.signal === 'left' ? (lit ? 1 : -1) : 0;
+      state.right.value = this.signal === 'right' ? (lit ? 1 : -1) : 0;
+    }
   }
 
   setRunMode(mode: RunMode) {
@@ -880,7 +1043,11 @@ export class OvertakeGame {
   private setMode(m: Mode) { this.mode = m; this.cb.onMode(m); }
 
   private disposeCarLights(group: THREE.Group) {
-    for (const m of (group.userData.brakeMaterials ?? []) as THREE.Material[]) m.dispose();
+    for (const material of (group.userData.customPaintMaterials ?? []) as THREE.Material[]) material.dispose();
+    const kit = group.getObjectByName('custom-body-kit');
+    if (kit) disposeBodyKit(kit as THREE.Group);
+    const owned = new Set<THREE.Material>([...(group.userData.brakeMaterials ?? []), ...(group.userData.indicatorMaterials ?? [])]);
+    for (const m of owned) m.dispose();
     group.traverse(o => {
       const sprite = o as THREE.Sprite;
       if (sprite.isSprite) sprite.material.dispose();
@@ -894,15 +1061,17 @@ export class OvertakeGame {
 
   private spawnSame(s: number, speed: number) {
     const ids = CARS.filter(c => c.id !== this.selected).map(c => c.id);
-    const spec = getCar(chooseTrafficModel(ids, this.traffic, s));
-    const paint = chooseTrafficPaint(TRAFFIC_COLORS, this.traffic, s, this.library.getPaint(spec.id));
-    const group = this.library.create(spec.id, { paint });
-    const meta = this.library.get(spec.id);
+    const id: TrafficId = chooseTruck(this.score, this.traffic, s) ?? chooseTrafficModel(ids, this.traffic, s);
+    const preferred = id === 'semi' || id === 'kraz' ? undefined : this.library.getPaint(id);
+    const paint = chooseTrafficPaint(TRAFFIC_COLORS, this.traffic, s, preferred);
+    const group = this.library.create(id, { paint });
+    const meta = this.library.get(id);
     this.scene.add(group);
     const brakeGlow = this.makeBrakeGlow();
     brakeGlow.position.set(0, 0.62, meta.length / 2 + 0.05);
     group.add(brakeGlow);
-    this.traffic.push({ group, id: spec.id, paint, dir: 1, s, offset: PLAYER_LANE, speed, passed: false, length: meta.length, width: meta.width, ai: createTrafficAI(speed), braking: false, brakeGlow });
+    const cruise = trafficCruise(id);
+    this.traffic.push({ group, id, paint, dir: 1, s, offset: PLAYER_LANE, speed: Math.min(speed, cruise), passed: false, length: meta.length, width: meta.width, ai: createTrafficAI(cruise), braking: false, brakeGlow });
   }
 
   private spawnOncoming(s: number, speed: number) {
@@ -912,7 +1081,8 @@ export class OvertakeGame {
     const group = this.library.create(spec.id, { paint });
     const meta = this.library.get(spec.id);
     this.scene.add(group);
-    this.traffic.push({ group, id: spec.id, paint, dir: -1, s, offset: ONCOMING_LANE, speed, passed: false, length: meta.length, width: meta.width, ai: createTrafficAI(speed), braking: false });
+    const cruise = trafficCruise(spec.id);
+    this.traffic.push({ group, id: spec.id, paint, dir: -1, s, offset: ONCOMING_LANE, speed: speed === 0 ? 0 : cruise, passed: false, length: meta.length, width: meta.width, ai: createTrafficAI(cruise), braking: false });
   }
 
   private makeBrakeGlow() {
@@ -931,34 +1101,28 @@ export class OvertakeGame {
     return sprite;
   }
 
-  private makeIndicator() {
-    if (!this.indicatorTexture) {
-      const c = document.createElement('canvas'); c.width = c.height = 64;
-      const ctx = c.getContext('2d')!;
-      const g = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
-      g.addColorStop(0, 'rgba(255,255,210,1)');
-      g.addColorStop(0.35, 'rgba(255,177,32,0.85)');
-      g.addColorStop(1, 'rgba(255,130,0,0)');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
-      this.indicatorTexture = new THREE.CanvasTexture(c);
-    }
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.indicatorTexture, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-    sprite.scale.set(0.18, 0.10, 1);
-    return sprite;
-  }
-
   private trySpawn(dt: number) {
     this.sameTimer -= dt; this.oncomingTimer -= dt;
     const same = this.traffic.filter((t) => t.dir === 1);
     const oncoming = this.traffic.filter((t) => t.dir === -1);
-    if (this.sameTimer <= 0 && same.length < 12) {
+    const passing = same.some(t => t.ai.pass);
+    if (this.sameTimer <= 0 && same.length < 12 && !passing) {
       for (let a = 0; a < 6; a++) {
         const s = this.playerS + 200 + Math.random() * 160;
         if (canSpawnSame(s, same)) { this.spawnSame(s, 14 + Math.random() * 10); break; }
       }
       this.sameTimer = sameSpawnInterval(this.speed) * (0.8 + Math.random() * 0.5);
     }
-    if (this.oncomingTimer <= 0 && oncoming.length < 16) {
+    // A passing car reserves the opposing lane. Short periodic gaps also let
+    // a queue find a genuinely clear opportunity instead of never overtaking.
+    const queuedForTruck = same.some(t => {
+      const leader = findLeader(t, same);
+      // Don't thin oncoming traffic unless a queue could use the opening
+      // (player and return lane included in this check).
+      return canOvertakeTruck(t, leader, same, { s: this.playerS, maxSpeed: getCar(this.selected).maxSpeed });
+    });
+    const holdingGap = queuedForTruck && (this.worldElapsed % 55 < 22);
+    if (this.oncomingTimer <= 0 && oncoming.length < 16 && !passing && !holdingGap) {
       const s = findOncomingSpawn(this.playerS, oncoming, same);
       if (s !== null) this.spawnOncoming(s, 24 + Math.random() * 10);
       // Retry quickly when the window is temporarily full.
@@ -973,8 +1137,10 @@ export class OvertakeGame {
     this.updateSnowLayer();
     this.updateRibbon(this.edgeL, 0, undefined, -(ROAD_HALF - 0.25));
     this.updateRibbon(this.edgeR, 0, undefined, ROAD_HALF - 0.25);
-    this.updateRibbon(this.railL, 0, undefined, -(ROAD_HALF + 0.55));
-    this.updateRibbon(this.railR, 0, undefined, ROAD_HALF + 0.55);
+    this.updateGuardrail(this.railL);
+    this.updateGuardrail(this.railR);
+    this.updateRibbon(this.railCaps[0], 0, undefined, -(ROAD_HALF + 0.51));
+    this.updateRibbon(this.railCaps[1], 0, undefined, ROAD_HALF + 0.51);
     this.updateCenterLine();
     this.updatePosts();
     this.updateScenery();
@@ -1074,20 +1240,38 @@ export class OvertakeGame {
     }
     this.trySpawn(dt);
 
+    // Only one overtake can reserve the opposing lane at a time. Decide using
+    // the complete current traffic snapshot before moving any vehicle.
+    for (const t of this.traffic) {
+      if (t.dir !== 1 || t.ai.pass) continue;
+      const leader = findLeader(t, this.traffic);
+      if (canOvertakeTruck(t, leader, this.traffic, { s: this.playerS, maxSpeed: spec.maxSpeed })) {
+        startOvertake(t, leader!);
+        break;
+      }
+    }
     const pHalfL = this.playerMeta.length / 2;
     const trafficGrip = weatherGrip(this.weather);
     for (let i = this.traffic.length - 1; i >= 0; i--) {
       const t = this.traffic[i];
       if (t.dir === 1) {
+        const passing = !!t.ai.pass;
+        if (passing) stepOvertake(t, dt, PLAYER_LANE, ONCOMING_LANE);
+        // Continue following the truck until the car has actually moved clear.
         const leader = findLeader(t, this.traffic);
         stepTraffic(t, leader, dt, trafficGrip);
+        if (leader && leader.s > t.s) {
+          const minGap = (t.length + leader.length) * 0.5 + 2;
+          const available = leader.s - t.s - minGap;
+          t.speed = Math.min(t.speed, Math.max(0, available / Math.max(dt, 0.0001)));
+        }
       }
       t.s += t.dir * t.speed * dt;
       const r = rightAt(t.s, this.tmpA);
       const px = centerX(t.s) + r.x * t.offset, pz = -t.s + r.z * t.offset;
       t.group.position.set(px, centerY(t.s), pz);
       t.group.rotation.y = roadYaw(t.s) + (t.dir === -1 ? Math.PI : 0);
-      if (t.brakeGlow) (t.brakeGlow.material as THREE.SpriteMaterial).opacity = t.braking ? 0.9 : 0;
+      if (t.brakeGlow) (t.brakeGlow.material as THREE.SpriteMaterial).opacity = t.braking && !t.group.userData.brakeMaterials?.length ? 0.9 : 0;
       for (const m of (t.group.userData.brakeMaterials ?? []) as THREE.MeshStandardMaterial[]) m.emissiveIntensity = t.braking ? 2.8 : 0.55;
 
       const ds = t.s - this.playerS;
@@ -1168,10 +1352,14 @@ export class OvertakeGame {
     const atm = this.atmosphere.update(this.worldClock.hour, this.weather, biome, this.camera.position, dt);
     this.nightFactor = atm.night;
     this.precipitation.update(dt, this.camera.position, this.speed, this.weather, this.worldElapsed);
+    this.spray.update(dt, this.pos, this.yaw, this.playerMeta.width, this.playerMeta.length, this.speed,
+      this.weather.wet, this.weather.snowCover, snowDriftHeight(this.offset, this.playerS, this.weather.snowCover, ROAD_HALF));
 
     // Wet asphalt / snow cover.
     const wet = this.weather.wet;
     const snow = this.weather.snowCover;
+    const glow = this.player?.getObjectByName('underglow-pool');
+    if (glow) glow.position.y = 0.075 + snow * 0.11; // follow the raised snow surface
     this.roadSurface.wet.value = wet;
     this.roadSurface.snow.value = snow;
     this.roadSurface.rain.value = this.weather.rain;
@@ -1196,15 +1384,20 @@ export class OvertakeGame {
   private updateCamera(dt: number) {
     if (this.mode === 'garage') {
       if (this.garageAuto && !this.garageDragging) this.garageAngle += dt * 0.05;
-      const r = this.garageZoom;
+      const compactWorkshop = this.garageWorkshop && window.innerWidth <= 700;
+      const r = compactWorkshop ? Math.max(this.garageZoom, 10.5) : this.garageZoom;
       const y = 0.7 + Math.sin(this.garagePitch) * r;
       const horiz = Math.cos(this.garagePitch) * r;
       this.camera.position.set(Math.sin(this.garageAngle) * horiz, y, Math.cos(this.garageAngle) * horiz);
       this.camera.lookAt(0, 0.65, 0);
-      this.camera.fov = 42; this.camera.updateProjectionMatrix();
+      this.camera.fov = compactWorkshop ? 50 : 42;
+      if (compactWorkshop) this.camera.setViewOffset(window.innerWidth, window.innerHeight, 0, window.innerHeight * 0.2, window.innerWidth, window.innerHeight);
+      else this.camera.clearViewOffset();
+      this.camera.updateProjectionMatrix();
       this.atmosphere.sky.position.copy(this.camera.position);
       return;
     }
+    if (this.camera.view?.enabled) this.camera.clearViewOffset();
     // Fixed camera: rigidly attached to the car. No speed-based FOV, no lag,
     // no acceleration drift or shake. Only the user's camera settings move it.
     const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
@@ -1222,6 +1415,17 @@ export class OvertakeGame {
     this.atmosphere.sky.position.copy(this.camera.position);
   }
 
+  // A few imported cars have incomplete interiors that expose a rear lens
+  // through the windshield. A rear-only indicator must not flash from ahead.
+  private updateIndicatorView() {
+    const state = this.player?.userData.indicatorState;
+    if (!state || !this.player) return;
+    this.player.updateWorldMatrix(true, false);
+    this.tmpC.copy(this.camera.position);
+    this.player.worldToLocal(this.tmpC);
+    state.viewZ.value = this.tmpC.z;
+  }
+
   private loop = () => {
     this.raf = requestAnimationFrame(this.loop);
     const dt = Math.min(this.clock.getDelta(), 0.05);
@@ -1230,6 +1434,8 @@ export class OvertakeGame {
     } else {
       this.updateCamera(dt);
     }
+    this.updateIndicatorView();
+    updateExhaustFlames(this.player, performance.now()/1000, this.mode === 'garage' || (this.mode === 'driving' && this.input.throttle && !this.input.brake && this.speed > 6));
     this.composer.render();
   };
 
@@ -1263,5 +1469,5 @@ export class OvertakeGame {
   setCycleRunning(running: boolean) { this.worldClock.running = running; }
 
   getBest() { return this.best; }
-  dispose() { cancelAnimationFrame(this.raf); this.renderer.dispose(); }
+  dispose() { cancelAnimationFrame(this.raf); this.spray.dispose(); this.renderer.dispose(); }
 }

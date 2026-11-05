@@ -1,10 +1,14 @@
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { CARS, type CarId } from './catalog';
+import { CARS, TRUCKS, type CarId, type TrafficId } from './catalog';
+import { indicatorMaterial, isIndicatorMaterial, type IndicatorUniforms } from './indicators';
+import { createBodyKit } from './body-kits';
+import { customPaintMaterial } from './livery';
+import { sanitizeCustomization, type Customization } from './customization.mjs';
 
 export interface CarModel {
-  id: CarId;
+  id: TrafficId;
   scene: THREE.Group;
   length: number;
   width: number;
@@ -16,7 +20,7 @@ export interface CarModel {
 // a plain 180° flip leaves it visibly diagonal to the road. Bake the measured
 // PCA correction (paint/tire/glass principal axis) into the same wrapper.
 const FERRARI_SKEW = (13.5 * Math.PI) / 180;
-const ORIENTATION: Record<CarId, number> = {
+const ORIENTATION: Record<TrafficId, number> = {
   golf: 0,
   mercedes: 0,
   audi: Math.PI,
@@ -24,14 +28,17 @@ const ORIENTATION: Record<CarId, number> = {
   ferrari: Math.PI + FERRARI_SKEW,
   r8: Math.PI,
   challenger: Math.PI,
+  semi: 0,
+  kraz: 0,
 };
 
 export class ModelLibrary {
   private loader: GLTFLoader;
-  private models = new Map<CarId, CarModel>();
+  private models = new Map<TrafficId, CarModel>();
   private paintCache = new Map<string, THREE.MeshStandardMaterial>();
   private paintOverrides = new Map<CarId, number>();
   private thumbs = new Map<CarId, string>();
+  private customization = new Map<CarId, Customization>();
 
   constructor() {
     const draco = new DRACOLoader();
@@ -44,8 +51,9 @@ export class ModelLibrary {
 
   async loadAll(onProgress: (done: number, total: number, label: string) => void) {
     let done = 0;
-    for (const spec of CARS) {
-      onProgress(done, CARS.length, spec.name);
+    const models = [...CARS, ...TRUCKS];
+    for (const spec of models) {
+      onProgress(done, models.length, spec.name);
       const gltf: GLTF = await this.loader.loadAsync(`${(import.meta as any).env?.BASE_URL ?? '/'}models/${spec.id}.glb`);
       const scene = gltf.scene;
       scene.name = spec.id;
@@ -121,11 +129,11 @@ export class ModelLibrary {
         height: size.y,
       });
       done++;
-      onProgress(done, CARS.length, spec.name);
+      onProgress(done, models.length, spec.name);
     }
   }
 
-  get(id: CarId): CarModel {
+  get(id: TrafficId): CarModel {
     const m = this.models.get(id);
     if (!m) throw new Error(`Model ${id} not loaded`);
     return m;
@@ -142,10 +150,14 @@ export class ModelLibrary {
     return this.paintOverrides.get(id);
   }
 
+  setCustomization(id: CarId, config: Customization) {
+    this.customization.set(id, sanitizeCustomization(config));
+  }
+
   /** Clone a car. Explicit paint wins, then the user's saved paint override. */
-  create(id: CarId, opts: { paint?: number; player?: boolean } = {}): THREE.Group {
+  create(id: TrafficId, opts: { paint?: number; player?: boolean } = {}): THREE.Group {
     const source = this.get(id);
-    const paint = opts.paint ?? this.paintOverrides.get(id);
+    const paint = opts.paint ?? (id !== 'semi' && id !== 'kraz' ? this.paintOverrides.get(id) : undefined);
     const inner = source.scene.clone(true);
     const wrapper = new THREE.Group();
     wrapper.name = `${id}_wrapper`;
@@ -153,12 +165,27 @@ export class ModelLibrary {
     // Lights must be per-car: a braking vehicle must not brighten every
     // instance that shares the same source material.
     const lightCopies = new Map<THREE.Material, THREE.MeshStandardMaterial>();
+    const indicatorCopies: THREE.MeshStandardMaterial[] = [];
+    const brakeIndicatorCopies: THREE.MeshStandardMaterial[] = [];
+    const signal: IndicatorUniforms = { left: { value: 0 }, right: { value: 0 }, viewZ: { value: 1 } };
+    let factoryPaint: number | undefined;
+    const customPaintCopies: THREE.Material[] = [];
+    const config = opts.player && id !== 'semi' && id !== 'kraz' ? this.customization.get(id) : undefined;
+    wrapper.updateMatrixWorld(true);
     inner.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
       mesh.castShadow = !!opts.player;
       mesh.receiveShadow = false;
       const recolor = (mat: THREE.Material) => {
+        if (factoryPaint === undefined && mat.name.startsWith('paint__')) factoryPaint = (mat as THREE.MeshStandardMaterial).color?.getHex();
+        if (opts.player && id !== 'semi' && id !== 'kraz' && isIndicatorMaterial(id, mat)) {
+          const meshToCar = new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
+          const lamp = indicatorMaterial(id, mat, meshToCar, signal);
+          if (mat.name.startsWith('taillight__')) { lamp.emissiveIntensity = 0.55; brakeIndicatorCopies.push(lamp); }
+          indicatorCopies.push(lamp);
+          return lamp;
+        }
         if (mat.name.startsWith('taillight__')) {
           let light = lightCopies.get(mat);
           if (!light) {
@@ -168,21 +195,24 @@ export class ModelLibrary {
           }
           return light;
         }
-        if (paint !== undefined && mat.name.startsWith('paint__')) {
-          const key = `${mat.uuid}:${paint}`;
-          let cached = this.paintCache.get(key);
-          if (!cached) {
-            cached = new THREE.MeshPhysicalMaterial({
-              color: paint,
-              metalness: 0.45,
-              roughness: 0.36,
-              clearcoat: 0.4,
-              clearcoatRoughness: 0.22,
-              envMapIntensity: 0.9,
-            });
-            this.paintCache.set(key, cached);
+        if (mat.name.startsWith('paint__')) {
+          let base = mat as THREE.MeshStandardMaterial;
+          if (paint !== undefined) {
+            const key = `${mat.uuid}:${paint}`;
+            let cached = this.paintCache.get(key);
+            if (!cached) {
+              cached = new THREE.MeshPhysicalMaterial({ color: paint, metalness: 0.45, roughness: 0.36, clearcoat: 0.4, clearcoatRoughness: 0.22, envMapIntensity: 0.9 });
+              this.paintCache.set(key, cached);
+            }
+            base = cached;
           }
-          return cached;
+          if (config && id !== 'semi' && id !== 'kraz' && (config.paintScheme !== 'single' || config.livery !== 'none')) {
+            const meshToCar = new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
+            const custom = customPaintMaterial(base, meshToCar, id, config);
+            customPaintCopies.push(custom);
+            return custom;
+          }
+          return base;
         }
         return mat;
       };
@@ -190,7 +220,21 @@ export class ModelLibrary {
         ? mesh.material.map(recolor)
         : recolor(mesh.material);
     });
-    wrapper.userData.brakeMaterials = [...lightCopies.values()];
+    if (opts.player && id !== 'semi' && id !== 'kraz') {
+      if (config) {
+        // The R8 source has a separate factory wing. Hide it only on this
+        // clone when fitting an aftermarket wing; the shared source stays intact.
+        if (id === 'r8' && config.spoiler !== 'stock') {
+          const factoryWing = inner.getObjectByName('trim_1');
+          if (factoryWing) factoryWing.visible = false;
+        }
+        wrapper.add(createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080));
+      }
+    }
+    wrapper.userData.customPaintMaterials = customPaintCopies;
+    wrapper.userData.brakeMaterials = [...lightCopies.values(), ...brakeIndicatorCopies];
+    wrapper.userData.indicatorMaterials = indicatorCopies;
+    wrapper.userData.indicatorState = signal;
     return wrapper;
   }
 
@@ -223,7 +267,7 @@ export class ModelLibrary {
     const url = renderer.domElement.toDataURL('image/png');
     this.thumbs.set(id, url);
     scene.remove(car);
-    for (const m of car.userData.brakeMaterials as THREE.Material[]) m.dispose();
+    for (const m of new Set([...(car.userData.brakeMaterials as THREE.Material[]), ...(car.userData.indicatorMaterials as THREE.Material[])])) m.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
     return url;

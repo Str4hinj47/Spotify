@@ -1,5 +1,5 @@
 import '@fontsource-variable/inter';
-import { createIcons, Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge } from 'lucide';
+import { createIcons, Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal } from 'lucide';
 import { ModelLibrary } from './models';
 import { OvertakeGame, CAMERA_ORDER, type Mode, type HudState, type RunStats, type CameraPreset } from './game';
 import { RUN_MODES, type RunMode } from './run.mjs';
@@ -7,8 +7,11 @@ import { bestFor } from './records.mjs';
 import { CARS, getCar, PAINT_COLORS, type CarId } from './catalog';
 import { GameAudio } from './audio';
 import { hexToNumber, sanitizePaints } from './paint.mjs';
+import { BODY_FITS } from './body-kits';
+import { LIVERIES } from './livery';
+import { BODY_PARTS, DEFAULT_CUSTOMIZATION, sanitizeCustomization, sanitizeCustomizations, type Customization } from './customization.mjs';
 
-createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge } });
+createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal } });
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
@@ -20,11 +23,65 @@ let library: ModelLibrary;
 let selected: CarId = 'golf';
 let helpPaused = false;
 let paints: Record<string, string> = {};
+let customizations: Record<string, Customization> = {};
 
 function loadPaints() {
   try {
     paints = sanitizePaints(JSON.parse(localStorage.getItem('overtake-paints') || '{}'), CARS.map((c) => c.id));
   } catch { paints = {}; }
+}
+
+function loadCustomizations() {
+  try { customizations = sanitizeCustomizations(JSON.parse(localStorage.getItem('overtake-customization-v1') || '{}'), CARS.map(c => c.id)); }
+  catch { customizations = {}; }
+}
+function currentCustomization() { return sanitizeCustomization(customizations[selected] ?? DEFAULT_CUSTOMIZATION); }
+function syncCustomizationUI() {
+  const config = currentCustomization();
+  $('custom-car-name').textContent = `${getCar(selected).maker} ${getCar(selected).name}`;
+  for (const part of BODY_PARTS) {
+    const select = $(`custom-${part}`) as HTMLSelectElement;
+    const labels = BODY_FITS[selected].labels[part];
+    const options = [['stock','Factory'], ['street',labels[0]], ['track',labels[1]]];
+    if (part === 'exhaust') options.push(['flame','Afterfire flames']);
+    select.replaceChildren(...options.map(([value,label]) => {
+      const option=document.createElement('option'); option.value=value; option.textContent=label; return option;
+    }));
+    select.value = config[part];
+    const finish = $(`custom-${part}-finish`) as HTMLSelectElement;
+    finish.value = config[`${part}Finish`]; finish.disabled = config[part] === 'stock';
+  }
+  ($('custom-primary-color') as HTMLInputElement).value=paints[selected] ?? getCar(selected).color;
+  ($('custom-paint-scheme') as HTMLSelectElement).value=config.paintScheme;
+  ($('custom-secondary-color') as HTMLInputElement).value=config.secondaryColor;
+  ($('custom-secondary-color') as HTMLInputElement).disabled=config.paintScheme==='single' || config.secondaryFinish==='carbon';
+  ($('custom-secondary-finish') as HTMLSelectElement).value=config.secondaryFinish;
+  ($('custom-secondary-finish') as HTMLSelectElement).disabled=config.paintScheme==='single';
+  const livery = $('custom-livery') as HTMLSelectElement;
+  livery.replaceChildren(...[['none','None'],['stripe',LIVERIES[selected].labels[0]],['race',LIVERIES[selected].labels[1]]].map(([value,label]) => {
+    const option=document.createElement('option');option.value=value;option.textContent=label;return option;
+  }));
+  livery.value=config.livery;
+  const liveryColor=$('custom-livery-color') as HTMLInputElement;
+  liveryColor.value=config.liveryColor;liveryColor.disabled=config.livery==='none';
+  ($('custom-glow-enabled') as HTMLInputElement).checked = config.underglow;
+  const color = $('custom-glow-color') as HTMLInputElement;
+  color.value = config.glowColor; color.disabled = !config.underglow;
+}
+function applyCustomization(value: Customization) {
+  const config = sanitizeCustomization(value);
+  customizations[selected] = config;
+  try { localStorage.setItem('overtake-customization-v1', JSON.stringify(customizations)); } catch { /* storage may be unavailable */ }
+  library.setCustomization(selected, config);
+  game.setSelectedCar(selected);
+  syncCustomizationUI();
+}
+function showCustomization(show: boolean) {
+  $('garage').classList.toggle('customizing', show);
+  game.setGarageWorkshop(show);
+  $('car-detail').classList.toggle('hidden', show);
+  $('custom-panel').classList.toggle('hidden', !show);
+  if (show) syncCustomizationUI();
 }
 
 function savePaints() {
@@ -94,6 +151,7 @@ function selectCar(id: CarId) {
   game.setSelectedCar(id);
   updateDetail(id);
   audio.setCar(id);
+  if (!$('custom-panel').classList.contains('hidden')) syncCustomizationUI();
   audio.click();
   try { localStorage.setItem('overtake-car', id); } catch { /* ignore */ }
 }
@@ -108,6 +166,7 @@ function setMode(m: Mode) {
   $('btn-pause').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
   $('btn-camera').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
   $('btn-world').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
+  closeSoundPanel();
   if (m !== 'driving' && m !== 'paused') {
     $('camera-panel').classList.add('hidden');
     $('world-panel').classList.add('hidden');
@@ -135,6 +194,7 @@ function toggleCameraPanel() {
   const panel = $('camera-panel');
   panel.classList.toggle('hidden');
   $('world-panel').classList.add('hidden');
+  closeSoundPanel();
   if (!panel.classList.contains('hidden')) syncCameraUI();
 }
 
@@ -157,6 +217,7 @@ function toggleWorldPanel() {
   const panel = $('world-panel');
   panel.classList.toggle('hidden');
   $('camera-panel').classList.add('hidden');
+  closeSoundPanel();
   if (!panel.classList.contains('hidden')) syncWorldUI();
 }
 
@@ -200,6 +261,9 @@ function selectMode(mode: RunMode) {
 function onHud(h: HudState) {
   $('hud-score').textContent = fmt(h.score);
   $('hud-speed').textContent = String(Math.round(h.speed));
+  const maxSpeed = getCar(selected).maxSpeed * 3.6;
+  $('speed-max').textContent = String(Math.round(maxSpeed));
+  $('speed-arc').style.strokeDashoffset = String(100 * (1 - Math.min(1, Math.max(0, h.speed / maxSpeed))));
   $('hud-dist').textContent = (h.distance / 1000).toFixed(2);
   $('hud-overtakes').textContent = String(h.overtakes);
   $('best-top').textContent = fmt(h.best);
@@ -242,6 +306,7 @@ function onHud(h: HudState) {
   } else {
     card.classList.add('hidden');
   }
+  audio.setSignal(h.signal, h.signalLit);
   for (const side of ['left', 'right'] as const) {
     const button = $(`signal-${side}`);
     button.classList.toggle('lit', h.signal === side && h.signalLit);
@@ -254,12 +319,24 @@ function onHud(h: HudState) {
   $('env-chip').classList.toggle('night', h.night);
   const eng = audio.engine(h.speed / 3.6, h.throttle, h.brake);
   if (eng) {
-    $('hud-rpm').textContent = String(Math.round(eng.rpm));
+    const rpm = Math.max(0, eng.rpm);
+    const ratio = eng.redline > 0 ? Math.min(1, rpm / eng.redline) : 0;
+    $('hud-rpm').textContent = String(Math.round(rpm).toLocaleString('en-US'));
     $('hud-gear').textContent = eng.gear > 0 ? String(eng.gear) : 'N';
-    $('hud-rpm').classList.toggle('redline', eng.rpm > eng.redline * 0.92);
+    $('rpm-max').textContent = `${(eng.redline / 1000).toFixed(1)}k`;
+    $('rpm-fill').style.width = `${ratio * 100}%`;
+    $('speed-cluster').classList.toggle('redline', ratio > 0.92);
     const boost = $('hud-boost');
     boost.style.width = `${Math.round(Math.max(0, Math.min(1, eng.boost)) * 100)}%`;
     boost.parentElement?.classList.toggle('hidden', eng.boost <= 0.01);
+  } else {
+    // Audio initialization can fail or be unavailable; don't invent a gear.
+    $('hud-rpm').textContent = '—';
+    $('hud-gear').textContent = '—';
+    $('rpm-max').textContent = '—';
+    $('rpm-fill').style.width = '0%';
+    $('speed-cluster').classList.remove('redline');
+    $('hud-boost').parentElement?.classList.add('hidden');
   }
 }
 
@@ -303,6 +380,7 @@ function onGameOver(s: RunStats) {
 }
 
 function startRun() {
+  closeSoundPanel();
   audio.setCar(selected);
   void audio.unlock();
   game.start();
@@ -313,13 +391,42 @@ function togglePause() {
   else if (game.mode === 'paused') game.resume();
 }
 
-function toggleMute() {
-  audio.setMuted(!audio.muted);
+function syncSoundUI() {
+  ($('sound-master') as HTMLInputElement).checked = !audio.muted;
+  ($('sound-score') as HTMLInputElement).checked = audio.scoreSounds;
+  ($('sound-indicator') as HTMLInputElement).checked = audio.indicatorSounds;
   document.querySelector('.ic-on')?.classList.toggle('hidden', audio.muted);
   document.querySelector('.ic-off')?.classList.toggle('hidden', !audio.muted);
+  $('btn-sound').setAttribute('aria-label', audio.muted ? 'Unmute sound' : 'Mute sound');
+  $('btn-sound').setAttribute('aria-pressed', String(audio.muted));
+}
+
+function closeSoundPanel() {
+  $('sound-panel').classList.add('hidden');
+  $('btn-sound-settings').setAttribute('aria-expanded', 'false');
+  $('btn-pause-sound').setAttribute('aria-expanded', 'false');
+}
+
+function toggleSoundPanel() {
+  const panel = $('sound-panel');
+  const opening = panel.classList.contains('hidden');
+  if (opening) {
+    $('camera-panel').classList.add('hidden');
+    $('world-panel').classList.add('hidden');
+    syncSoundUI();
+  }
+  panel.classList.toggle('hidden', !opening);
+  $('btn-sound-settings').setAttribute('aria-expanded', String(opening));
+  $('btn-pause-sound').setAttribute('aria-expanded', String(opening));
+}
+
+function toggleMute() {
+  audio.setMuted(!audio.muted);
+  syncSoundUI();
 }
 
 function openHelp() {
+  closeSoundPanel();
   helpPaused = game.mode === 'driving';
   if (helpPaused) game.pause();
   $('help').classList.remove('hidden');
@@ -388,6 +495,12 @@ function bindUI() {
   $('btn-retry').addEventListener('click', startRun);
   $('btn-garage').addEventListener('click', () => game.toGarage());
   $('btn-sound').addEventListener('click', toggleMute);
+  $('btn-sound-settings').addEventListener('click', toggleSoundPanel);
+  $('btn-pause-sound').addEventListener('click', toggleSoundPanel);
+  $('sound-close').addEventListener('click', () => { closeSoundPanel(); $(game.mode === 'paused' ? 'btn-pause-sound' : 'btn-sound-settings').focus(); });
+  $('sound-master').addEventListener('change', e => { audio.setMuted(!(e.target as HTMLInputElement).checked); syncSoundUI(); });
+  $('sound-score').addEventListener('change', e => audio.setScoreSounds((e.target as HTMLInputElement).checked));
+  $('sound-indicator').addEventListener('change', e => audio.setIndicatorSounds((e.target as HTMLInputElement).checked));
   $('btn-help').addEventListener('click', openHelp);
   $('btn-close-help').addEventListener('click', closeHelp);
 
@@ -406,6 +519,28 @@ function bindUI() {
   }
   $('paint-custom').addEventListener('change', (e) => applyPaint((e.target as HTMLInputElement).value));
   $('paint-reset').addEventListener('click', () => applyPaint(null));
+  $('btn-customize').addEventListener('click', () => showCustomization(true));
+  $('custom-close').addEventListener('click', () => showCustomization(false));
+  $('custom-done').addEventListener('click', () => showCustomization(false));
+  $('custom-reset').addEventListener('click', () => applyCustomization({ ...DEFAULT_CUSTOMIZATION }));
+  for (const part of BODY_PARTS) {
+    $(`custom-${part}-finish`).addEventListener('change', event => applyCustomization({ ...currentCustomization(), [`${part}Finish`]:(event.target as HTMLSelectElement).value } as Customization));
+    $(`custom-${part}`).addEventListener('change', (event) => {
+      const value = (event.target as HTMLSelectElement).value;
+      applyCustomization({ ...currentCustomization(), [part]: value } as Customization);
+    });
+  }
+  $('custom-primary-color').addEventListener('change', event => { applyPaint((event.target as HTMLInputElement).value); syncCustomizationUI(); });
+  const controls: [string, 'paintScheme'|'secondaryColor'|'secondaryFinish'|'livery'|'liveryColor', 'input'|'change'][] = [
+    ['custom-paint-scheme','paintScheme','change'], ['custom-secondary-color','secondaryColor','input'],
+    ['custom-secondary-finish','secondaryFinish','change'], ['custom-livery','livery','change'], ['custom-livery-color','liveryColor','input'],
+  ];
+  for (const [id,key,event] of controls) $(id).addEventListener(event, e => applyCustomization({ ...currentCustomization(), [key]:(e.target as HTMLInputElement | HTMLSelectElement).value } as Customization));
+  $('custom-glow-enabled').addEventListener('change', event => applyCustomization({ ...currentCustomization(), underglow:(event.target as HTMLInputElement).checked }));
+  $('custom-glow-color').addEventListener('input', event => applyCustomization({ ...currentCustomization(), glowColor:(event.target as HTMLInputElement).value }));
+  document.querySelectorAll<HTMLButtonElement>('[data-custom-view]').forEach(button => {
+    button.addEventListener('click', () => game.setGarageView(button.dataset.customView as 'front'|'side'|'rear'));
+  });
   syncPaintUI(selected);
 
   $('signal-left').addEventListener('click', () => game.toggleSignal('left'));
@@ -424,11 +559,14 @@ function bindUI() {
   };
   window.addEventListener('keydown', (e) => {
     const target = e.target as HTMLElement | null;
-    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+    if (e.key === 'Escape' && !$('sound-panel').classList.contains('hidden')) {
+      e.preventDefault(); closeSoundPanel(); $(game.mode === 'paused' ? 'btn-pause-sound' : 'btn-sound-settings').focus(); return;
+    }
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable || (target.tagName === 'BUTTON' && e.key === 'Enter'))) return;
     const name = keyMap[e.key];
     if (name) { e.preventDefault(); game.setInput(name, true); return; }
-    if (!e.repeat && (e.key === 'e' || e.key === 'E')) { e.preventDefault(); game.toggleSignal('left'); return; }
-    if (!e.repeat && (e.key === 'q' || e.key === 'Q')) { e.preventDefault(); game.toggleSignal('right'); return; }
+    if (!e.repeat && (e.key === 'q' || e.key === 'Q')) { e.preventDefault(); game.toggleSignal('left'); return; }
+    if (!e.repeat && (e.key === 'e' || e.key === 'E')) { e.preventDefault(); game.toggleSignal('right'); return; }
     switch (e.key) {
       case 'p': case 'P': case 'Escape':
         if (!$('help').classList.contains('hidden')) closeHelp();
@@ -460,6 +598,7 @@ function bindUI() {
 async function boot() {
   library = new ModelLibrary();
   loadPaints();
+  loadCustomizations();
   try {
     await library.loadAll((done, total, label) => {
       $('load-bar').style.width = `${(done / total) * 90}%`;
@@ -474,6 +613,7 @@ async function boot() {
   for (const c of CARS) {
     const saved = paints[c.id];
     if (saved) library.setPaint(c.id, hexToNumber(saved));
+    if (customizations[c.id]) library.setCustomization(c.id, customizations[c.id]);
   }
 
   const cards = $('car-cards');
@@ -507,8 +647,7 @@ async function boot() {
   updateDetail(selected);
   syncModeUI();
   $('best-top').textContent = fmt(game.getBest());
-  document.querySelector('.ic-on')?.classList.toggle('hidden', audio.muted);
-  document.querySelector('.ic-off')?.classList.toggle('hidden', !audio.muted);
+  syncSoundUI();
 
   bindUI();
   setMode('garage');

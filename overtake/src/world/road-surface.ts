@@ -59,8 +59,10 @@ export function createAsphaltMaterial(roadWidth: number, aniso: number, values: 
       vec2 roadMetres() { return vec2((roadUV.x - 0.5) * ${roadWidth.toFixed(3)}, roadUV.y); }
       float puddleAt(vec2 p) {
         // Large, connected shallow depressions with irregular shorelines.
-        float basin = surfaceFbm(p * vec2(0.34, 0.20) + 5.6);
-        return smoothstep(0.52, 0.63, basin) * smoothstep(0.18, 0.75, roadWet);
+        vec2 warp = vec2(surfaceNoise(p * 0.31 + 19.0), surfaceNoise(p * 0.27 - 7.0)) - 0.5;
+        float basin = surfaceFbm((p + warp * 1.3) * vec2(0.30, 0.16) + 5.6);
+        float gutter = smoothstep(3.3, 4.4, abs(p.x)) * 0.08;
+        return smoothstep(0.48, 0.62, basin + gutter) * smoothstep(0.14, 0.8, roadWet);
       }
     `).replace('#include <color_fragment>', `#include <color_fragment>
       vec2 roadPos = roadMetres();
@@ -72,8 +74,12 @@ export function createAsphaltMaterial(roadWidth: number, aniso: number, values: 
         tracks = max(tracks, 1.0 - smoothstep(0.20, 0.42, abs(roadPos.x - x)));
       }
       diffuseColor.rgb *= mix(1.0, 0.89, tracks * 0.42);
-      diffuseColor.rgb *= 1.0 - roadWet * 0.20;
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.055, 0.075, 0.095), puddle * 0.36);
+      // A thin film darkens the whole road, while wheel paths and shallow
+      // depressions keep different levels of water and reflected sky.
+      float film = roadWet * (0.65 + surfaceNoise(roadPos * vec2(1.3, 0.33)) * 0.35);
+      diffuseColor.rgb *= 1.0 - film * 0.27;
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.045, 0.065, 0.083), puddle * 0.38);
+      diffuseColor.rgb += vec3(0.018, 0.024, 0.03) * puddle;
       // A broken film of compacted, dirty slush remains in cleared tracks.
       float slush = surfaceFbm(roadPos * vec2(1.6, 0.9) + 21.0) * roadSnow;
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.25, 0.28, 0.30), slush * mix(0.12, 0.42, tracks));
@@ -84,14 +90,16 @@ export function createAsphaltMaterial(roadWidth: number, aniso: number, values: 
       float phase = fract(roadTime * 0.8 + surfaceHash(cellID));
       float radius = length(fract(cell) - drop);
       float ring = (1.0 - smoothstep(0.018, 0.045, abs(radius - phase * 0.42))) * (1.0 - phase);
-      diffuseColor.rgb += vec3(0.075, 0.095, 0.11) * ring * puddle * roadRain;
+      float ring2 = (1.0 - smoothstep(0.012, 0.035, abs(radius - max(0.0, phase - 0.16) * 0.42))) * (1.0 - phase);
+      diffuseColor.rgb += vec3(0.10, 0.13, 0.15) * (ring + ring2 * 0.55) * puddle * roadRain;
     `).replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-      roughnessFactor = mix(roughnessFactor, 0.095, puddle);
+      roughnessFactor = mix(roughnessFactor, 0.20, film * 0.55);
+      roughnessFactor = mix(roughnessFactor, 0.075, puddle);
     `).replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
       metalnessFactor = mix(metalnessFactor, 0.35, puddle);
     `);
   };
-  material.customProgramCacheKey = () => 'road-asphalt-pbr-v2';
+  material.customProgramCacheKey = () => 'road-asphalt-pbr-v3';
   return material;
 }
 
@@ -128,28 +136,48 @@ export function createSnowMaterial(snowWidth: number, aniso: number, values: Roa
         float wander = 0.08 * sin(p.y * 0.05 + float(i));
         tracks = max(tracks, 1.0 - smoothstep(0.18, 0.43, abs(p.x - x + wander)));
       }
-      float field = 0.22 + drifts * 0.55 + fine * 0.20 + edge * 0.22 - tracks * 0.28;
+      float rutWear = 0.14 + 0.11 * surfaceNoise(p * vec2(0.3, 0.21) + 17.0);
+      float field = 0.22 + drifts * 0.55 + fine * 0.20 + edge * 0.22 - tracks * rutWear;
       float threshold = mix(0.96, 0.49, smoothstep(0.02, 1.0, roadSnow));
-      float snowPatch = smoothstep(threshold - 0.025, threshold + 0.025, field);
-      // Slightly dirty compacted snow, with fine-grained surface variation.
+      float snowPatch = smoothstep(threshold - 0.045, threshold + 0.045, field);
+      // Mottled compacted snow and dirty slush at the edges of tire ruts.
       float grain = surfaceNoise(p * 5.5);
-      diffuseColor.rgb *= mix(0.88, 1.04, grain) * (1.0 - tracks * 0.18);
+      float packed = tracks * (0.55 + fine * 0.45);
+      diffuseColor.rgb *= mix(0.88, 1.05, grain) * (1.0 - packed * 0.16);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.48, 0.51, 0.52), packed * 0.16);
       diffuseColor.a *= snowPatch;
 
     `);
   };
-  material.customProgramCacheKey = () => 'road-snow-depth-v3';
+  material.customProgramCacheKey = () => 'road-snow-depth-v4';
   return material;
 }
 
 /** Gravel-textured roadside shoulder. */
-export function createShoulderMaterial(width: number, aniso: number) {
-  return new THREE.MeshStandardMaterial({
+export function createShoulderMaterial(width: number, aniso: number, values: RoadSurfaceUniforms) {
+  const material = new THREE.MeshStandardMaterial({
     map: loadTexture('gravel-albedo', width, 2.8, true, aniso),
     normalMap: loadTexture('gravel-normal', width, 2.8, false, aniso),
     normalScale: new THREE.Vector2(0.35, 0.35),
     color: 0x817b71, roughness: 1,
   });
+  material.onBeforeCompile = shader => {
+    uniforms(shader, values);
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 shoulderUV;')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\nshoulderUV = uv;');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
+      varying vec2 shoulderUV; uniform float roadWet, roadSnow;
+      ${ROAD_NOISE}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        vec2 p = vec2((shoulderUV.x - 0.5) * ${width.toFixed(3)}, shoulderUV.y);
+        float mottled = surfaceFbm(p * vec2(0.7, 0.35));
+        diffuseColor.rgb *= 1.0 - roadWet * (0.18 + mottled * 0.12);
+        float snow = smoothstep(0.48, 0.72, mottled + roadSnow * 0.38) * roadSnow;
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.72, 0.78, 0.80), snow * 0.56);`)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.62, roadWet * 0.55);');
+  };
+  material.customProgramCacheKey = () => 'weathered-gravel-v1';
+  return material;
 }
 
 /** Slightly weathered thermoplastic paint instead of perfectly flat lines. */

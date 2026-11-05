@@ -10,6 +10,7 @@ import bpy
 import json
 import math
 import re
+import sys
 from pathlib import Path
 from mathutils import Matrix, Vector
 
@@ -23,6 +24,8 @@ SPECS = {
     "golf": {
         "path": ROOT / "source-assets/golf/GolfMK4-Cycles-Jay-Hardy-2011.blend",
         "length": 4.15,
+        # Vehicle emblems are separate objects in this source model.
+        "exclude_objects": {"Front-logo", "Rear-VW-logo", "Rear-Left-Logo.000", "Rear-Left-Logo.001", "Rear-Left-Logo.002", "Rear-Left-Logo.003"},
         "paint": (0.62, 0.67, 0.72),
         "transform": Matrix(((0, 1, 0), (-1, 0, 0), (0, 0, 1))),
     },
@@ -35,12 +38,16 @@ SPECS = {
     "audi": {
         "path": Path("/home/user/Spotify/google_drive/Audi_RS_6_Avant_Not+Applied.blend"),
         "length": 4.99,
+        # Keep body contours and reflections smooth; global 150k decimation
+        # noticeably distorts the RS6 panels.
+        "triangle_budget": 450_000,
         "paint": (0.42, 0.46, 0.49),
         "transform": Matrix.Identity(3),
     },
     "mustang": {
         "path": ROOT / "source-assets/mustang/Mustang/Mustang.blend",
         "length": 4.78,
+        "exclude_objects": {"M_BackLogo1", "M_GasCapLogo", "M_GrillLogo1", "M_GrillLogo2", "M_IntakeText1", "M_IntakeText2"},
         "paint": (0.02, 0.16, 0.48),
         "transform": Matrix(((0, -1, 0), (1, 0, 0), (0, 0, 1))),
     },
@@ -225,7 +232,7 @@ def convert(key: str, spec: dict):
     for obj in list(bpy.data.objects):
         if obj.type != "MESH" or obj.hide_render:
             continue
-        if EXCLUDE_OBJ.search(obj.name):
+        if EXCLUDE_OBJ.search(obj.name) or obj.name in spec.get("exclude_objects", set()):
             continue
         mats = [s.material for s in obj.material_slots if s.material]
         if mats and all(EXCLUDE_MAT.match(m.name) for m in mats):
@@ -301,11 +308,13 @@ def convert(key: str, spec: dict):
     bpy.ops.object.mode_set(mode="OBJECT")
     bpy.ops.object.shade_smooth()
 
-    # Keep traffic clones affordable: cap dense source meshes at ~150k triangles.
+    # Keep traffic clones affordable, with model-specific budgets for detailed bodies.
+    budget = spec.get("triangle_budget", 150_000)
     tris_now = sum(len(p.vertices) - 2 for p in car.data.polygons)
-    if tris_now > 150_000:
+    print("  source triangles before LOD:", tris_now, "budget:", budget)
+    if tris_now > budget:
         dec = car.modifiers.new("GameLOD", "DECIMATE")
-        dec.ratio = 150_000 / tris_now
+        dec.ratio = budget / tris_now
         dec.use_collapse_triangulate = True
         bpy.ops.object.modifier_apply(modifier=dec.name)
 
@@ -338,11 +347,14 @@ def convert(key: str, spec: dict):
 
 
 def main():
-    report = {}
-    for key, spec in SPECS.items():
+    manifest = OUT / "manifest.json"
+    report = json.loads(manifest.read_text()) if manifest.exists() else {}
+    chosen = sys.argv[1:] or SPECS.keys()
+    for key in chosen:
+        spec = SPECS[key]
         print("\n===", key, "===")
         report[key] = convert(key, spec)
-    (OUT / "manifest.json").write_text(json.dumps(report, indent=2))
+    manifest.write_text(json.dumps(report, indent=2) + "\n")
     print("\nDone", json.dumps(report, indent=2))
 
 
