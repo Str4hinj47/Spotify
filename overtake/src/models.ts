@@ -139,6 +139,9 @@ export class ModelLibrary {
           mesh.castShadow = true;
           mesh.receiveShadow = false;
           mesh.frustumCulled = true;
+          // The Ferrari plate is exported as its own material primitives.
+          // Remove both its text and backing from every Ferrari instance.
+          if (spec.id === 'ferrari' && !Array.isArray(mesh.material) && mesh.material.name.startsWith('plate__')) mesh.visible = false;
           const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
           for (const m of mats) {
             if (tuned.has(m)) continue;
