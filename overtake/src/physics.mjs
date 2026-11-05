@@ -48,11 +48,8 @@ export function stepVehicle(st, input, p, dt, curvature = 0) {
   // Friction circle: cornering hard leaves less grip for throttle/brakes.
   const circle = Math.sqrt(Math.max(0.18, 1 - 0.7 * Math.pow(st.latAccel / Math.max(maxLat, 1e-3), 2)));
   const baseMax = p.maxSpeed ?? 60;
-  const boosting = p.boost === true;
-  // Boost raises the ceiling; releasing it bleeds overspeed smoothly instead
-  // of snapping the car back to its normal top speed.
-  const cap = boosting ? baseMax + (p.boostSpeed ?? 13) : Math.max(baseMax, st.speed);
-  const accelRate = (p.accel ?? 8) + (boosting ? (p.boostAccel ?? 6.5) : 0);
+  const cap = Math.max(baseMax, st.speed);
+  const accelRate = p.accel ?? 8;
   const surfaceGrip = clamp(p.surfaceGrip ?? 1, 0.35, 1);
   const power = input.throttle ? accelRate * circle * surfaceGrip * (1 - 0.45 * Math.pow(st.speed / cap, 2)) : 0;
   const brake = (input.brake ? (p.brake ?? 11) : 0) + (input.handbrake ? (p.brake ?? 11) * 0.75 : 0);
@@ -60,7 +57,7 @@ export function stepVehicle(st, input, p, dt, curvature = 0) {
   st.accel = power - brake * circle * surfaceGrip - drag;
   if (st.speed <= 0 && st.accel < 0) st.accel = 0;
   st.speed = clamp(st.speed + st.accel * dt, 0, cap);
-  if (!boosting && st.speed > baseMax) st.speed = Math.max(baseMax, st.speed - 7 * dt);
+  if (st.speed > baseMax) st.speed = Math.max(baseMax, st.speed - 7 * dt);
 
   // Heading is relative to the road tangent. Curvature rotates the tangent.
   st.heading += (st.yawRate - feed) * dt;

@@ -67,16 +67,3 @@ export function hazardAhead(player, traffic) {
   }
   return best;
 }
-
-/** Slipstream: close behind a slower same-direction car, but not touching. */
-export function slipstreamGain(player, traffic) {
-  for (const t of traffic) {
-    if (t.dir !== 1) continue;
-    const ds = t.s - player.s;
-    if (ds < 5 || ds > 28) continue;
-    if (Math.abs(t.offset - player.offset) > 1.5) continue;
-    if (player.speed < 14 || player.speed <= t.speed) continue;
-    return 1 - (ds - 5) / 23;
-  }
-  return 0;
-}

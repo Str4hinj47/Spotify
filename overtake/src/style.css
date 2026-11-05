@@ -275,7 +275,7 @@ svg { stroke-width: 1.75; }
   .camera-panel, .world-panel { right: 12px; left: 12px; width: auto; }
 }
 
-/* --- Rush update: modes, contracts, nitro, results ------------------------ */
+/* --- Rush update: modes, contracts, results ------------------------ */
 .mode-select { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 14px; }
 .mode-card {
   display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left;
@@ -318,19 +318,6 @@ svg { stroke-width: 1.75; }
 .contract-bar div { height: 100%; width: 0%; background: var(--accent); border-radius: 99px; transition: width .2s ease; }
 .contract-count { margin-top: 5px; font-size: 11px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
 
-.boost-meter {
-  position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); width: 180px;
-  padding: 8px 12px; border-radius: 12px; background: rgba(12,15,20,0.62); border: 1px solid var(--border); backdrop-filter: blur(10px);
-}
-.boost-head { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 650; margin-bottom: 6px; }
-.boost-head #boost-state { color: var(--accent); }
-.boost-track { height: 6px; border-radius: 99px; background: rgba(255,255,255,0.1); overflow: hidden; }
-.boost-track div { height: 100%; width: 0%; background: linear-gradient(90deg, #38bdf8, #7dd3fc); border-radius: 99px; transition: width .12s linear; }
-.boost-meter.ready .boost-track div { background: linear-gradient(90deg, #7dd3fc, #e0f2fe); }
-.boost-meter.active { border-color: rgba(125,211,252,0.65); box-shadow: 0 0 24px rgba(56,189,248,0.25); }
-.boost-meter.active .boost-head #boost-state { color: #e0f2fe; }
-.boost-meter.slipstream .boost-head #boost-state { color: var(--good); }
-.boost-touch { color: var(--accent); border-color: rgba(125,211,252,0.4); }
 
 .oncoming-warn.critical { background: rgba(248,113,113,0.24); border-color: rgba(248,113,113,0.8); }
 .event.contract { color: var(--warm); font-size: 20px; }
@@ -346,10 +333,15 @@ svg { stroke-width: 1.75; }
 @media (max-width: 900px) {
   .run-clock { top: 96px; }
   .contract-card { left: 12px; bottom: 100px; width: 176px; padding: 10px 12px; }
-  .boost-meter { bottom: 172px; width: 140px; }
   .mode-select { grid-template-columns: 1fr 1fr; }
   .recent-runs { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
+
+/* Separate, clickable dashboard indicators also work with touch. */
+.turn-signals { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; gap: 12px; pointer-events: auto; }
+.turn-signals button { border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 7px 12px; color: #5b6b63; background: rgba(15,20,27,.78); cursor: pointer; font-size: 15px; }
+.turn-signals button.lit { color: #a4ffb7; border-color: #80d896; text-shadow: 0 0 10px #68ff94; }
+@media (max-width: 700px) { .turn-signals { bottom: 165px; } }

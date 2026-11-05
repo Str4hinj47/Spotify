@@ -27,6 +27,12 @@ const palette = {
 const mats = new Map();
 function classify(mesh, mat) {
  const n = (mesh.name + ' ' + mat.name).toLowerCase();
+ // Both ends of the R8 are called "glass lamp" in the OBJ; the rear
+ // lenses are at negative source Z and must not become white headlights.
+ if (id === 'r8' && /glass lamp/.test(n)) {
+  mesh.geometry.computeBoundingBox();
+  if (mesh.geometry.boundingBox?.max.z < 0) return 'taillight';
+ }
  if (/tail.?light/.test(n)) return 'taillight';
  if (/headlight|daylights|glass lamp|emissive/.test(n)) return 'headlight';
  if (/window|glass/.test(n)) return 'glass';

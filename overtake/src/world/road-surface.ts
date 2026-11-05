@@ -54,7 +54,7 @@ export function createAsphaltMaterial(roadWidth: number, aniso: number, values: 
       .replace('#include <uv_vertex>', '#include <uv_vertex>\nroadUV = uv;');
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
       varying vec2 roadUV;
-      uniform float roadWet, roadRain, roadTime;
+      uniform float roadWet, roadRain, roadTime, roadSnow;
       ${ROAD_NOISE}
       vec2 roadMetres() { return vec2((roadUV.x - 0.5) * ${roadWidth.toFixed(3)}, roadUV.y); }
       float puddleAt(vec2 p) {
@@ -74,6 +74,9 @@ export function createAsphaltMaterial(roadWidth: number, aniso: number, values: 
       diffuseColor.rgb *= mix(1.0, 0.89, tracks * 0.42);
       diffuseColor.rgb *= 1.0 - roadWet * 0.20;
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.055, 0.075, 0.095), puddle * 0.36);
+      // A broken film of compacted, dirty slush remains in cleared tracks.
+      float slush = surfaceFbm(roadPos * vec2(1.6, 0.9) + 21.0) * roadSnow;
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.25, 0.28, 0.30), slush * mix(0.12, 0.42, tracks));
       // Tiny animated ringlets reveal standing water when rain is falling.
       vec2 cell = roadPos * 1.5;
       vec2 cellID = floor(cell);
@@ -97,9 +100,9 @@ export function createSnowMaterial(snowWidth: number, aniso: number, values: Roa
   const material = new THREE.MeshStandardMaterial({
     map: loadTexture('snow-albedo', snowWidth, 2.4, true, aniso),
     normalMap: loadTexture('snow-normal', snowWidth, 2.4, false, aniso),
-    normalScale: new THREE.Vector2(0.55, 0.55),
-    color: 0xdce5eb, roughness: 0.96, metalness: 0,
-    transparent: true, alphaTest: 0.12, depthWrite: true,
+    normalScale: new THREE.Vector2(0.65, 0.65),
+    color: 0xe3ebef, roughness: 1, metalness: 0,
+    alphaTest: 0.5, alphaToCoverage: true, depthWrite: true,
   });
   material.onBeforeCompile = (shader) => {
     uniforms(shader, values);
@@ -112,24 +115,30 @@ export function createSnowMaterial(snowWidth: number, aniso: number, values: Roa
       ${ROAD_NOISE}
     `).replace('#include <color_fragment>', `#include <color_fragment>
       vec2 p = vec2((roadUV.x - 0.5) * ${snowWidth.toFixed(3)}, roadUV.y);
-      float drifts = surfaceFbm(p * vec2(0.62, 0.28) + 13.0);
-      float fine = surfaceNoise(p * vec2(1.9, 0.85));
+      // Warped, multi-scale snow deposits: finer, broken edges instead of
+      // long smooth white blobs. Tire-polished paths stay mostly exposed.
+      vec2 warp = vec2(surfaceNoise(p * 0.71 + 4.1), surfaceNoise(p * 0.64 - 8.2)) - 0.5;
+      vec2 uneven = p + warp * 0.75;
+      float drifts = surfaceFbm(uneven * vec2(0.52, 0.34) + 13.0);
+      float fine = surfaceFbm(uneven * vec2(1.7, 1.25) - 4.0);
       float edge = smoothstep(2.7, 4.35, abs(p.x));
       float tracks = 0.0;
       for (int i = 0; i < 4; i++) {
         float x = (i == 0) ? -2.95 : (i == 1) ? -1.25 : (i == 2) ? 1.25 : 2.95;
         float wander = 0.08 * sin(p.y * 0.05 + float(i));
-        tracks = max(tracks, 1.0 - smoothstep(0.22, 0.39, abs(p.x - x + wander)));
+        tracks = max(tracks, 1.0 - smoothstep(0.18, 0.43, abs(p.x - x + wander)));
       }
-      // Snow collects at the edges and between tires, breaking up into actual
-      // patches, with dark road visible through ploughed / driven tracks.
-      float field = drifts * 0.82 + fine * 0.18 + edge * 0.34 - tracks * 0.36;
-      float threshold = mix(0.84, 0.50, roadSnow);
-      float snowPatch = smoothstep(threshold - 0.05, threshold + 0.07, field);
-      diffuseColor.a *= snowPatch * smoothstep(0.02, 0.18, roadSnow);
+      float field = 0.22 + drifts * 0.55 + fine * 0.20 + edge * 0.22 - tracks * 0.28;
+      float threshold = mix(0.96, 0.49, smoothstep(0.02, 1.0, roadSnow));
+      float snowPatch = smoothstep(threshold - 0.025, threshold + 0.025, field);
+      // Slightly dirty compacted snow, with fine-grained surface variation.
+      float grain = surfaceNoise(p * 5.5);
+      diffuseColor.rgb *= mix(0.88, 1.04, grain) * (1.0 - tracks * 0.18);
+      diffuseColor.a *= snowPatch;
+
     `);
   };
-  material.customProgramCacheKey = () => 'road-snow-depth-v2';
+  material.customProgramCacheKey = () => 'road-snow-depth-v3';
   return material;
 }
 

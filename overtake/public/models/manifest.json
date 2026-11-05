@@ -14,7 +14,7 @@
   "mercedes": {
     "id": "mercedes",
     "file": "models/mercedes.glb",
-    "bytes": 1242820,
+    "bytes": 1218008,
     "triangles": 27696,
     "dimensions": [
       2.108,
@@ -63,7 +63,7 @@
     "id": "r8",
     "file": "models/r8.glb",
     "source": "r8.obj",
-    "bytes": 786380,
+    "bytes": 773484,
     "triangles": 71211
   },
   "challenger": {

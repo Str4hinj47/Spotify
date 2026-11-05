@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { stepTraffic, findLeader, hazardAhead, slipstreamGain, createTrafficAI } from '../src/traffic-ai.mjs';
+import { stepTraffic, findLeader, hazardAhead, createTrafficAI } from '../src/traffic-ai.mjs';
 import { emptyRecords, sanitizeRecords, recordRun, bestFor } from '../src/records.mjs';
 import { runSummary, createRun, registerPass } from '../src/run.mjs';
 
@@ -36,13 +36,6 @@ test('hazard radar reports time-to-collision for overlapping traffic', () => {
   assert.equal(h.kind, 'traffic');
   assert.ok(h.ttc > 0 && h.ttc < 6);
   assert.equal(hazardAhead(player, [car(80, 15, 1, -2.1)]), null);
-});
-
-test('slipstream only charges behind a slower car in the same lane', () => {
-  const player = { s: 0, offset: 2.1, speed: 25 };
-  assert.ok(slipstreamGain(player, [car(15, 18)]) > 0);
-  assert.equal(slipstreamGain(player, [car(15, 30)]), 0);
-  assert.equal(slipstreamGain(player, [car(15, 18, 1, -2.1)]), 0);
 });
 
 test('records keep per-mode bests and recent runs', () => {

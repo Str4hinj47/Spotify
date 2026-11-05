@@ -32,23 +32,17 @@ await page.evaluate(() => {
   const g = window.__overtake;
   g.setCycleRunning(false); g.setTimeOfDay(13); g.setWeatherMode('clear');
   g.clearTraffic();
-  g.vehicle.speed = 26; g.input.throttle = true; g.input.boost = true;
+  g.vehicle.speed = 26; g.input.throttle = true;
 });
-await page.waitForFunction(() => window.__overtake.run.boostActive === true, undefined, { timeout: 15000 });
 await page.waitForTimeout(400);
-const boostState = await page.evaluate(() => ({
-  active: window.__overtake.run.boostActive,
-  charge: window.__overtake.run.boostCharge,
-  pitch: window.__overtake.player.rotation.x,
-  speed: window.__overtake.speed,
-}));
-await shot('upgrade-boost.png');
+const driving = await page.evaluate(() => ({ pitch: window.__overtake.player.rotation.x, speed: window.__overtake.speed,
+  noNitro: !document.getElementById('boost-meter') }));
+await shot('upgrade-driving.png');
 
 // Force a contract completion through the real pass pipeline by placing a
 // slow car just behind the player after it has been passed.
 await page.evaluate(() => {
   const g = window.__overtake;
-  g.input.boost = false;
   g.spawnSame(g.playerS - 12, 10);
   const t = g.traffic[g.traffic.length - 1];
   t.offset = g.offset + 1.4;
@@ -74,6 +68,6 @@ const garage = await page.evaluate(() => ({
   recentVisible: !document.getElementById('recent-runs').classList.contains('hidden'),
   best: document.getElementById('mode-best-rush').textContent,
 }));
-console.log(JSON.stringify({ rushStart, boostState, results, garage, errors }, null, 2));
+console.log(JSON.stringify({ rushStart, driving, results, garage, errors }, null, 2));
 await browser.close();
-if (errors.length || rushStart.mode !== 'rush' || !boostState.active || Math.abs(boostState.pitch) > 1e-6 || results.reason !== 'time' || !garage.recentVisible) process.exit(1);
+if (errors.length || rushStart.mode !== 'rush' || !driving.noNitro || Math.abs(driving.pitch) > 1e-6 || results.reason !== 'time' || !garage.recentVisible) process.exit(1);

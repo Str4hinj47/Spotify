@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  multiplierFor, passScore, coastSpeed, steerRate,
+  multiplierFor, passScore, coastSpeed, steerRate, vehiclesOverlap, hitsRoadBarrier, blockedTrafficGap,
   canSpawnSame, canSpawnOncoming, findOncomingSpawn, sameSpawnInterval, oncomingSpawnInterval,
   ROAD_HALF, PLAYER_LANE, ONCOMING_LANE, BARRIER_OFFSET,
 } from '../src/rules.mjs';
@@ -81,4 +81,30 @@ test('oncoming spawn searches all safe gaps and retries as traffic moves', () =>
     }
     assert.ok(traffic.some(c => c.s > 0 && c.s < 550));
   }
+});
+
+test('car hitboxes exclude mirrors and round off corner near misses', () => {
+  assert.equal(vehiclesOverlap(0, 0, 4.8, 2.1, 4.8, 2.1), true);
+  assert.equal(vehiclesOverlap(0, 1.8, 4.8, 2.1, 4.8, 2.1), false);
+  assert.equal(vehiclesOverlap(4.2, 0, 4.8, 2.1, 4.8, 2.1), false);
+  assert.equal(vehiclesOverlap(3.95, 1.58, 4.8, 2.1, 4.8, 2.1), false);
+  assert.equal(vehiclesOverlap(3.0, 1.3, 4.8, 2.1, 4.8, 2.1), true);
+});
+
+test('guardrails stop the car body before it can drive outside the road', () => {
+  assert.equal(hitsRoadBarrier(2.1, 2, 4.8, 0), false);
+  assert.equal(hitsRoadBarrier(4.0, 2, 4.8, 0), true);
+  assert.equal(hitsRoadBarrier(-4.0, 2, 4.8, 0), true);
+  assert.equal(hitsRoadBarrier(3.4, 2, 4.8, 0.4), true);
+});
+
+test('two abreast cars do not form an unrealistically usable center lane', () => {
+  const player = { s: 100, offset: 0, length: 4.2, width: 1.83 };
+  const left = { s: 100, offset: -2.1, length: 4.5, width: 1.9 };
+  const right = { s: 100, offset: 2.1, length: 4.8, width: 1.9 };
+  assert.equal(blockedTrafficGap(player, [left, right]), true);
+  assert.equal(blockedTrafficGap(player, [left]), false);
+  assert.equal(blockedTrafficGap(player, [left, { ...right, s: 115 }]), false);
+  assert.equal(blockedTrafficGap(player, [{ ...left, offset: -4 }, { ...right, offset: 4 }]), false);
+  assert.equal(blockedTrafficGap({ ...player, offset: 3 }, [left, right]), false);
 });

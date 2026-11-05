@@ -16,7 +16,7 @@ export class Precipitation {
   private snowPos: Float32Array;
   private snowVel: Float32Array;
   private readonly rainCount = 1600;
-  private readonly snowCount = 1100;
+  private readonly snowCount = 4400;
   private readonly box = { x: 70, y: 32, z: 90 };
 
   constructor(scene: THREE.Scene) {
@@ -50,7 +50,7 @@ export class Precipitation {
     g.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, 16, 16);
     this.snowMat = new THREE.PointsMaterial({
-      map: new THREE.CanvasTexture(canvas), color: 0xffffff, size: 0.22, transparent: true,
+      map: new THREE.CanvasTexture(canvas), color: 0xffffff, size: 0.16, transparent: true,
       opacity: 0, depthWrite: false, sizeAttenuation: true,
     });
     this.snow = new THREE.Points(this.snowGeo, this.snowMat);
@@ -73,7 +73,7 @@ export class Precipitation {
   private respawnSnow(i: number, randomY = false) {
     const i3 = i * 3;
     this.snowPos[i3] = (Math.random() - 0.5) * this.box.x;
-    this.snowPos[i3 + 1] = randomY ? Math.random() * this.box.y : this.box.y + Math.random() * 5;
+    this.snowPos[i3 + 1] = randomY ? Math.random() * this.box.y - 10 : this.box.y - 10 + Math.random() * 5;
     this.snowPos[i3 + 2] = (Math.random() - 0.5) * this.box.z;
     this.snowVel[i3] = (Math.random() - 0.5) * 0.6;
     this.snowVel[i3 + 1] = -1.2 - Math.random() * 1.4;
@@ -120,7 +120,12 @@ export class Precipitation {
         let x = this.snowPos[i3] + (this.snowVel[i3] + wind * 0.5 + sway) * dt;
         let y = this.snowPos[i3 + 1] + this.snowVel[i3 + 1] * dt;
         let z = this.snowPos[i3 + 2] + (this.snowVel[i3 + 2] + forward * 0.5) * dt;
-        if (y < -2 || z > this.box.z / 2) { this.respawnSnow(i); x = this.snowPos[i3]; y = this.snowPos[i3 + 1]; z = this.snowPos[i3 + 2]; }
+        // Wrap flakes through the front of the camera volume rather than
+        // respawning them all high overhead as speed increases.
+        if (z > this.box.z / 2) z -= this.box.z;
+        if (x > this.box.x / 2) x -= this.box.x;
+        if (x < -this.box.x / 2) x += this.box.x;
+        if (y < -10) y = this.box.y - 10 + Math.random() * 5;
         this.snowPos[i3] = x; this.snowPos[i3 + 1] = y; this.snowPos[i3 + 2] = z;
       }
       this.snowGeo.attributes.position.needsUpdate = true;

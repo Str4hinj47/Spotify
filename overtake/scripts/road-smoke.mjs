@@ -58,7 +58,7 @@ try {
     const old = uv.getY(0); g.playerS += 32; g.updateRoad();
     return uv.getY(0) - old;
   });
-  assert.equal(delta, 32, 'snow pattern follows road distance rather than the camera');
+  assert.ok(Math.abs(delta - 32) < 0.0001, 'snow pattern follows road distance rather than the camera');
   assert.deepEqual(errors, []);
   console.log('Road surfaces OK');
 } finally {

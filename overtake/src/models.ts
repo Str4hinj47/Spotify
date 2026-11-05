@@ -84,8 +84,10 @@ export class ModelLibrary {
               std.color.set(0x0a0f14);
               std.metalness = 0.1;
               std.roughness = 0.06;
-              std.transparent = true;
-              std.opacity = 0.92;
+              // The RS6 has no modeled cabin. Opaque smoked glass keeps the
+              // exterior reflections but prevents seeing through an empty shell.
+              std.transparent = spec.id !== 'audi';
+              std.opacity = spec.id === 'audi' ? 1 : 0.92;
               std.side = THREE.DoubleSide;
               std.envMapIntensity = 1.2;
             } else if (m.name.startsWith('chrome__')) {
@@ -148,12 +150,24 @@ export class ModelLibrary {
     const wrapper = new THREE.Group();
     wrapper.name = `${id}_wrapper`;
     wrapper.add(inner);
+    // Lights must be per-car: a braking vehicle must not brighten every
+    // instance that shares the same source material.
+    const lightCopies = new Map<THREE.Material, THREE.MeshStandardMaterial>();
     inner.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
       mesh.castShadow = !!opts.player;
       mesh.receiveShadow = false;
       const recolor = (mat: THREE.Material) => {
+        if (mat.name.startsWith('taillight__')) {
+          let light = lightCopies.get(mat);
+          if (!light) {
+            light = mat.clone() as THREE.MeshStandardMaterial;
+            light.emissiveIntensity = 0.55;
+            lightCopies.set(mat, light);
+          }
+          return light;
+        }
         if (paint !== undefined && mat.name.startsWith('paint__')) {
           const key = `${mat.uuid}:${paint}`;
           let cached = this.paintCache.get(key);
@@ -176,6 +190,7 @@ export class ModelLibrary {
         ? mesh.material.map(recolor)
         : recolor(mesh.material);
     });
+    wrapper.userData.brakeMaterials = [...lightCopies.values()];
     return wrapper;
   }
 
@@ -208,6 +223,7 @@ export class ModelLibrary {
     const url = renderer.domElement.toDataURL('image/png');
     this.thumbs.set(id, url);
     scene.remove(car);
+    for (const m of car.userData.brakeMaterials as THREE.Material[]) m.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
     return url;

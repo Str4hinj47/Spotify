@@ -67,3 +67,36 @@ export function findOncomingSpawn(playerS, existing, sameDir) {
   }
   return null;
 }
+
+/** Rounded, slightly inset road-relative vehicle footprints. Mirrors and trim
+ * are included in visual bounds but should not cause an early collision. */
+export function vehiclesOverlap(distance, lateral, playerLength, playerWidth, otherLength, otherWidth) {
+  const length = (playerLength + otherLength) * 0.5 * 0.84;
+  const width = (playerWidth + otherWidth) * 0.5 * 0.78;
+  const radius = Math.min(0.36, width * 0.22, length * 0.1);
+  const x = Math.max(0, Math.abs(lateral) - (width - radius));
+  const y = Math.max(0, Math.abs(distance) - (length - radius));
+  return x * x + y * y < radius * radius;
+}
+
+/** Check the car's road-relative footprint against the continuous guardrails. */
+export function hitsRoadBarrier(offset, width, length, heading, barrier = BARRIER_OFFSET) {
+  const halfWidth = width * 0.39;
+  const halfLength = length * 0.42;
+  const projectedHalfWidth = Math.abs(Math.cos(heading)) * halfWidth + Math.abs(Math.sin(heading)) * halfLength;
+  return Math.abs(offset) + projectedHalfWidth >= barrier;
+}
+
+/** A two-wide traffic formation is not a safe overtaking lane. Check the
+ * actual opening between car bodies plus clearance on either side, only when
+ * both vehicles overlap the player's longitudinal footprint. */
+export function blockedTrafficGap(player, traffic) {
+  const adjacent = traffic.filter(t => Math.abs(t.s - player.s) < (t.length + player.length) * 0.42);
+  for (const left of adjacent) for (const right of adjacent) {
+    if (left.offset >= player.offset || right.offset <= player.offset) continue;
+    const gap = (right.offset - right.width * 0.46) - (left.offset + left.width * 0.46);
+    const required = player.width * 0.9 + 0.85;
+    if (gap < required) return true;
+  }
+  return false;
+}

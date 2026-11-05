@@ -4,4 +4,3 @@ export function createTrafficAI(cruise: number): { cruise: number; braking: bool
 export function findLeader<T extends AICar>(car: T, traffic: T[], laneTolerance?: number): T | null;
 export function stepTraffic(car: AICar, leader: AICar | null, dt: number, grip?: number): boolean;
 export function hazardAhead(player: { s: number; offset: number; speed: number; width: number; length: number }, traffic: AICar[]): Hazard | null;
-export function slipstreamGain(player: { s: number; offset: number; speed: number }, traffic: AICar[]): number;

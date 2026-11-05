@@ -242,11 +242,11 @@ function onHud(h: HudState) {
   } else {
     card.classList.add('hidden');
   }
-  $('boost-fill').style.width = `${Math.round(h.boostCharge * 100)}%`;
-  $('boost-meter').classList.toggle('active', h.boostActive);
-  $('boost-meter').classList.toggle('ready', h.boostReady && !h.boostActive);
-  $('boost-meter').classList.toggle('slipstream', h.slipstream);
-  $('boost-state').textContent = h.boostActive ? 'Boosting' : h.slipstream ? 'Slipstream' : h.boostReady ? 'Shift' : 'Charge';
+  for (const side of ['left', 'right'] as const) {
+    const button = $(`signal-${side}`);
+    button.classList.toggle('lit', h.signal === side && h.signalLit);
+    button.setAttribute('aria-pressed', String(h.signal === side));
+  }
   $('hud').classList.toggle('offroad', h.offroad);
   $('env-time').textContent = h.time;
   $('env-weather').textContent = h.weather;
@@ -330,7 +330,7 @@ function closeHelp() {
   if (helpPaused) { game.resume(); helpPaused = false; }
 }
 
-function bindHold(id: string, name: 'throttle' | 'brake' | 'left' | 'right' | 'handbrake' | 'boost') {
+function bindHold(id: string, name: 'throttle' | 'brake' | 'left' | 'right' | 'handbrake') {
   const el = $(id);
   const down = (e: Event) => { e.preventDefault(); game.setInput(name, true); };
   const up = () => game.setInput(name, false);
@@ -408,25 +408,27 @@ function bindUI() {
   $('paint-reset').addEventListener('click', () => applyPaint(null));
   syncPaintUI(selected);
 
+  $('signal-left').addEventListener('click', () => game.toggleSignal('left'));
+  $('signal-right').addEventListener('click', () => game.toggleSignal('right'));
   bindHold('t-left', 'left');
   bindHold('t-right', 'right');
   bindHold('t-gas', 'throttle');
   bindHold('t-brake', 'brake');
-  bindHold('t-boost', 'boost');
 
-  const keyMap: Record<string, 'throttle' | 'brake' | 'left' | 'right' | 'handbrake' | 'boost'> = {
+  const keyMap: Record<string, 'throttle' | 'brake' | 'left' | 'right' | 'handbrake'> = {
     ArrowUp: 'throttle', w: 'throttle', W: 'throttle',
     ArrowDown: 'brake', s: 'brake', S: 'brake',
     ArrowLeft: 'left', a: 'left', A: 'left',
     ArrowRight: 'right', d: 'right', D: 'right',
     ' ': 'handbrake',
-    Shift: 'boost',
   };
   window.addEventListener('keydown', (e) => {
     const target = e.target as HTMLElement | null;
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
     const name = keyMap[e.key];
     if (name) { e.preventDefault(); game.setInput(name, true); return; }
+    if (!e.repeat && (e.key === 'e' || e.key === 'E')) { e.preventDefault(); game.toggleSignal('left'); return; }
+    if (!e.repeat && (e.key === 'q' || e.key === 'Q')) { e.preventDefault(); game.toggleSignal('right'); return; }
     switch (e.key) {
       case 'p': case 'P': case 'Escape':
         if (!$('help').classList.contains('hidden')) closeHelp();
@@ -447,7 +449,7 @@ function bindUI() {
     if (name) { e.preventDefault(); game.setInput(name, false); }
   });
   window.addEventListener('blur', () => {
-    for (const n of ['throttle', 'brake', 'left', 'right', 'handbrake', 'boost'] as const) game.setInput(n, false);
+    for (const n of ['throttle', 'brake', 'left', 'right', 'handbrake'] as const) game.setInput(n, false);
     if (game.mode === 'driving') game.pause();
   });
   document.addEventListener('visibilitychange', () => {

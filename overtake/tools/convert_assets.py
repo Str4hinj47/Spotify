@@ -69,7 +69,7 @@ def category(name: str) -> str:
         return "headlight"
     if re.search(r"glass|windshield|window|polarized|tint", n):
         return "glass"
-    if re.search(r"tyre|tire|wheel.?tread", n):
+    if re.search(r"tyre|tire|wheel.?tread|^w222 - wheel$", n):
         return "tire"
     if re.search(r"chrome|mirror|reflect", n):
         return "chrome"

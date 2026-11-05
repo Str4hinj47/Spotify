@@ -1,4 +1,4 @@
-// Run structure: modes, sequential contracts, earned boost and medals.
+// Run structure: modes, sequential contracts, contracts and medals.
 // Pure module so progression can be unit-tested without WebGL.
 import { multiplierFor, passScore } from './rules.mjs';
 
@@ -15,18 +15,13 @@ export const RUN_MODES = {
   },
 };
 
-export const BOOST = {
-  start: 0.35, min: 0.15, drain: 0.26, accel: 6.5, extraSpeed: 13,
-  overtake: 0.12, near: 0.07, oncoming: 0.16, contract: 0.35, slipstream: 0.055,
-};
-
 const CONTRACT_POOL = [
-  { id: 'pass5', title: 'Clean five', desc: 'Overtake 5 cars', metric: 'overtakes', target: 5, reward: 400, boost: 0.25 },
-  { id: 'near3', title: 'Thread the needle', desc: 'Score 3 near misses', metric: 'nearMisses', target: 3, reward: 550, boost: 0.3 },
-  { id: 'dist1500', title: 'Open road', desc: 'Drive 1.5 km', metric: 'distance', target: 1500, reward: 450, boost: 0.25 },
-  { id: 'oncoming2', title: 'Against the flow', desc: 'Dodge 2 oncoming cars up close', metric: 'oncomingDodges', target: 2, reward: 600, boost: 0.35 },
-  { id: 'combo10', title: 'In the zone', desc: 'Reach a 10-pass combo', metric: 'bestCombo', target: 10, reward: 650, boost: 0.3 },
-  { id: 'speed12', title: 'Autobahn', desc: 'Hold 140+ km/h for 12 s total', metric: 'highSpeedTime', target: 12, reward: 500, boost: 0.3 },
+  { id: 'pass5', title: 'Clean five', desc: 'Overtake 5 cars', metric: 'overtakes', target: 5, reward: 400 },
+  { id: 'near3', title: 'Thread the needle', desc: 'Score 3 near misses', metric: 'nearMisses', target: 3, reward: 550 },
+  { id: 'dist1500', title: 'Open road', desc: 'Drive 1.5 km', metric: 'distance', target: 1500, reward: 450 },
+  { id: 'oncoming2', title: 'Against the flow', desc: 'Dodge 2 oncoming cars up close', metric: 'oncomingDodges', target: 2, reward: 600 },
+  { id: 'combo10', title: 'In the zone', desc: 'Reach a 10-pass combo', metric: 'bestCombo', target: 10, reward: 650 },
+  { id: 'speed12', title: 'Autobahn', desc: 'Hold 140+ km/h for 12 s total', metric: 'highSpeedTime', target: 12, reward: 500 },
 ];
 
 export function mulberry32(seed) {
@@ -60,7 +55,6 @@ export function createRun(mode = 'endless', seed = Date.now()) {
     distance: 0, score: 0, combo: 0, bestCombo: 0,
     overtakes: 0, nearMisses: 0, oncomingDodges: 0,
     topSpeed: 0, highSpeedTime: 0,
-    boostCharge: BOOST.start, boostActive: false, boostHeld: false, boostUsed: 0,
     contracts: pickContracts(seed), contractIndex: 0, contractBaseline: 0, contractsDone: 0,
     finished: false, reason: null,
   };
@@ -87,7 +81,6 @@ function completeContracts(run, events) {
     const value = run[c.metric] - run.contractBaseline;
     if (value < c.target) break;
     run.score += c.reward;
-    run.boostCharge = Math.min(1, run.boostCharge + c.boost);
     run.contractsDone++;
     run.contractIndex++;
     run.contractBaseline = run[c.metric];
@@ -99,8 +92,8 @@ function completeContracts(run, events) {
   }
 }
 
-/** Advance time, distance, boost and passive contract metrics. */
-export function tickRun(run, dt, speed, pedals = { throttle: false, brake: false }) {
+/** Advance time, distance and passive contract metrics. */
+export function tickRun(run, dt, speed) {
   const events = [];
   if (run.finished) return events;
   dt = Math.max(0, Math.min(0.1, dt));
@@ -111,14 +104,6 @@ export function tickRun(run, dt, speed, pedals = { throttle: false, brake: false
   if (run.timeLeft !== null) {
     run.timeLeft = Math.max(0, run.timeLeft - dt);
     if (run.timeLeft <= 0) { run.finished = true; run.reason = 'time'; events.push({ type: 'finish', reason: 'time' }); }
-  }
-
-  const canBoost = run.boostHeld && run.boostCharge >= BOOST.min && speed > 9 && pedals.throttle && !pedals.brake;
-  run.boostActive = canBoost && run.boostCharge > 0;
-  if (run.boostActive) {
-    run.boostCharge = Math.max(0, run.boostCharge - BOOST.drain * dt);
-    run.boostUsed += dt;
-    if (run.boostCharge <= 0) run.boostActive = false;
   }
 
   completeContracts(run, events);
@@ -136,12 +121,10 @@ export function registerPass(run, kind, near, carBonus = 1) {
     run.overtakes++;
     if (near) run.nearMisses++;
     points = passScore(run.combo, 'same', near, carBonus);
-    run.boostCharge = Math.min(1, run.boostCharge + BOOST.overtake + (near ? BOOST.near : 0));
   } else if (kind === 'oncoming' && near) {
     run.oncomingDodges++;
     run.nearMisses++;
     points = passScore(run.combo, 'oncoming', true, carBonus);
-    run.boostCharge = Math.min(1, run.boostCharge + BOOST.oncoming);
   }
   run.score += points;
   if (run.combo % 5 === 0) events.push({ type: 'combo', mult: multiplierFor(run.combo) });
@@ -149,14 +132,9 @@ export function registerPass(run, kind, near, carBonus = 1) {
   return { points, events };
 }
 
-export function addSlipstream(run, dt) {
-  if (!run.finished) run.boostCharge = Math.min(1, run.boostCharge + BOOST.slipstream * dt);
-}
-
 export function finishRun(run, reason) {
   run.finished = true;
   run.reason = reason;
-  run.boostActive = false;
 }
 
 export function runSummary(run, carId) {

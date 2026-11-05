@@ -75,3 +75,31 @@ test('Challenger keeps enough roof detail without an excessive triangle budget',
   const allTriangles = doc.getRoot().listMeshes().reduce((sum, m) => sum + m.listPrimitives().reduce((n, p) => n + p.getIndices().getCount() / 3, 0), 0);
   assert.ok(allTriangles < 400000, `Challenger too expensive for traffic: ${allTriangles}`);
 });
+
+test('Mercedes wheel rubber has a dark tire material while alloy rims remain metallic', async () => {
+  const doc = await io.read(new URL('../public/models/mercedes.glb', import.meta.url).pathname);
+  const mats = doc.getRoot().listMaterials();
+  const tire = mats.find(m => m.getName() === 'tire__W222 - Wheel');
+  assert.ok(tire);
+  assert.ok(tire.getBaseColorFactor().slice(0, 3).every(c => c < 0.04));
+  assert.equal(tire.getMetallicFactor(), 0);
+  assert.ok(tire.getRoughnessFactor() > 0.85);
+  assert.ok(mats.some(m => m.getName().startsWith('rim__') && m.getMetallicFactor() > 0.7));
+});
+
+
+test('R8 rear lens geometry is red rather than a white headlight', async () => {
+  const doc = await io.read(new URL('../public/models/r8.glb', import.meta.url).pathname);
+  let rear = 0, front = 0;
+  for (const n of doc.getRoot().listNodes()) {
+    if (n.getName() !== 'glass lamp' || !n.getMesh()) continue;
+    for (const p of n.getMesh().listPrimitives()) {
+      if (p.getAttribute('POSITION').getMax([])[2] < 0) {
+        rear++; assert.ok(p.getMaterial().getName().startsWith('taillight__'));
+      } else {
+        front++; assert.ok(p.getMaterial().getName().startsWith('headlight__'));
+      }
+    }
+  }
+  assert.ok(rear >= 2 && front >= 1);
+});

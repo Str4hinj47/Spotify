@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRun, tickRun, registerPass, contractProgress, medalFor, runSummary, BOOST, RUN_MODES } from '../src/run.mjs';
+import { createRun, tickRun, registerPass, contractProgress, medalFor, runSummary, RUN_MODES } from '../src/run.mjs';
 import { createVehicleState, stepVehicle } from '../src/physics.mjs';
 
 const pedals = { throttle: true, brake: false, left: false, right: false, handbrake: false };
@@ -17,15 +17,12 @@ test('rush mode finishes after its duration and endless does not', () => {
   assert.equal(endless.timeLeft, null);
 });
 
-test('passes score, build combo and charge boost', () => {
+test('passes score and build combo', () => {
   const run = createRun('endless', 3);
-  const before = run.boostCharge;
   const { points } = registerPass(run, 'same', true, 1);
   assert.equal(points, 150);
   assert.equal(run.overtakes, 1);
   assert.equal(run.nearMisses, 1);
-  assert.ok(run.boostCharge > before);
-  assert.ok(run.boostCharge <= 1);
 });
 
 test('contracts complete sequentially and pay rewards', () => {
@@ -41,32 +38,13 @@ test('contracts complete sequentially and pay rewards', () => {
   assert.ok(prog.ratio >= 0 && prog.ratio <= 1);
 });
 
-test('boost only fires with charge, throttle and speed, then drains', () => {
+test('run and driving contain no nitro acceleration', () => {
   const run = createRun('rush', 5);
-  run.boostHeld = true;
-  tickRun(run, 0.1, 2, pedals);
-  assert.equal(run.boostActive, false);
-  tickRun(run, 0.1, 25, pedals);
-  assert.equal(run.boostActive, true);
-  const charge = run.boostCharge;
-  tickRun(run, 0.1, 25, pedals);
-  assert.ok(run.boostCharge < charge);
-  run.boostCharge = 0;
-  tickRun(run, 0.1, 25, pedals);
-  assert.equal(run.boostActive, false);
-});
-
-test('boost raises acceleration and overspeed decays smoothly after release', () => {
-  const normal = createVehicleState(); normal.speed = 30;
-  const boosted = createVehicleState(); boosted.speed = 30;
-  stepVehicle(normal, pedals, params, 0.1, 0);
-  stepVehicle(boosted, pedals, { ...params, boost: true, boostAccel: BOOST.accel, boostSpeed: BOOST.extraSpeed }, 0.1, 0);
-  assert.ok(boosted.speed > normal.speed);
-  boosted.speed = params.maxSpeed + 10;
-  const over = boosted.speed;
-  stepVehicle(boosted, { ...pedals, throttle: false }, params, 0.1, 0);
-  assert.ok(boosted.speed < over);
-  assert.ok(boosted.speed > params.maxSpeed);
+  assert.equal('boostCharge' in run, false);
+  const a = createVehicleState(), b = createVehicleState(); a.speed = b.speed = 30;
+  stepVehicle(a, pedals, params, 0.05, 0);
+  stepVehicle(b, pedals, { ...params, boost: true, boostAccel: 50 }, 0.05, 0);
+  assert.equal(a.speed, b.speed);
 });
 
 test('medals and summaries are mode-aware', () => {

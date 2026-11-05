@@ -21,7 +21,7 @@ npm test         # gameplay rule unit tests
 | `S` / `↓` | Brake |
 | `A` / `←` and `D` / `→` | Steer (continuous, not lane-switching) |
 | `Space` | Handbrake |
-| `Shift` | Nitro boost (when charged) |
+| `E` / `Q` | Toggle left / right turn signal |
 | `C` | Cycle camera presets |
 | `V` | Camera settings |
 | `B` | World settings (time / weather) |
@@ -37,14 +37,11 @@ Touch devices get on-screen steering, throttle and brake buttons.
   Each mode keeps its own personal best and recent-run history in `localStorage`.
 - **Contracts:** every run rolls three sequential objectives (overtakes, near
   misses, distance, oncoming dodges, combo, sustained speed). Completing one
-  pays bonus points and nitro.
-- **Earned nitro:** clean passes, near misses, oncoming dodges and slipstreaming
-  charge the meter. Hold `Shift` (or the touch ⚡ button) with throttle to boost.
-  Boost raises acceleration and the speed ceiling, then overspeed bleeds off
-  smoothly. It never pitches the car or moves the camera.
+  pays bonus points.
 - **Smarter traffic:** same-direction cars follow slower leaders and brake
-  instead of stacking; brake glows show deceleration. A time-to-collision hazard
-  radar warns about the nearest closing threat.
+  instead of stacking; rear lights brighten while braking. A time-to-collision hazard
+  radar warns about the nearest closing threat. Nearby traffic avoids repeating
+  car models and uses contrasting paint colors where possible.
 - Two lanes, **opposing directions**. Your lane is the right one; the left lane
   carries a dense stream of oncoming traffic. Pull out, overtake, and get back in.
 - The road is procedurally generated ahead of you with bends and crests.
@@ -56,7 +53,7 @@ Touch devices get on-screen steering, throttle and brake buttons.
 - Scoring: overtake +100, near-miss bonus +50, close oncoming dodge +75.
   Every 5 clean passes raises the combo multiplier (up to ×5). Car-specific
   score bonuses apply. Best score is stored in `localStorage`.
-- Hitting traffic or the barrier ends the run.
+- Hitting traffic or the barrier ends the run. Closely aligned cars leave no safe center gap, and the guardrail checks the full vehicle footprint.
 
 ## Cars
 
@@ -81,13 +78,13 @@ corrected so it runs parallel to the road. Its detached studio artifact was remo
 
 The garage includes a paint panel for every car: ten swatches, a custom color
 picker, and a **Factory** reset. Paint is saved per car in `localStorage`
-(`overtake-paints`) and is applied to both the player car and traffic instances
+(`overtake-paints`) and is applied to the player car and, where it remains distinct from nearby traffic, to traffic instances
 of that model.
 
 ## World, weather and day–night
 
 The background no longer swaps biomes abruptly. Roadside scenery is placed in
-deterministic slots and cross-faded by distance through **meadow → forest →
+deterministic slots with layered foliage and visible trunks, and cross-faded by distance through **meadow → forest →
 alpine → desert → outskirts** using `simplex-noise` and smoothstep weights
 (`src/world/biomes.mjs`). Ground, shoulder, mountain and fog colours blend with
 the same weights.
@@ -98,7 +95,7 @@ at 1×. The world panel lets you scrub time, change cycle speed, pause the cycle
 or force **Auto / Clear / Rain / Snow**.
 
 Weather (`src/world/weather.mjs`) damps in/out instead of switching instantly.
-The road uses ambientCG asphalt and gravel colour/normal maps and weathered painted markings. Rain darkens it and creates irregular reflective puddles with animated raindrop ripples, thickens fog, and adds camera-following rain streaks. Snow adds falling flakes and a separately raised, textured layer with uneven snow banks and exposed tire tracks, as well as snow on the ground/shoulders/trees and heavier fog. Road textures and snow patterns stay anchored to road distance as you drive. Both reduce tyre grip, acceleration and braking traction while the surface gradually accumulates and clears. The rain/snow particle approach is
+The road uses ambientCG asphalt and gravel colour/normal maps and weathered painted markings. Rain darkens it and creates irregular reflective puddles with animated raindrop ripples, thickens fog, and adds camera-following rain streaks. Snow adds dense wind-blown flakes, and a separately raised, textured layer with irregular snow banks, compacted slush and tire tracks, as well as snow on the ground/shoulders/trees and heavier fog. Road textures and snow patterns stay anchored to road distance as you drive. Both reduce tyre grip, acceleration and braking traction while the surface gradually accumulates and clears. The rain/snow particle approach is
 adapted from [Elemental-Serenity](https://github.com/SahilK-027/Elemental-Serenity)
 (MIT).
 
@@ -138,5 +135,7 @@ npm test                     # scoring / spawn / physics / biome / weather / clo
 node scripts/smoke.mjs       # headless browser playthrough (requires local server)
 node scripts/world-shots.mjs # day/night/rain/snow/biome screenshots
 node scripts/road-smoke.mjs  # surface/shader smoke test and weather screenshots
-node scripts/upgrade-smoke.mjs # Rush / contracts / nitro / records browser test
+node scripts/vehicle-snow-smoke.mjs # car materials, snow density and antialiasing
+node scripts/controls-scenery-smoke.mjs # indicators, brake lights, traffic and collisions
+node scripts/upgrade-smoke.mjs # Rush / contracts / records browser test
 ```
