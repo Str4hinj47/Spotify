@@ -109,7 +109,7 @@ export function rigWheels(root: THREE.Group, id: TrafficId): void {
     // Keep the original object in the hierarchy for name-based customization,
     // drawing only non-wheel triangles there for mixed-material truck meshes.
     const empty = new THREE.BufferGeometry();
-    empty.setAttribute('position', pos);
+    for (const name of Object.keys(geometry.attributes)) empty.setAttribute(name, geometry.getAttribute(name));
     empty.setIndex(stationary);
     mesh.geometry = empty;
   }
