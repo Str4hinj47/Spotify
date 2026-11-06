@@ -1940,7 +1940,12 @@ export class OvertakeGame {
   setWeatherMode(mode: 'auto' | 'clear' | 'rain' | 'snow') { this.weather.mode = mode; this.weather.timer = 0; }
   setTimeOfDay(hour: number) {
     this.worldClock.hour = ((hour % 24) + 24) % 24;
-    this.atmosphere.update(this.worldClock.hour, this.weather, biomeParams(this.playerS), this.camera.position, 5);
+    const atm = this.atmosphere.update(this.worldClock.hour, this.weather, biomeParams(this.playerS), this.camera.position, 5);
+    // The world panel also works while paused, when updateWorld is not ticking.
+    this.nightFactor = atm.night;
+    this.roadSurface.streetlight.value = this.sceneryQuality === 'low' ? 0 : THREE.MathUtils.smoothstep(atm.night, .25, .8);
+    this.roadSurface.cloud.value = this.sceneryQuality === 'low' ? 0 : .20 * atm.day * (1 - atm.cloud * .8);
+    this.lampMat.emissiveIntensity = .25 + atm.night * 2.4 + atm.cloud * .8;
   }
   setCycleSpeed(speed: number) { this.worldClock.speed = Math.max(0, Math.min(8, speed)); }
   setCycleRunning(running: boolean) { this.worldClock.running = running; }
