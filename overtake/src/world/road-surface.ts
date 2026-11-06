@@ -59,6 +59,17 @@ function streetlightShader(roadWidth: number) {
       float z = (p.y - slot * ${STREETLIGHT_SPACING}.0) / 8.0;
       float falloff = max(0.0, 1.0 - x*x - z*z);
       return falloff * falloff * roadStreetlight;
+    }
+    float streetlightReflection(vec2 p) {
+      if (roadStreetlight < 0.001) return 0.0;
+      float slot = floor((p.y + ${STREETLIGHT_SPACING / 2}.0) / ${STREETLIGHT_SPACING}.0);
+      float side = mod(slot, 2.0) < 1.0 ? -1.0 : 1.0;
+      float x = (p.x - side * ${(roadWidth / 2 + STREETLIGHT_POLE_OFFSET - STREETLIGHT_LENS_REACH).toFixed(3)}) / 0.9;
+      // Reflections stretch back toward the usual chase camera, not uniformly
+      // across the road. Their broken edges follow the asphalt's water film.
+      float z = (p.y - slot * ${STREETLIGHT_SPACING}.0 + 3.0) / 8.5;
+      float streak = max(0.0, 1.0 - x*x - z*z);
+      return streak * streak * roadStreetlight;
     }`;
 }
 
@@ -125,6 +136,8 @@ export function createAsphaltMaterial(roadWidth: number, aniso: number, values: 
       diffuseColor.rgb += vec3(0.10, 0.13, 0.15) * (ring + ring2 * 0.55) * puddle * roadRain;
     `).replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
       totalEmissiveRadiance += vec3(0.18, 0.115, 0.055) * streetlightPool(roadPos) * (1.0 + roadWet * 0.22);
+      float reflectionBreakup = mix(0.45, 1.0, surfaceNoise(roadPos * vec2(2.3, 1.1)));
+      totalEmissiveRadiance += vec3(0.22, 0.14, 0.065) * streetlightReflection(roadPos) * roadWet * reflectionBreakup;
     `).replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
       roughnessFactor = mix(roughnessFactor, 0.20, film * 0.55);
       roughnessFactor = mix(roughnessFactor, 0.075, puddle);
@@ -132,7 +145,7 @@ export function createAsphaltMaterial(roadWidth: number, aniso: number, values: 
       metalnessFactor = mix(metalnessFactor, 0.35, puddle);
     `);
   };
-  material.customProgramCacheKey = () => 'road-asphalt-pbr-v6';
+  material.customProgramCacheKey = () => 'road-asphalt-pbr-v7';
   return material;
 }
 
