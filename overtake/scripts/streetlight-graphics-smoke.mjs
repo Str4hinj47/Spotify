@@ -23,17 +23,19 @@ try {
   const parse=url=>new Promise(resolve=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);resolve(ctx.getImageData(0,0,c.width,c.height).data)};img.src=url;});
   const diff=(a,b)=>{let n=0;for(let i=0;i<a.length;i+=4)if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>10)n++;return n};
   const [a,b]=await Promise.all([parse(on),parse(off)]);const changed=diff(a,b);
-  Object.assign(g.weather,{snow:1,snowCover:1,wet:0});g.updateRoad();g.updateWorld(0);const snowOn=render();g.roadSurface.streetlight.value=0;const snowOff=render();
+  Object.assign(g.weather,{rain:1,wet:1,snow:0,snowCover:0});g.updateRoad();g.updateWorld(0);const wetOn=render();g.roadSurface.streetlight.value=0;const wetOff=render();
+  const [wa,wb]=await Promise.all([parse(wetOn),parse(wetOff)]);const wetPixels=diff(wa,wb);
+  Object.assign(g.weather,{rain:0,snow:1,snowCover:1,wet:0});g.updateRoad();g.updateWorld(0);const snowOn=render();g.roadSurface.streetlight.value=0;const snowOff=render();
   const [c,d]=await Promise.all([parse(snowOn),parse(snowOff)]);const snowy=diff(c,d);
   const slot=g.lamps.find(l=>l.s===1504);const head=slot?.g.localToWorld(new (await import('/node_modules/three/build/three.module.js')).Vector3(-2.47,0,0));
   const before=g.lamps.map(l=>({s:l.s,x:l.g.position.x,z:l.g.position.z,side:l.side}));
   g.playerS+=768;g.updateScenery();const after=g.lamps.map(l=>({s:l.s,x:l.g.position.x,z:l.g.position.z,side:l.side}));
   g.setSceneryQuality('low');const low=g.roadSurface.streetlight.value;g.setSceneryQuality('high');const restored=g.roadSurface.streetlight.value;
   g.setTimeOfDay(12);g.updateWorld(0);const day=g.roadSurface.streetlight.value;
-  g.toGarage();return {night,low,restored,day,changed,snowy,before,after,head:head?.toArray(),garage:g.roadGroup.visible,image:on};
+  g.toGarage();return {night,low,restored,day,changed,snowy,wetPixels,before,after,head:head?.toArray(),garage:g.roadGroup.visible,image:on,wetImage:wetOn};
  });
- fs.mkdirSync('test-results',{recursive:true});fs.writeFileSync('test-results/night-streetlights.png',Buffer.from(r.image.split(',')[1],'base64'));delete r.image;
- assert.ok(r.night>.99 && r.restored>.99 && r.low===0 && r.day===0);assert.ok(r.changed>100,`night pixels: ${r.changed}`);assert.ok(r.snowy>100,`snow pixels: ${r.snowy}`);
+ fs.mkdirSync('test-results',{recursive:true});fs.writeFileSync('test-results/night-streetlights.png',Buffer.from(r.image.split(',')[1],'base64'));delete r.image;fs.writeFileSync('test-results/night-streetlights-wet.png',Buffer.from(r.wetImage.split(',')[1],'base64'));delete r.wetImage;
+ assert.ok(r.night>.99 && r.restored>.99 && r.low===0 && r.day===0);assert.ok(r.changed>100,`night pixels: ${r.changed}`);assert.ok(r.snowy>100,`snow pixels: ${r.snowy}`);assert.ok(r.wetPixels>100,`wet pixels: ${r.wetPixels}`);
  assert.ok(r.before.every((l,i)=>Math.abs((r.after[i].s-l.s)-768)<.01 && r.after[i].side===l.side));
  assert.ok(r.head?.every(Number.isFinite) && !r.garage);assert.deepEqual(errors,[]);console.log({real,...r,before:undefined,after:undefined});
 } finally {await browser.close()}
