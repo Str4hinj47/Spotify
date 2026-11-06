@@ -23,7 +23,7 @@ import { DetailedScenery, sanitizeSceneryQuality, type SceneryQuality } from './
 import { RoadsideGrass } from './world/roadside-grass';
 import { MidgroundTreeline } from './world/midground-treeline';
 import { createShowroom } from './world/showroom';
-import { createStreetlightGeometry, STREETLIGHT_SPACING, STREETLIGHT_COUNT, STREETLIGHT_POLE_OFFSET } from './world/streetlight';
+import { createStreetlightGeometry, STREETLIGHT_SPACING, STREETLIGHT_COUNT, STREETLIGHT_POLE_OFFSET, STREETLIGHT_LENS_REACH } from './world/streetlight';
 import { addFoliageSnow, createRoadsideSignGeometry } from './world/roadside';
 import { disposeBodyKit, updateExhaustFlames } from './body-kits';
 import { createAsphaltMaterial, createSnowMaterial, createShoulderMaterial, createRoadMarkingMaterial } from './world/road-surface';
@@ -242,6 +242,7 @@ export class OvertakeGame {
   private rockMat!: THREE.MeshStandardMaterial;
   private buildingMat!: THREE.MeshStandardMaterial;
   private lamps: { g: THREE.Group; s: number; side: number }[] = [];
+  private streetLights: THREE.PointLight[] = [];
   private mountains = new THREE.Group();
   private dummy = new THREE.Object3D();
   private contactShadow!: THREE.Mesh;
@@ -911,6 +912,16 @@ export class OvertakeGame {
       this.roadGroup.add(g);
     }
 
+    // Two non-shadowing lights illuminate nearby vehicles and roadside details.
+    // They are recycled between the closest poles instead of lighting all 24.
+    for (let i = 0; i < 2; i++) {
+      const light = new THREE.PointLight(0xffd6a1, 0, 18, 2);
+      light.name = `streetlight-nearby-${i}`;
+      light.visible = false;
+      this.streetLights.push(light);
+      this.roadGroup.add(light);
+    }
+
     this.mountainMat = new THREE.MeshStandardMaterial({ color: 0x728598, roughness: 1, vertexColors: true, side: THREE.DoubleSide });
     const mountainTexture = new THREE.TextureLoader().load('./textures/landscape/mountain.jpg');
     mountainTexture.colorSpace = THREE.SRGBColorSpace;
@@ -1075,6 +1086,7 @@ export class OvertakeGame {
       l.g.position.set(centerX(s) + r.x * off, centerY(s), -s + r.z * off);
       l.g.rotation.y = roadYaw(s);
     }
+    this.updateStreetLights();
     const p = biomeParams(base);
     this.groundMat.color.set(p.ground).lerp(new THREE.Color(0xe8eef4), snow * 0.8);
     this.shoulderMat.color.set(p.shoulder).lerp(new THREE.Color(0xa7a39a), 0.58).lerp(new THREE.Color(0xe0e8ed), snow * 0.65);
@@ -1777,6 +1789,21 @@ export class OvertakeGame {
     });
   }
 
+  private updateStreetLights() {
+    const strength = this.roadSurface.streetlight.value;
+    const start = Math.floor(this.playerS / STREETLIGHT_SPACING) * STREETLIGHT_SPACING;
+    for (let i = 0; i < this.streetLights.length; i++) {
+      const light = this.streetLights[i], s = start + i * STREETLIGHT_SPACING;
+      const slot = Math.round(s / STREETLIGHT_SPACING);
+      const side = ((slot % 2) + 2) % 2 === 0 ? -1 : 1;
+      const offset = side * (ROAD_HALF + STREETLIGHT_POLE_OFFSET - STREETLIGHT_LENS_REACH);
+      const r = rightAt(s, this.tmpA);
+      light.position.set(centerX(s) + r.x * offset, centerY(s) + 8.015, -s + r.z * offset);
+      light.visible = this.sceneryQuality !== 'low' && strength > .001;
+      light.intensity = strength * 50;
+    }
+  }
+
   private updateWorld(dt: number) {
     this.worldElapsed += dt;
     stepClock(this.worldClock, dt);
@@ -1805,6 +1832,7 @@ export class OvertakeGame {
     this.asphaltMat.color.set(0xb2b5ba);
     this.lampMat.emissiveIntensity = 0.25 + atm.night * 2.4 + atm.cloud * 0.8;
     this.roadSurface.streetlight.value = this.sceneryQuality === 'low' ? 0 : THREE.MathUtils.smoothstep(atm.night, .25, .8);
+    this.updateStreetLights();
     (this.roadStuds.material as THREE.MeshStandardMaterial).emissiveIntensity = .1 + atm.night * .45;
 
     // Player headlights follow the car and fade in at night / in precipitation.
@@ -1944,6 +1972,7 @@ export class OvertakeGame {
     // The world panel also works while paused, when updateWorld is not ticking.
     this.nightFactor = atm.night;
     this.roadSurface.streetlight.value = this.sceneryQuality === 'low' ? 0 : THREE.MathUtils.smoothstep(atm.night, .25, .8);
+    this.updateStreetLights();
     this.roadSurface.cloud.value = this.sceneryQuality === 'low' ? 0 : .20 * atm.day * (1 - atm.cloud * .8);
     this.lampMat.emissiveIntensity = .25 + atm.night * 2.4 + atm.cloud * .8;
   }
