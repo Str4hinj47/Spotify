@@ -303,8 +303,8 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
             void main(){float t=clamp(vLocal.z/uLength,0.0,1.0);
               vec3 p=vec3(vLocal.xy/uRadius*2.0,t*5.0-uTime*4.0+uSeed);
               float n=noise3(p)*.7+noise3(p*2.2+9.0)*.3;
-              float envelope=(1.0-smoothstep(.70,1.0,t))*smoothstep(.08,.65,n+(.5-t)*.20);
-              float facing=.45+.55*abs(dot(normalize(vNormal),normalize(vView)));
+              float envelope=(1.0-smoothstep(.70,1.0,t))*smoothstep(.40,.72,n+(.5-t)*.25);
+              float facing=pow(abs(dot(normalize(vNormal),normalize(vView))),1.5);
               float heat=clamp((1.0-t)*.85+n*.45,0.0,1.0);
               vec3 col=mix(vec3(.95,.055,.003),vec3(1.0,.43,.025),smoothstep(.25,.65,heat));
               col=mix(col,vec3(1.0,.92,.48),smoothstep(.72,1.0,heat));
