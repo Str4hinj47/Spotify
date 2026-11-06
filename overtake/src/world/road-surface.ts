@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CLOUD_SHADOW_GLSL } from './cloud-shadows';
 
 /** Shared, continuously varying weather uniforms for the road shaders. */
 export interface RoadSurfaceUniforms {
@@ -6,6 +7,7 @@ export interface RoadSurfaceUniforms {
   snow: { value: number };
   rain: { value: number };
   time: { value: number };
+  cloud: { value: number };
 }
 
 // Road UVs are across-width 0..1 and longitudinal distance in metres. Keeping
@@ -37,6 +39,8 @@ function uniforms(shader: THREE.WebGLProgramParametersWithUniforms, values: Road
   shader.uniforms.roadSnow = values.snow;
   shader.uniforms.roadRain = values.rain;
   shader.uniforms.roadTime = values.time;
+  shader.uniforms.cloudShadowTime = values.time;
+  shader.uniforms.cloudShadowStrength = values.cloud;
 }
 
 /** Photographed asphalt + normal map, with wet film and irregular puddles. */
@@ -50,11 +54,13 @@ export function createAsphaltMaterial(roadWidth: number, aniso: number, values: 
   material.onBeforeCompile = (shader) => {
     uniforms(shader, values);
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec2 roadUV;')
-      .replace('#include <uv_vertex>', '#include <uv_vertex>\nroadUV = uv;');
+      .replace('#include <common>', '#include <common>\nvarying vec2 roadUV; varying vec2 roadWorld;')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\nroadUV = uv;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nroadWorld = (modelMatrix * vec4(transformed, 1.0)).xz;');
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
-      varying vec2 roadUV;
+      varying vec2 roadUV; varying vec2 roadWorld;
       uniform float roadWet, roadRain, roadTime, roadSnow;
+      ${CLOUD_SHADOW_GLSL}
       ${ROAD_NOISE}
       vec2 roadMetres() { return vec2((roadUV.x - 0.5) * ${roadWidth.toFixed(3)}, roadUV.y); }
       float puddleAt(vec2 p) {
@@ -71,7 +77,7 @@ export function createAsphaltMaterial(roadWidth: number, aniso: number, values: 
       // low-contrast mottling avoids obvious tile repetitions or long stripes.
       float aggregate = surfaceNoise(roadPos * vec2(.32, .22) + 31.0);
       float fineWear = surfaceNoise(roadPos * vec2(1.2, .9) - 7.0);
-      diffuseColor.rgb *= 0.92 + aggregate * .12 + fineWear * .04;
+      diffuseColor.rgb *= (0.92 + aggregate * .12 + fineWear * .04) * cloudShadowAt(roadWorld);
       // Two subtle, worn wheel paths per lane, not alternating rectangles.
       float tracks = 0.0;
       for (int i = 0; i < 4; i++) {
@@ -104,7 +110,7 @@ export function createAsphaltMaterial(roadWidth: number, aniso: number, values: 
       metalnessFactor = mix(metalnessFactor, 0.35, puddle);
     `);
   };
-  material.customProgramCacheKey = () => 'road-asphalt-pbr-v4';
+  material.customProgramCacheKey = () => 'road-asphalt-pbr-v5';
   return material;
 }
 
@@ -120,11 +126,13 @@ export function createSnowMaterial(snowWidth: number, aniso: number, values: Roa
   material.onBeforeCompile = (shader) => {
     uniforms(shader, values);
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec2 roadUV;')
-      .replace('#include <uv_vertex>', '#include <uv_vertex>\nroadUV = uv;');
+      .replace('#include <common>', '#include <common>\nvarying vec2 roadUV; varying vec2 roadWorld;')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\nroadUV = uv;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nroadWorld = (modelMatrix * vec4(transformed, 1.0)).xz;');
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
-      varying vec2 roadUV;
+      varying vec2 roadUV; varying vec2 roadWorld;
       uniform float roadSnow;
+      ${CLOUD_SHADOW_GLSL}
       ${ROAD_NOISE}
     `).replace('#include <color_fragment>', `#include <color_fragment>
       vec2 p = vec2((roadUV.x - 0.5) * ${snowWidth.toFixed(3)}, roadUV.y);
@@ -148,13 +156,13 @@ export function createSnowMaterial(snowWidth: number, aniso: number, values: Roa
       // Mottled compacted snow and dirty slush at the edges of tire ruts.
       float grain = surfaceNoise(p * 5.5);
       float packed = tracks * (0.55 + fine * 0.45);
-      diffuseColor.rgb *= mix(0.88, 1.05, grain) * (1.0 - packed * 0.16);
+      diffuseColor.rgb *= mix(0.88, 1.05, grain) * (1.0 - packed * 0.16) * cloudShadowAt(roadWorld);
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.48, 0.51, 0.52), packed * 0.16);
       diffuseColor.a *= snowPatch;
 
     `);
   };
-  material.customProgramCacheKey = () => 'road-snow-depth-v4';
+  material.customProgramCacheKey = () => 'road-snow-depth-v5';
   return material;
 }
 
@@ -168,20 +176,22 @@ export function createShoulderMaterial(width: number, aniso: number, values: Roa
   });
   material.onBeforeCompile = shader => {
     uniforms(shader, values);
-    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 shoulderUV;')
-      .replace('#include <uv_vertex>', '#include <uv_vertex>\nshoulderUV = uv;');
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 shoulderUV; varying vec2 shoulderWorld;')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\nshoulderUV = uv;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nshoulderWorld = (modelMatrix * vec4(transformed, 1.0)).xz;');
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
-      varying vec2 shoulderUV; uniform float roadWet, roadSnow;
+      varying vec2 shoulderUV; varying vec2 shoulderWorld; uniform float roadWet, roadSnow;
+      ${CLOUD_SHADOW_GLSL}
       ${ROAD_NOISE}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         vec2 p = vec2((shoulderUV.x - 0.5) * ${width.toFixed(3)}, shoulderUV.y);
         float mottled = surfaceFbm(p * vec2(0.7, 0.35));
-        diffuseColor.rgb *= 1.0 - roadWet * (0.18 + mottled * 0.12);
+        diffuseColor.rgb *= (1.0 - roadWet * (0.18 + mottled * 0.12)) * cloudShadowAt(shoulderWorld);
         float snow = smoothstep(0.48, 0.72, mottled + roadSnow * 0.38) * roadSnow;
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.72, 0.78, 0.80), snow * 0.56);`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.62, roadWet * 0.55);');
   };
-  material.customProgramCacheKey = () => 'weathered-gravel-v1';
+  material.customProgramCacheKey = () => 'weathered-gravel-v2';
   return material;
 }
 
@@ -195,13 +205,14 @@ export function createRoadMarkingMaterial(color: number, values: RoadSurfaceUnif
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
       varying vec2 markingPosition;
       uniform float roadWet;
+      ${CLOUD_SHADOW_GLSL}
       ${ROAD_NOISE}
     `).replace('#include <color_fragment>', `#include <color_fragment>
       float wear = surfaceNoise(markingPosition * 5.0);
       float scuff = smoothstep(0.22, 0.48, wear);
-      diffuseColor.rgb *= mix(0.62, 1.0, scuff) * (1.0 - roadWet * 0.14);
+      diffuseColor.rgb *= mix(0.62, 1.0, scuff) * (1.0 - roadWet * 0.14) * cloudShadowAt(markingPosition);
     `);
   };
-  material.customProgramCacheKey = () => 'worn-road-marking-v1';
+  material.customProgramCacheKey = () => 'worn-road-marking-v2';
   return material;
 }

@@ -199,7 +199,7 @@ export class OvertakeGame {
   private ground!: THREE.Mesh;
   private asphalt!: THREE.Mesh;
   private asphaltMat!: THREE.MeshStandardMaterial;
-  private roadSurface = { wet: { value: 0 }, snow: { value: 0 }, rain: { value: 0 }, time: { value: 0 } };
+  private roadSurface = { wet: { value: 0 }, snow: { value: 0 }, rain: { value: 0 }, time: { value: 0 }, cloud: { value: 0 } };
   private snowLayer!: THREE.Mesh;
   private shoulderMat!: THREE.MeshStandardMaterial;
   private groundMat!: THREE.MeshStandardMaterial;
@@ -671,7 +671,7 @@ export class OvertakeGame {
     };
     capMat.customProgramCacheKey = () => 'guardrail-snow-cap-v1';
 
-    this.groundMat = createGroundMaterial();
+    this.groundMat = createGroundMaterial(this.roadSurface.cloud, this.roadSurface.time);
     this.terrain = this.makeTerrain(320, 32);
     this.shoulder = this.ribbon(ROAD_HALF * 2 + 3.2, shoulderMat, -0.03);
     this.asphalt = this.ribbon(ROAD_HALF * 2, asphaltMat, 0);
@@ -1782,6 +1782,9 @@ export class OvertakeGame {
     this.roadSurface.snow.value = snow;
     this.roadSurface.rain.value = this.weather.rain;
     this.roadSurface.time.value = this.worldElapsed;
+    // Strongest in broken daylight, fading out in overcast weather and at
+    // night. Low scenery skips the extra noise samples entirely.
+    this.roadSurface.cloud.value = this.sceneryQuality === 'low' ? 0 : .20 * atm.day * (1 - atm.cloud * .8);
     this.asphaltMat.roughness = 0.94 - wet * 0.37;
     this.asphaltMat.metalness = 0.02 + wet * 0.04;
     this.asphaltMat.color.set(0xb2b5ba);

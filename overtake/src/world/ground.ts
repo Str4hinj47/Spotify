@@ -1,8 +1,9 @@
 import * as THREE from 'three';
+import { CLOUD_SHADOW_GLSL } from './cloud-shadows';
 
 // A photographic-style surface sampled in world space so the ground does not
 // slide as the road ribbon is recycled. Large-scale variation breaks up tiling.
-export function createGroundMaterial() {
+export function createGroundMaterial(cloud: { value: number }, time: { value: number }) {
   const texture = new THREE.TextureLoader().load('./textures/landscape/grass.jpg');
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
@@ -17,6 +18,7 @@ export function createGroundMaterial() {
   const snow = { value: 0 };
   mat.userData.groundDetail = { detail, dry, snow };
   mat.onBeforeCompile = shader => {
+    shader.uniforms.cloudShadowStrength = cloud; shader.uniforms.cloudShadowTime = time;
     shader.uniforms.meadowMap = { value: texture };
     shader.uniforms.sandMap = { value: sand };
     shader.uniforms.groundDetail = detail; shader.uniforms.groundDry = dry; shader.uniforms.groundSnow = snow;
@@ -25,6 +27,7 @@ export function createGroundMaterial() {
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
       varying vec3 vGroundWorld; uniform sampler2D meadowMap; uniform sampler2D sandMap;
       uniform float groundDetail; uniform float groundDry; uniform float groundSnow;
+      ${CLOUD_SHADOW_GLSL}
       float groundHash(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
       float groundNoise(vec2 p) {
         vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
@@ -45,8 +48,8 @@ export function createGroundMaterial() {
         detail = mix(detail, sandDetail, groundDry);
       }
       float strength = groundDetail * (1.0 - groundSnow * 0.8);
-      diffuseColor.rgb *= mix(vec3(1.0), detail, strength) * (0.78 + broad * 0.28 + fine * 0.12);`);
+      diffuseColor.rgb *= mix(vec3(1.0), detail, strength) * (0.78 + broad * 0.28 + fine * 0.12) * cloudShadowAt(vGroundWorld.xz);`);
   };
-  mat.customProgramCacheKey = () => 'overtake-ground-photographic-v3';
+  mat.customProgramCacheKey = () => 'overtake-ground-photographic-v4';
   return mat;
 }
