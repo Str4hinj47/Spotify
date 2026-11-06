@@ -20,6 +20,7 @@ import { terrainOffset } from './world/terrain.mjs';
 import { DetailedScenery, sanitizeSceneryQuality, type SceneryQuality } from './world/detailed-scenery';
 import { RoadsideGrass } from './world/roadside-grass';
 import { MidgroundTreeline } from './world/midground-treeline';
+import { createShowroom } from './world/showroom';
 import { createStreetlightGeometry } from './world/streetlight';
 import { addFoliageSnow, createRoadsideSignGeometry } from './world/roadside';
 import { disposeBodyKit, updateExhaustFlames } from './body-kits';
@@ -240,6 +241,7 @@ export class OvertakeGame {
   private mountains = new THREE.Group();
   private dummy = new THREE.Object3D();
   private contactShadow!: THREE.Mesh;
+  private showroomShadow!: THREE.Mesh;
   private sceneryShadows!: THREE.InstancedMesh;
 
   private player: THREE.Group | null = null;
@@ -1163,15 +1165,7 @@ export class OvertakeGame {
   }
 
   private buildGarage() {
-    const floor = new THREE.Mesh(new THREE.CircleGeometry(40, 64), new THREE.MeshStandardMaterial({ color: 0x0c0e13, metalness: 0.6, roughness: 0.28 }));
-    floor.rotation.x = -Math.PI / 2; floor.position.y = -0.1; floor.receiveShadow = true;
-    this.garageGroup.add(floor);
-    const platform = new THREE.Mesh(new THREE.CylinderGeometry(4.8, 5.0, 0.18, 64), new THREE.MeshStandardMaterial({ color: 0x171a21, metalness: 0.5, roughness: 0.3 }));
-    platform.position.y = -0.09; platform.receiveShadow = true;
-    this.garageGroup.add(platform);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(4.9, 0.03, 8, 96), new THREE.MeshStandardMaterial({ color: 0x37e0ff, emissive: 0x37e0ff, emissiveIntensity: 2 }));
-    ring.rotation.x = Math.PI / 2; ring.position.y = 0.02;
-    this.garageGroup.add(ring);
+    this.showroomShadow = createShowroom(this.garageGroup);
 
     // Soft studio key + rim lights for readable paint highlights.
     const key = new THREE.SpotLight(0xffffff, 55, 35, Math.PI / 4, 0.6, 1.6);
@@ -1283,6 +1277,7 @@ export class OvertakeGame {
     this.player = this.library.create(id, { player: true });
     const meta = this.library.get(id);
     this.playerMeta = { length: meta.length, width: meta.width };
+    this.showroomShadow.scale.set(meta.width * 1.65, meta.length * 1.3, 1);
     this.playerBrakes = [];
     for (const sign of [-1, 1]) {
       const brake = this.makeBrakeGlow();
