@@ -16,6 +16,7 @@ import { vehiclePixelRatio, sanitizeGraphicsQuality, type GraphicsQuality } from
 import { createTreeGeometries } from './world/trees';
 import { createRidgeGeometry, createBuildingGeometry, createGrassGeometry, createDistantTreeGeometries, createRockGeometry } from './world/landscape';
 import { createGroundMaterial } from './world/ground';
+import { terrainOffset } from './world/terrain.mjs';
 import { createStreetlightGeometry } from './world/streetlight';
 import { addFoliageSnow, createRoadsideSignGeometry } from './world/roadside';
 import { disposeBodyKit, updateExhaustFlames } from './body-kits';
@@ -629,7 +630,7 @@ export class OvertakeGame {
     capMat.customProgramCacheKey = () => 'guardrail-snow-cap-v1';
 
     this.groundMat = createGroundMaterial();
-    this.terrain = this.ribbon(320, this.groundMat, -0.6);
+    this.terrain = this.makeTerrain(320, 32);
     this.shoulder = this.ribbon(ROAD_HALF * 2 + 3.2, shoulderMat, -0.03);
     this.asphalt = this.ribbon(ROAD_HALF * 2, asphaltMat, 0);
     this.snowLayer = this.makeSnowLayer(aniso);
@@ -669,6 +670,37 @@ export class OvertakeGame {
     ground.receiveShadow = true;
     this.ground = ground;
     this.roadGroup.add(ground);
+  }
+
+  private makeTerrain(width: number, columns: number) {
+    const geo = new THREE.BufferGeometry();
+    const indices: number[] = [];
+    for (let row = 0; row < SEGMENTS; row++) for (let col = 0; col < columns; col++) {
+      const a = row * (columns + 1) + col, b = a + 1, c = a + columns + 1, d = c + 1;
+      indices.push(a, b, c, b, d, c);
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array((SEGMENTS + 1) * (columns + 1) * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    geo.setIndex(indices);
+    const mesh = new THREE.Mesh(geo, this.groundMat);
+    mesh.name = 'rolling-roadside-terrain';
+    mesh.userData = { width, columns };
+    mesh.frustumCulled = false;
+    return mesh;
+  }
+
+  private updateTerrain() {
+    const { width, columns } = this.terrain.userData as { width: number; columns: number };
+    const pos = this.terrain.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const start = this.playerS - BACK;
+    for (let row = 0; row <= SEGMENTS; row++) {
+      const s = start + row * STEP, r = rightAt(s, this.tmpA);
+      for (let col = 0; col <= columns; col++) {
+        const x = (col / columns - .5) * width;
+        pos.setXYZ(row * (columns + 1) + col, centerX(s) + r.x * x, centerY(s) - .6 + terrainOffset(s, x), -s + r.z * x);
+      }
+    }
+    pos.needsUpdate = true;
+    this.terrain.geometry.computeVertexNormals();
   }
 
   private updateCenterLine() {
@@ -796,7 +828,7 @@ export class OvertakeGame {
     const place = (mesh: THREE.InstancedMesh, i: number, s: number, side: number, dist: number, sc: number, y: number, hex: number) => {
       const r = rightAt(s, this.tmpA);
       const off = side * dist;
-      this.dummy.position.set(centerX(s) + r.x * off, centerY(s) + y * sc - 0.2, -s + r.z * off);
+      this.dummy.position.set(centerX(s) + r.x * off, centerY(s) - .6 + terrainOffset(s, off) + y * sc - 0.08, -s + r.z * off);
       this.dummy.rotation.set(0, roadYaw(s) + hash01(Math.floor(s * 100) * 17 + 9) * 0.5, 0);
       this.dummy.scale.set(sc, sc, sc);
       this.dummy.updateMatrix();
@@ -889,7 +921,7 @@ export class OvertakeGame {
     for (const m of this.mountains.children) {
       m.scale.y = p.mountainScale;
     }
-    this.ground.position.set(centerX(base), centerY(base) - 4, -base);
+    this.ground.position.set(centerX(base), centerY(base) - 8, -base);
     this.mountains.position.set(centerX(base), centerY(base), -base);
   }
 
@@ -1234,7 +1266,7 @@ export class OvertakeGame {
   }
 
   private updateRoad() {
-    this.updateRibbon(this.terrain, 0);
+    this.updateTerrain();
     this.updateRibbon(this.shoulder, 0);
     this.updateRibbon(this.asphalt, 0);
     this.updateSnowLayer();
