@@ -14,7 +14,8 @@ rebuilds the distributed GLBs from the above source preset GLBs placed in
 model license: https://creativecommons.org/publicdomain/zero/1.0/ .
 
 The meadow texture `public/textures/landscape/grass.jpg` and pine foliage cutout
-`public/textures/landscape/pine.png` were AI-generated specifically for this game; it is not a Poly Haven asset. Existing vehicle
+`public/textures/landscape/pine.png`, and the mountain panorama
+`public/textures/landscape/mountain-panorama.png` were AI-generated specifically for this game; it is not a Poly Haven asset. Existing vehicle
 assets have separate provenance; their licenses are not implied by the
 vegetation's CC0 status.
 

@@ -197,6 +197,7 @@ export class OvertakeGame {
   private groundMat!: THREE.MeshStandardMaterial;
   private mountainMat!: THREE.MeshStandardMaterial;
   private mountainSnow = { value: 0 };
+  private mountainBackdrop!: THREE.Mesh;
   private lampMat!: THREE.MeshStandardMaterial;
   private shoulder!: THREE.Mesh;
   private edgeL!: THREE.Mesh;
@@ -861,6 +862,24 @@ export class OvertakeGame {
       ridge.frustumCulled = false;
       this.mountains.add(ridge);
     }
+    // A cut-out, wrapped landscape sits behind the road's true 3D scenery.
+    // The sky, weather, lighting and near terrain remain dynamic.
+    const panorama = new THREE.TextureLoader().load('./textures/landscape/mountain-panorama.png');
+    panorama.colorSpace = THREE.SRGBColorSpace;
+    panorama.wrapS = THREE.MirroredRepeatWrapping;
+    panorama.repeat.x = 4; panorama.offset.x = .3;
+    panorama.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+    const panoMat = new THREE.MeshStandardMaterial({ map: panorama, side: THREE.BackSide, alphaTest: .4, roughness: 1 });
+    panoMat.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <fog_fragment>', THREE.ShaderChunk.fog_fragment.replace('fogColor, fogFactor', 'fogColor, fogFactor * .58'));
+    };
+    panoMat.customProgramCacheKey = () => 'panorama-atmosphere-v1';
+    this.mountainBackdrop = new THREE.Mesh(new THREE.CylinderGeometry(510, 510, 180, 160, 1, true), panoMat);
+    this.mountainBackdrop.name = 'mountain-panorama';
+    this.mountainBackdrop.position.y = 45;
+    this.mountainBackdrop.frustumCulled = false;
+    this.mountains.add(this.mountainBackdrop);
+
   }
 
   private updateScenery() {
@@ -975,7 +994,10 @@ export class OvertakeGame {
     this.mountainMat.color.set(p.mountain).lerp(new THREE.Color(0xd6e1e8), snow * 0.2);
     for (const m of this.mountains.children) {
       m.scale.y = p.mountainScale;
+      m.visible = m === this.mountainBackdrop ? this.sceneryQuality !== 'low' : this.sceneryQuality === 'low';
     }
+    (this.mountainBackdrop.material as THREE.MeshStandardMaterial).color.set(0xffffff)
+      .lerp(new THREE.Color(p.mountain), .18).lerp(new THREE.Color(0xdde9ef), snow * .16);
     this.ground.position.set(centerX(base), centerY(base) - 8, -base);
     this.mountains.position.set(centerX(base), centerY(base), -base);
   }
