@@ -29,9 +29,9 @@ try {
       species[name]=o?.visible ? o.count : 0;
     }
     r.info.autoReset=false;r.info.reset();g.composer.render();const triangles=r.info.render.triangles;r.info.autoReset=true;
-    return {quality:g.getSceneryQuality(),species,triangles,oldTrees:g.cheapBroadleaf.visible,panorama:g.mountainBackdrop.visible};
+    return {quality:g.getSceneryQuality(),species,triangles,oldTrees:g.cheapBroadleaf.visible,panorama:g.mountainBackdrop.visible, grass:g.roadsideGrass.mesh.count, photoDetail:g.atmosphere.skyMat.uniforms.photoDetail.value};
   });
-  const high=await snapshot();assert.ok(high.species.conifer>30);assert.ok(high.species.broadleaf>10);assert.ok(high.species.fern>10);assert.equal(high.oldTrees,false);assert.equal(high.panorama,true);
+  const high=await snapshot();assert.ok(high.species.conifer>30);assert.ok(high.species.broadleaf>10);assert.ok(high.species.fern>10);assert.equal(high.oldTrees,false);assert.equal(high.panorama,true);assert.ok(high.grass>50);assert.equal(high.photoDetail,1);
   const biomes=await page.evaluate(()=>{
     const g=window.__overtake, out=[];
     for(const distance of [500,1750,5250,8250,14750]) {
@@ -53,11 +53,17 @@ try {
     g.playerS=1504;g.updateScenery();const before=get();g.playerS=1506;g.updateScenery();const after=new Set(get());return {before:before.length,common:before.filter(x=>after.has(x)).length};
   });
   assert.ok(stability.common/stability.before>.85,JSON.stringify(stability));
+  const grassStability=await page.evaluate(()=>{
+    const g=window.__overtake, o=g.roadsideGrass.mesh;
+    const get=()=>{const a=o.instanceMatrix.array;return Array.from({length:o.count},(_,i)=>[a[i*16+12],a[i*16+14]].map(n=>n.toFixed(2)).join(','));};
+    g.playerS=1504;g.updateScenery();const before=get();g.playerS=1506;g.updateScenery();const after=new Set(get());return {before:before.length,common:before.filter(x=>after.has(x)).length};
+  });
+  assert.ok(grassStability.before>50 && grassStability.common/grassStability.before>.9,JSON.stringify(grassStability));
   await page.click('#btn-graphics');
   await page.click('[data-scenery=medium]');assert.equal(await page.locator('[data-scenery=medium]').getAttribute('aria-pressed'),'true');
-  const medium=await snapshot();assert.equal(medium.quality,'medium');assert.ok(medium.species.conifer<high.species.conifer);assert.ok(medium.species.broadleaf<high.species.broadleaf);
+  const medium=await snapshot();assert.equal(medium.quality,'medium');assert.ok(medium.species.conifer<high.species.conifer);assert.ok(medium.species.broadleaf<high.species.broadleaf);assert.ok(medium.grass<high.grass && medium.grass>0);
   await page.click('[data-scenery=low]');
-  const low=await snapshot();assert.equal(low.quality,'low');assert.equal(low.species.conifer,0);assert.equal(low.oldTrees,true);assert.equal(low.panorama,false);
+  const low=await snapshot();assert.equal(low.quality,'low');assert.equal(low.species.conifer,0);assert.equal(low.oldTrees,true);assert.equal(low.panorama,false);assert.equal(low.grass,0);assert.equal(low.photoDetail,0);
   assert.ok(low.triangles < high.triangles * .7, `low ${low.triangles}, high ${high.triangles}`);
   assert.equal(await page.evaluate(()=>localStorage.getItem('overtake-scenery-quality')),'low');
   await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>document.activeElement.id),'btn-graphics');
@@ -68,6 +74,7 @@ try {
   // Snow and nighttime both render with the updated materials and no shader errors.
   fs.mkdirSync('test-results',{recursive:true});
   await page.evaluate(()=>{const g=window.__overtake;Object.assign(g.weather,{snow:1,snowCover:1,rain:0,wet:0});g.roadSurface.snow.value=1;g.updateRoad();g.atmosphere.update(16,g.weather,{fog:0xcfdbe6},g.camera.position,5);g.composer.render();});
+  assert.ok(await page.evaluate(()=>window.__overtake.roadsideGrass.mesh.count)<high.grass * .4, 'snow buries most grass');
   await page.screenshot({path:'test-results/scenery-snow.png',timeout:120000});
   await page.evaluate(()=>{const g=window.__overtake;Object.assign(g.weather,{snow:0,snowCover:0,rain:0,wet:0});g.roadSurface.snow.value=0;g.updateRoad();g.atmosphere.update(0,g.weather,{fog:0xbfd4e2},g.camera.position,5);g.composer.render();});
   await page.screenshot({path:'test-results/scenery-night.png',timeout:120000});
@@ -82,5 +89,5 @@ try {
   await page.click('#btn-graphics');await page.click('[data-scenery=high]');
   await page.waitForFunction(()=>window.__overtake.detailedScenery.ready,null,{timeout:180000});
   assert.equal(await page.evaluate(()=>window.__overtake.cheapBroadleaf.visible),false);
-  assert.deepEqual(errors,[]);console.log({realRender,high,medium,low,biomes,stability,mobile,errors});
+  assert.deepEqual(errors,[]);console.log({realRender,high,medium,low,biomes,stability,grassStability,mobile,errors});
 } finally {await browser.close();}

@@ -74,7 +74,7 @@ export class Atmosphere {
             // Isolate near-neutral clouds from the photographed blue sky;
             // the sky underneath stays fully procedural and responds to weather.
             float mask = smoothstep(0.015, 0.20, photo.r - photo.b * 0.72);
-            mask *= smoothstep(0.012, 0.09, d.y) * photoDetail * cloudLight;
+            mask *= smoothstep(0.012, 0.09, d.y) * photoDetail * cloudLight * cloudLight;
             float shade = clamp(dot(photo, vec3(.2126, .7152, .0722)) * 1.3, 0.0, 1.0);
             vec3 photoColor = mix(horizonColor * .72, mix(horizonColor, vec3(1.0, .98, .95), .8), shade);
             col = mix(col, photoColor, mask * (0.65 + cloudCover * .2));

@@ -123,13 +123,15 @@ outskirts using `simplex-noise` and distance-based weights
 (`src/world/biomes.mjs`). Rolling road-aligned terrain, world-space ground
 detail, instanced vegetation, scan-based rocks, textured buildings and
 biome-matched panoramic mountain backdrops give the roadside more depth.
-The distant panoramas and evergreen foliage use image-based cutouts; the sky,
-weather, illumination, near ground and deciduous trees remain dynamic 3D.
+Distant panoramas, evergreen foliage and roadside grass use image-based cutouts;
+a photographic cloud layer complements the procedural sky. Weather,
+illumination, near ground and deciduous trees remain dynamic.
 The source and provenance of the scenery assets are in `SCENERY_ASSETS.md`.
 
 The Graphics panel offers **High / Medium / Low scenery detail** independently
 of render resolution. High uses denser foliage; Medium reduces detail and
-instance counts; Low switches to lightweight procedural trees and ridges.
+instance counts; Low switches to lightweight procedural trees, ridges and sky.
+Roadside grass reacts to wind and snow and thins out in drier biomes.
 Detailed models are not loaded at startup when Low is saved. Preferences are
 saved locally, and changes take effect without restarting the run.
 
