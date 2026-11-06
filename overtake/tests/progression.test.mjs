@@ -1,33 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CAR_XP, emptyProgression, sanitizeProgression, migrateProgression, xpForRun, earnedCar, canDriveCar, awardProgress, nextUnlock } from '../src/progression.mjs';
-
-test('starter car, XP thresholds and ordered unlocks', () => {
-  let p = emptyProgression();
-  assert.equal(canDriveCar(p, 'golf'), true);
-  assert.equal(canDriveCar(p, 'mustang'), false);
-  assert.deepEqual(nextUnlock(p), ['mustang', 150]);
-  assert.equal(xpForRun({score:1200,distance:1500}), 150);
-  let award = awardProgress(p,{score:1200,distance:1500});p=award.progress;
-  assert.equal(p.xp, 150);assert.deepEqual(award.unlocked,['mustang']);
-  assert.equal(earnedCar(p,'mustang'),true);assert.deepEqual(nextUnlock(p),['challenger',300]);
-  award=awardProgress(p,{score:16000,distance:0});
-  assert.equal(award.progress.xp,1750);assert.equal(award.unlocked.length,5);assert.equal(nextUnlock(award.progress),null);
-  assert.equal(Object.keys(CAR_XP).length,7);
+import { emptyProgression, sanitizeProgression, payoutForScore, canDriveCar, earnedCar, awardProgress, buyCar, buyUpgrade, buyTune, effectiveUpgrades } from '../src/progression.mjs';
+test('score payout increases per point in steps, with a cap', () => {
+  assert.equal(payoutForScore(999),999); assert.equal(payoutForScore(1000),1250); assert.equal(payoutForScore(2000),3000); assert.equal(payoutForScore(10000),30000);
+  assert.equal(payoutForScore(NaN),0);
 });
-test('developer toggle bypasses without granting or erasing ownership', () => {
-  const p={...emptyProgression(), xp: 42, dev:true};
-  assert.equal(canDriveCar(p,'ferrari'),true);assert.equal(earnedCar(p,'ferrari'),false);
-  const next=awardProgress(p,{score:100,distance:0}).progress;
-  assert.equal(next.xp,52);assert.equal(canDriveCar({...next,dev:false},'ferrari'),false);
-  assert.equal(canDriveCar(p,'invalid'),false);
+test('buying cars and upgrades spends money once and is per-car', () => {
+  let p=awardProgress(emptyProgression(),{score:5000}).progress; assert.equal(p.money,11250);
+  assert.equal(buyCar(p,'ferrari').ok,false);
+  p=buyCar(p,'mustang').progress; assert.equal(p.money,8250);assert.equal(earnedCar(p,'mustang'),true);assert.equal(buyCar(p,'mustang').ok,false);
+  p=buyUpgrade(p,'mustang','engine').progress;assert.equal(p.money,7550);assert.equal(p.upgrades.mustang.engine,1);assert.equal(effectiveUpgrades(p,'golf').engine,0);
 });
-test('migrates once from existing bests and keeps the previously selected car', () => {
-  const old={modes:{endless:{bestScore:1000,bestDistance:1000},rush:{bestScore:500,bestDistance:500}}};
-  const p=migrateProgression(old,'r8');assert.equal(p.xp,180);assert.equal(p.legacyCar,'r8');assert.equal(earnedCar(p,'r8'),true);assert.equal(p.dev,false);
+test('tunes cost once, stock is free, developer bypass grants no ownership', () => {
+  let p=awardProgress(emptyProgression(),{score:1000}).progress;
+  p=buyTune(p,'golf','front','street').progress;assert.equal(p.money,1000);
+  p=buyTune(p,'golf','front','street').progress;assert.equal(p.money,1000);
+  assert.equal(buyTune(p,'golf','exhaust','flame').ok,false);
+  const dev={...p,dev:true};assert.equal(canDriveCar(dev,'ferrari'),true);assert.equal(earnedCar(dev,'ferrari'),false);
+  const result=buyTune(dev,'ferrari','exhaust','flame');assert.equal(result.ok,true);assert.equal(result.progress.money,1000);assert.equal(result.progress.tunes.ferrari,undefined);
+  assert.equal(effectiveUpgrades(dev,'golf').engine,3);assert.equal(effectiveUpgrades({...dev,dev:false},'golf').engine,0);
 });
-test('corrupt progress and score cannot cause negative, infinite or invalid XP', () => {
-  assert.deepEqual(sanitizeProgression({xp:Infinity,dev:'true',legacyCar:'fake'}),emptyProgression());
-  assert.equal(xpForRun({score:NaN,distance:-100}),0);
-  assert.equal(xpForRun({score:1e30,distance:0}),1_000_000_000);
+test('invalid or previous-version progression starts fresh',()=>{
+  assert.deepEqual(sanitizeProgression({version:1,xp:1000,dev:true}),emptyProgression());
+  assert.deepEqual(sanitizeProgression({version:2,money:Infinity,owned:['fake'],dev:'yes'}),emptyProgression());
 });
