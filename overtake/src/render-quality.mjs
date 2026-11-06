@@ -18,5 +18,5 @@ export function vehiclePixelRatio(devicePixelRatio, width, height, coarsePointer
   const hardBudget = Math.sqrt(8_294_400 / (w * h));
   const deviceLimit = maxRenderSize / Math.max(w, h);
   const budgeted = mode === 'sharp' ? Math.min(preferred, Math.max(baseline, extraBudget)) : preferred;
-  return Math.max(0.1, Math.min(budgeted, hardBudget, deviceLimit));
+  return Math.min(budgeted, hardBudget, deviceLimit);
 }

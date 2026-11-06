@@ -43,7 +43,7 @@ svg { stroke-width: 1.75; }
 .modal {
   width: min(400px, 92vw); padding: 28px; text-align: center; background: var(--panel);
   border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 24px 64px rgba(0,0,0,0.5);
-  display: flex; flex-direction: column; gap: 12px;
+  display: flex; flex-direction: column; gap: 12px; max-height: calc(100dvh - 24px); overflow-y: auto; touch-action: pan-y;
 }
 .modal.wide { width: min(560px, 94vw); text-align: left; }
 .modal h2 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }

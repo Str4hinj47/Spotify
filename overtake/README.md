@@ -192,6 +192,7 @@ node scripts/road-smoke.mjs  # road, barriers, lamps and weather shader checks
 node scripts/road-detail-smoke.mjs # streetlight close-up and mobile snow view
 node scripts/extra-graphics-smoke.mjs # tire spray, snowy foliage and roadside signs
 node scripts/vehicle-snow-smoke.mjs # car materials, snow density and antialiasing
+node scripts/graphics-settings-smoke.mjs # real render buffers, saved graphics settings and mobile layout
 node scripts/controls-scenery-smoke.mjs # indicators, brake lights, traffic and collisions
 node scripts/truck-traffic-smoke.mjs # NPC trucks, queues and passing-lane safety
 node scripts/upgrade-smoke.mjs # Rush / contracts / records browser test
@@ -199,9 +200,12 @@ node scripts/upgrade-smoke.mjs # Rush / contracts / records browser test
 
 ### Car image quality
 
-The renderer uses modest, pixel-budgeted desktop supersampling and anisotropic
-filtering on vehicle textures; mobile keeps its existing pixel-ratio cap. These
-settings trade some GPU time and memory for sharper details. The W222 photo
+Graphics settings in the top bar and pause menu offer Performance, Balanced,
+and Sharp render-resolution presets. Sharp is the default and uses modest
+desktop supersampling; Performance reduces the pixel count to save GPU work.
+The selection is saved locally and applies immediately. A pixel budget and GPU
+limits cap large render buffers, and test mode always renders at pixel ratio 1.
+Vehicle textures also use anisotropic filtering where supported. The W222 photo
 atlas is restored from the original 4096-pixel source (after the same badge and
 plate masking), and the 458 tire textures use their original resolutions. The
 other cars' source assets have limited or no useful color textures, so the game

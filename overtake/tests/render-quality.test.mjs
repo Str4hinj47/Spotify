@@ -24,6 +24,7 @@ test('presets trade resolution for GPU cost and handle unknown preferences', () 
   assert.equal(vehiclePixelRatio(2,390,844,true,Infinity,'balanced'),1.5);
 });
 test('hard budget and GPU size cap apply to every preset even at high DPI', () => {
+  assert.ok(vehiclePixelRatio(3,100000,1000,false,1024,'sharp') <= 1024/100000);
   for (const quality of ['performance','balanced','sharp']) {
     const width=3840, height=2160;
     const r=vehiclePixelRatio(3,width,height,false,Infinity,quality);
