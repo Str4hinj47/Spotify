@@ -69,3 +69,71 @@ export function indicatorMaterial(id: CarId, source: THREE.Material, meshToCar: 
   material.customProgramCacheKey = () => `rear-indicator-${id}-v3`;
   return material;
 }
+
+// Front signal locations follow the represented model's lamp design. All
+// masks operate on existing lens/reflector geometry, never floating sprites.
+// See FRONT_INDICATOR_REFERENCES.md for factory references and model caveats.
+const FRONT_MATERIALS: Record<CarId, string[]> = {
+  golf: ['chrome__Chrome', 'headlight__Glass-light-cover', 'headlight__Headlight1'],
+  mercedes: ['photo__W222 - Photo Textures', 'photo__W222 - Photo Textures Rough 0'],
+  audi: ['headlight__Front DRL', 'headlight__Bright_front_headlight', 'chrome__Chrome_Light', 'other__Material.001'],
+  mustang: ['headlight__M_HeadLight2', 'other__M_TurnSignalLight1'],
+  ferrari: ['headlight__Main_Light_Cover.000', 'headlight__Front_Light_Covers.000', 'headlight__LEDsOn.000', 'headlight__LEDsOff.000'],
+  r8: ['headlight__r8'],
+  challenger: ['headlight__challenger'],
+};
+
+export function isFrontIndicatorMaterial(id: CarId, material: THREE.Material): boolean {
+  return FRONT_MATERIALS[id].includes(material.name);
+}
+
+// Each expression is in normalized car coordinates. -Z is the front.
+const FRONT_ZONES: Record<CarId, string> = {
+  // Outer reflector inside the Mk4 headlamp cluster.
+  golf: `step(fP.z, -1.74) * (1.0 - smoothstep(0.82, 1.0, length(vec2((fX - 0.598) / 0.064, (fP.y - 0.662) / 0.055))))`,
+  // The W222 has a photo-textured headlamp, so follow its upper LED contour.
+  mercedes: `step(fP.z, -1.90) * step(0.52, fX) * step(fX, 0.89) * step(0.58, fP.y) * step(fP.y, 0.84) * smoothstep(0.35, 0.75, min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b)))`,
+  // RS6 C8's turn indicator is in the lower part of the headlamp.
+  audi: `step(fP.z, -1.83) * step(0.53, fX) * step(fX, 0.88) * (1.0 - smoothstep(0.008, 0.018, abs(fP.y - (0.575 + fX * 0.12))))`,
+  // This asset is a classic Mustang, not an S550: the two little oval
+  // parking/turn lamps sit in the front valance, below the bumper.
+  mustang: `step(fP.z, -1.82) * (step(0.33, fP.y) * step(fP.y, 0.39) * step(0.38, fX) * step(fX, 0.51) + step(0.39, fP.y) * step(fP.y, 0.455) * step(0.79, fX) * step(fX, 0.84))`,
+  // The 458 uses the vertical stack of LEDs above each projector. Its source
+  // model has a slight asymmetry, so fit each side separately.
+  ferrari: `step(-1.68, fP.z) * step(fP.z, -1.37) * step(0.56, fP.y) * (1.0 - smoothstep(0.014, 0.028, abs(fX - ((fP.x < 0.0 ? 0.67 : 0.71) + (fP.z + 1.63) * 0.17))))`,
+  // Second-generation R8: upper light guide, keeping the main beam white.
+  r8: `step(fP.z, -1.67) * step(0.42, fX) * step(fX, 0.84) * step(0.51 + (fX - 0.43) * 0.19, fP.y)`,
+  // Challenger's switchback indicators are the rings, not the projectors.
+  challenger: `step(fP.z, -2.20) * step(0.47, fX) * step(fX, 0.84) * smoothstep(0.048, 0.057, length(vec2(fX - (fX < 0.655 ? 0.570 : 0.744), fP.y - 0.732))) * (1.0 - smoothstep(0.076, 0.084, length(vec2(fX - (fX < 0.655 ? 0.570 : 0.744), fP.y - 0.732))))`,
+};
+
+/** Add a per-instance front signal to a fresh or rear-indicator material. */
+export function addFrontIndicator(id: CarId, material: THREE.MeshStandardMaterial, meshToCar: THREE.Matrix4, state: IndicatorUniforms): THREE.MeshStandardMaterial {
+  const previous = material.onBeforeCompile;
+  const previousKey = material.customProgramCacheKey();
+  material.onBeforeCompile = (shader, renderer) => {
+    previous.call(material, shader, renderer);
+    shader.uniforms.frontIndicatorToCar = { value: meshToCar };
+    shader.uniforms.frontIndicatorLeft = state.left;
+    shader.uniforms.frontIndicatorRight = state.right;
+    shader.uniforms.frontIndicatorViewZ = state.viewZ;
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nuniform mat4 frontIndicatorToCar;\nvarying vec3 frontIndicatorPos;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nfrontIndicatorPos = (frontIndicatorToCar * vec4(transformed, 1.0)).xyz;');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 frontIndicatorPos;\nuniform float frontIndicatorLeft, frontIndicatorRight, frontIndicatorViewZ;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        vec3 fP = frontIndicatorPos;
+        float fX = abs(fP.x);
+        float fSide = fP.x < 0.0 ? frontIndicatorLeft : frontIndicatorRight;
+        float fZone = step(frontIndicatorViewZ, 0.0) * (${FRONT_ZONES[id]});
+        float fOn = fZone * step(0.5, fSide);
+        float fOff = fZone * step(fSide, -0.5);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0, 0.24, 0.004), fOn);
+        diffuseColor.rgb *= 1.0 - fOff * 0.72;
+      `).replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        totalEmissiveRadiance = mix(totalEmissiveRadiance, vec3(1.0, 0.24, 0.004) * 2.0, fOn);
+        totalEmissiveRadiance *= 1.0 - fOff * 0.9;
+      `);
+  };
+  material.customProgramCacheKey = () => `${previousKey}|front-indicator-${id}-v1`;
+  return material;
+}

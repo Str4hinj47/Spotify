@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { CARS, TRUCKS, type CarId, type TrafficId } from './catalog';
-import { indicatorMaterial, isIndicatorMaterial, type IndicatorUniforms } from './indicators';
+import { indicatorMaterial, isIndicatorMaterial, addFrontIndicator, isFrontIndicatorMaterial, type IndicatorUniforms } from './indicators';
 import { createBodyKit } from './body-kits';
 import { rigWheels } from './wheels';
 import { createCarbonMaterial, customPaintMaterial } from './livery';
@@ -96,6 +96,45 @@ function removeMustangFactoryWing(inner:THREE.Group, wrapper:THREE.Group):THREE.
     const copy=geometry.clone();copy.setIndex(kept);copy.clearGroups();mesh.geometry=copy;owned.push(copy);
   }
   return owned;
+}
+
+// The Mustang source includes two valance turn lenses, but they are buried
+// behind its chrome bumper. Move only those lens triangles onto the face of
+// the valance, retaining their original shape and shared source attributes.
+function exposeMustangValanceSignals(root: THREE.Group) {
+  root.updateMatrixWorld(true);
+  const mesh = root.getObjectByName('mustang_mesh_13') as THREE.Mesh | undefined;
+  if (!mesh?.isMesh) return;
+  const geo = mesh.geometry, pos = geo.getAttribute('position'), index = geo.index;
+  if (!pos) return;
+  const point = new THREE.Vector3(), selected: number[] = [], rest: number[] = [];
+  const count = index ? index.count : pos.count;
+  for (let i = 0; i + 2 < count; i += 3) {
+    const tri: number[] = [];
+    let lens = true;
+    for (let j = 0; j < 3; j++) {
+      const n = index ? index.getX(i+j) : i+j;
+      tri.push(n); point.fromBufferAttribute(pos, n).applyMatrix4(mesh.matrixWorld);
+      lens &&= Math.abs(point.x) > .38 && Math.abs(point.x) < .51 && point.y > .40 && point.y < .46 && point.z < -2.15;
+    }
+    (lens ? selected : rest).push(...tri);
+  }
+  if (!selected.length) return;
+  const geometryFor = (indices: number[]) => {
+    const copy = new THREE.BufferGeometry();
+    for (const name of Object.keys(geo.attributes)) copy.setAttribute(name, geo.getAttribute(name));
+    copy.setIndex(indices);
+    return copy;
+  };
+  mesh.geometry = geometryFor(rest);
+  const lenses = mesh.clone(false);
+  lenses.name = 'mustang-front-valance-signals';
+  lenses.geometry = geometryFor(selected);
+  mesh.parent!.add(lenses);
+  lenses.updateWorldMatrix(true, false);
+  root.attach(lenses);
+  lenses.position.y -= .065;
+  lenses.position.z -= .10;
 }
 
 export class ModelLibrary {
@@ -211,6 +250,7 @@ export class ModelLibrary {
       separateLampLenses(scene);
       const normalized = new THREE.Group();
       normalized.add(scene);
+      if (spec.id === 'mustang') exposeMustangValanceSignals(normalized);
       rigWheels(normalized, spec.id);
       this.models.set(spec.id, {
         id: spec.id,
@@ -289,10 +329,12 @@ export class ModelLibrary {
       mesh.receiveShadow = false;
       const recolor = (mat: THREE.Material) => {
         if (factoryPaint === undefined && mat.name.startsWith('paint__')) factoryPaint = (mat as THREE.MeshStandardMaterial).color?.getHex();
-        if ((opts.player || id === 'golf') && id !== 'semi' && id !== 'kraz' && isIndicatorMaterial(id, mat)) {
+        if ((opts.player || id === 'golf') && id !== 'semi' && id !== 'kraz' && (isIndicatorMaterial(id, mat) || isFrontIndicatorMaterial(id, mat))) {
           const meshToCar = new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
-          const lamp = indicatorMaterial(id, mat, meshToCar, signal);
-          if (mat.name.startsWith('taillight__')) { lamp.emissiveIntensity = 0.55; brakeIndicatorCopies.push(lamp); }
+          const rear = isIndicatorMaterial(id, mat);
+          let lamp = rear ? indicatorMaterial(id, mat, meshToCar, signal) : mat.clone() as THREE.MeshStandardMaterial;
+          if (isFrontIndicatorMaterial(id, mat)) lamp = addFrontIndicator(id, lamp, meshToCar, signal);
+          if (rear && mat.name.startsWith('taillight__')) { lamp.emissiveIntensity = 0.55; brakeIndicatorCopies.push(lamp); }
           indicatorCopies.push(lamp);
           return lamp;
         }
