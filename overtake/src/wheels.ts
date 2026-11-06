@@ -2,14 +2,14 @@ import * as THREE from 'three';
 import type { TrafficId } from './catalog';
 
 // Only include materials/components known to belong to rotating assemblies.
-// Brake calipers stay on the body. The RS6's dark rim material also contains
-// bodywork, so only its separate bright alloy is included.
+// Brake calipers stay on the body. Mixed wheel/body materials are clipped
+// to measured wheel volumes rather than spinning the whole mesh.
 function rotates(id: TrafficId, mesh: THREE.Mesh): boolean {
   if (Array.isArray(mesh.material)) return false;
   const name = mesh.material.name;
   if (id === 'golf') return /^(tire__New-Tyre|rim__Alloys|brake__Brake-discs|other__Wheel-nuts)$/.test(name);
   if (id === 'mercedes') return /^(tire__W222 - Wheel|rim__W222 - Rims(?:#2)?)$/.test(name);
-  if (id === 'audi') return /^(tire__tire\.001|rim__RIM BRIGHT|carbon__carbon disk brake)$/.test(name);
+  if (id === 'audi') return /^(tire__tire\.001|rim__RIM BRIGHT|rim__RIM DARK|carbon__carbon disk brake)$/.test(name);
   if (id === 'mustang') return /^(tire__M_Tire1|rim__M_Rim[12]|brake__M_BrakePad2)$/.test(name);
   if (id === 'ferrari') return /^(tire__Tire\.00[02]|rim__Rims\.000|brake__Break_Discs\.000)$/.test(name);
   if (id === 'r8') return name === 'tire__r8' || name === 'rim__r8' || /^metal_2(?:_(?:[1-5]|1[1-6]))?$/.test(mesh.name);
@@ -66,6 +66,8 @@ export function rigWheels(root: THREE.Group, id: TrafficId): void {
     if (!pos) continue;
     const triangles: number[][] = centers.map(() => []);
     const stationary: number[] = [];
+    const mixedAudi = id === 'audi' && !Array.isArray(mesh.material) && mesh.material.name === 'rim__RIM DARK';
+    const vertices = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
     const count = index ? index.count : pos.count;
     for (let i = 0; i + 2 < count; i += 3) {
       let x = 0, y = 0, z = 0;
@@ -74,6 +76,7 @@ export function rigWheels(root: THREE.Group, id: TrafficId): void {
         const n = index ? index.getX(i + j) : i + j;
         indices.push(n);
         point.fromBufferAttribute(pos, n).applyMatrix4(mesh.matrixWorld);
+        vertices[j].copy(point);
         x += point.x; y += point.y; z += point.z;
       }
       let wheel = (x > 0 ? 1 : 0) + (z > 0 ? 2 : 0);
@@ -81,6 +84,13 @@ export function rigWheels(root: THREE.Group, id: TrafficId): void {
         x /= 3; y /= 3; z /= 3;
         wheel = centers.findIndex((c, n) => Math.sign(x) === Math.sign(c.x) && Math.abs(x) > (id === 'semi' ? .58 : .75) &&
           Math.hypot(y - c.y, z - c.z) < radii[n] * 1.035);
+      }
+      if (mixedAudi) {
+        const center = centers[wheel];
+        // The dark alloy lies inside a clear gap before the body wheel arch.
+        // Require all three vertices inside it to avoid pulling body triangles.
+        if (!vertices.every(v => Math.sign(v.x) === Math.sign(center.x) && Math.abs(v.x) > .65 &&
+          Math.hypot(v.y - center.y, v.z - center.z) < .32)) wheel = -1;
       }
       (wheel < 0 ? stationary : triangles[wheel]).push(...indices);
     }
