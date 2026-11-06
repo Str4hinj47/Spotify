@@ -1,4 +1,4 @@
-export type PartOption = 'stock' | 'street' | 'track';
+export type PartOption = 'stock' | 'street' | 'touring' | 'sport' | 'track';
 export type BodyPart = 'front' | 'rear' | 'skirts' | 'spoiler' | 'exhaust';
 export type FinishKey = 'frontFinish' | 'rearFinish' | 'skirtsFinish' | 'spoilerFinish' | 'exhaustFinish';
 export interface Customization {

@@ -75,7 +75,7 @@ function syncCustomizationUI() {
   for (const part of BODY_PARTS) {
     const select = $(`custom-${part}`) as HTMLSelectElement;
     const labels = BODY_FITS[selected].labels[part];
-    const options = [['stock','Factory'], ['street',labels[0]], ['track',labels[1]]];
+    const options = [['stock','Factory'], ['street',labels[0]], ['touring','Touring'], ['sport','Sport'], ['track',labels[1]]];
     if (part === 'exhaust') options.push(['flame','Afterfire flames']);
     select.replaceChildren(...options.map(([value,label]) => {
       const option=document.createElement('option'); option.value=value; option.textContent=label; return option;

@@ -1,7 +1,7 @@
 import { normalizeHex } from './paint.mjs';
 
 export const BODY_PARTS = ['front', 'rear', 'skirts', 'spoiler', 'exhaust'];
-export const PART_OPTIONS = ['stock', 'street', 'track'];
+export const PART_OPTIONS = ['stock', 'street', 'touring', 'sport', 'track'];
 export const DEFAULT_CUSTOMIZATION = Object.freeze({
   front:'stock', rear:'stock', skirts:'stock', spoiler:'stock', exhaust:'stock',
   frontFinish:'standard', rearFinish:'standard', skirtsFinish:'standard', spoilerFinish:'standard', exhaustFinish:'standard',
