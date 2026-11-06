@@ -201,7 +201,12 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   }
   if(config.rear!=='stock') {
     const a=reg('rear'),track=isTrack('rear'), tail=f.rearZ-.035, panel=config.rearFinish==='carbon'?woven:body;
-    if(id==='mustang') {
+    if(id==='ferrari') {
+      // Retain the factory diffuser and its fins. A shallow edge extension
+      // sits beneath it rather than adding a second, hanging set of fins.
+      const blade=new THREE.Mesh(taperedBand(track?.57:.50,1.73,.143,track?.20:.14,.012,0),config.rearFinish==='carbon'?woven:carbon);
+      blade.name='rear-diffuser-extension';a.add(blade);
+    } else if(id==='mustang') {
       // Tuck a shallow lower valance under the factory bumper and keep it
       // below the four exhaust outlets instead of hanging a slab off the tail.
       const valance=new THREE.Mesh(taperedBand(.68,2.04,.305,.18,.055,-.06),panel);
@@ -211,10 +216,10 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       const valance=new THREE.Mesh(apron(f.rearW*.98,tail,f.bumperY+.005,track?.16:.11,.20,.16,true),panel);
       valance.name='rear-valance';a.add(valance);
       // Keep the diffuser between the exhaust outlets rather than covering them.
-      const diffuserWidth=id==='golf'?.39:id==='ferrari'?.70:.48;
+      const diffuserWidth=id==='golf'?.39:.48;
       const diffuser=new THREE.Mesh(apron(f.rearW*diffuserWidth,tail+.05,f.bumperY-.005,track?.13:.08,.25,.04,true),carbon);
       diffuser.name='rear-diffuser';a.add(diffuser);
-      const finCount=id==='ferrari'?7:id==='golf'?3:5;
+      const finCount=id==='golf'?3:5;
       if(track) for(let i=0;i<finCount;i++) {
         const x=(i-(finCount-1)/2)*f.rearW*diffuserWidth*1.6/Math.max(1,finCount-1);
         const fin=box(.016,.09,.24,x,f.bumperY-.015,tail-.025,carbon,a,'diffuser-fin');fin.rotation.x=-.13;
