@@ -31,11 +31,12 @@ try {
   const before=g.lamps.map(l=>({s:l.s,x:l.g.position.x,z:l.g.position.z,side:l.side}));
   g.playerS+=768;g.updateScenery();const after=g.lamps.map(l=>({s:l.s,x:l.g.position.x,z:l.g.position.z,side:l.side}));
   g.setSceneryQuality('low');const low=g.roadSurface.streetlight.value;g.setSceneryQuality('high');const restored=g.roadSurface.streetlight.value;
-  g.setTimeOfDay(12);g.updateWorld(0);const day=g.roadSurface.streetlight.value;
-  g.toGarage();return {night,low,restored,day,changed,snowy,wetPixels,before,after,head:head?.toArray(),garage:g.roadGroup.visible,image:on,wetImage:wetOn};
+  g.pause();g.setTimeOfDay(12);const day=g.roadSurface.streetlight.value, dayLamp=g.lampMat.emissiveIntensity;
+  g.setTimeOfDay(0);const pausedNight=g.roadSurface.streetlight.value, nightLamp=g.lampMat.emissiveIntensity;
+  g.toGarage();return {night,low,restored,day,dayLamp,pausedNight,nightLamp,changed,snowy,wetPixels,before,after,head:head?.toArray(),garage:g.roadGroup.visible,image:on,wetImage:wetOn};
  });
  fs.mkdirSync('test-results',{recursive:true});fs.writeFileSync('test-results/night-streetlights.png',Buffer.from(r.image.split(',')[1],'base64'));delete r.image;fs.writeFileSync('test-results/night-streetlights-wet.png',Buffer.from(r.wetImage.split(',')[1],'base64'));delete r.wetImage;
- assert.ok(r.night>.99 && r.restored>.99 && r.low===0 && r.day===0);assert.ok(r.changed>100,`night pixels: ${r.changed}`);assert.ok(r.snowy>100,`snow pixels: ${r.snowy}`);assert.ok(r.wetPixels>100,`wet pixels: ${r.wetPixels}`);
+ assert.ok(r.night>.99 && r.restored>.99 && r.low===0 && r.day===0 && r.pausedNight>.99 && r.nightLamp>r.dayLamp);assert.ok(r.changed>100,`night pixels: ${r.changed}`);assert.ok(r.snowy>100,`snow pixels: ${r.snowy}`);assert.ok(r.wetPixels>100,`wet pixels: ${r.wetPixels}`);
  assert.ok(r.before.every((l,i)=>Math.abs((r.after[i].s-l.s)-768)<.01 && r.after[i].side===l.side));
  assert.ok(r.head?.every(Number.isFinite) && !r.garage);assert.deepEqual(errors,[]);console.log({real,...r,before:undefined,after:undefined});
 } finally {await browser.close()}
