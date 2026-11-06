@@ -966,26 +966,31 @@ export class OvertakeGame {
     detailed.begin();
     if (enabled) {
       const high = this.sceneryQuality === 'high';
-      const spacing = high ? 13 : 21;
+      const spacing = high ? 10 : 20;
       const begin = Math.floor((base - 55) / spacing);
-      const rows = high ? 35 : 20;
-      const limit = high ? 72 : 36;
-      let total = 0;
-      for (let i = 0; i < rows; i++) for (const side of [-1, 1]) {
+      const rows = high ? 44 : 20;
+      const broadLimit = high ? 42 : 18;
+      const pineLimit = high ? 90 : 24;
+      let broadCount = 0, pineCount = 0;
+      // Two offset rows per side fill the middle distance without drawing
+      // expensive deciduous meshes for the whole horizon.
+      for (let i = 0; i < rows; i++) for (const side of [-1, 1]) for (let band = 0; band < (high ? 2 : 1); band++) {
         const k = begin + i;
-        const s = k * spacing + hash01(k * 179 + side * 31) * spacing;
+        const seed = k * 211 + side * 113 + band * 307;
+        const s = k * spacing + hash01(seed + 2) * spacing;
         const p = biomeParams(s);
-        const seed = k * 211 + side * 113;
-        if (hash01(seed + 3) > p.treeDensity || total >= limit) continue;
+        if (hash01(seed + 3) > p.treeDensity * (band ? .8 : 1)) continue;
         const kind = hash01(seed + 11) < p.coniferRatio ? 'conifer' : 'broadleaf';
-        const dist = 13 + hash01(seed + 5) * 65;
+        if (kind === 'broadleaf' ? broadCount >= broadLimit : pineCount >= pineLimit) continue;
+        const dist = band ? 50 + hash01(seed + 5) * 75 : 12 + hash01(seed + 5) * 42;
         const off = side * dist, r = rightAt(s, this.tmpA);
-        const desiredHeight = (kind === 'conifer' ? 9.5 : 8.5) * (.75 + hash01(seed + 7) * .65);
+        const desiredHeight = (kind === 'conifer' ? 14 : 11) * (.72 + hash01(seed + 7) * .65);
         const scale = desiredHeight / detailed.height(kind);
         this.dummy.position.set(centerX(s) + r.x * off, centerY(s) - .6 + terrainOffset(s, off) - .12, -s + r.z * off);
         this.dummy.rotation.set(0, hash01(seed + 17) * Math.PI * 2, 0);
         this.dummy.scale.set(scale, scale * (.93 + hash01(seed + 19) * .14), scale);
-        this.dummy.updateMatrix(); detailed.place(kind, this.dummy.matrix); total++;
+        this.dummy.updateMatrix(); detailed.place(kind, this.dummy.matrix);
+        if (kind === 'broadleaf') broadCount++; else pineCount++;
       }
       // Ferns are restricted to the near verge and fade out under snow.
       const fernRows = high ? 32 : 12;

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { addFoliageSnow } from './roadside';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export type SceneryQuality = 'low' | 'medium' | 'high';
 export function sanitizeSceneryQuality(value: unknown): SceneryQuality {
@@ -28,7 +29,7 @@ export class DetailedScenery {
   }
 
   private async load() {
-    const names: [Species, string][] = [['broadleaf', 'deciduous'], ['conifer', 'conifer'], ['fern', 'fern']];
+    const names: [Species, string][] = [['broadleaf', 'deciduous'], ['fern', 'fern']];
     const models = await Promise.all(names.map(([, file]) => this.loader.loadAsync(`./models/scenery/${file}.glb`)));
     names.forEach(([kind], index) => {
       const root = models[index].scene;
@@ -68,6 +69,32 @@ export class DetailedScenery {
       });
       this.species[kind] = { meshes, height };
     });
+    // Three intersecting photographic foliage planes make a convincing,
+    // low-cost silhouette from changing road and orbit-camera directions.
+    const parts: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < 3; i++) {
+      const plane = new THREE.PlaneGeometry(.61, 1);
+      plane.translate(0, .5, 0);
+      plane.rotateY(i * Math.PI / 3);
+      parts.push(plane);
+    }
+    const geometry = mergeGeometries(parts)!; parts.forEach(p => p.dispose());
+    const map = await new THREE.TextureLoader().loadAsync('./textures/landscape/pine.png');
+    map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = Math.min(8, this.maxAnisotropy);
+    const material = new THREE.MeshStandardMaterial({ map, side: THREE.DoubleSide, alphaTest: .4, roughness: 1 });
+    material.onBeforeCompile = shader => {
+      shader.uniforms.pineSnow = this.snow;
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform float pineSnow;')
+        .replace('#include <map_fragment>', `#include <map_fragment>
+          float frosted = smoothstep(.18, .70, vMapUv.y) * pineSnow * .38;
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.75, .82, .83), frosted);`);
+    };
+    material.customProgramCacheKey = () => 'pine-foliage-snow-v1';
+    const pine = new THREE.InstancedMesh(geometry, material, this.capacity);
+    pine.name = 'detailed-conifer'; pine.count = 0; pine.frustumCulled = false;
+    pine.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.parent.add(pine); this.species.conifer = { meshes: [pine], height: 1 };
+
   }
 
   begin() { this.counts = { broadleaf: 0, conifer: 0, fern: 0 }; }

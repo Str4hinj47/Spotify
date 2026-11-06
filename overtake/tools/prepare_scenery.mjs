@@ -6,7 +6,7 @@ import {simplifyPrimitive, prune} from '@gltf-transform/functions';
 await Promise.all([MeshoptDecoder.ready,MeshoptEncoder.ready,MeshoptSimplifier.ready]);
 const io=new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({'meshopt.decoder':MeshoptDecoder,'meshopt.encoder':MeshoptEncoder});
 // Input GLBs are the optimized CC0 Poly Haven assets documented in SCENERY_ASSETS.md.
-for (const name of ['tree_small_02','pine_sapling_01','fern_02']) {
+for (const name of ['tree_small_02','fern_02']) {
  const doc=await io.read(`source-assets/polyhaven-landscape/${name}.glb`);
  for(const p of doc.getRoot().listMeshes()[0].listPrimitives()){
    const mat=p.getMaterial(), n=mat.getName(); console.log(name,n,p.getIndices()?.getCount()/3);
@@ -29,7 +29,7 @@ for (const name of ['tree_small_02','pine_sapling_01','fern_02']) {
    console.log('  after',p.getIndices().getCount()/3);
  }
  await doc.transform(prune());
- const output = `public/models/scenery/${{tree_small_02:'deciduous',pine_sapling_01:'conifer',fern_02:'fern'}[name]}.glb`;
+ const output = `public/models/scenery/${{tree_small_02:'deciduous',fern_02:'fern'}[name]}.glb`;
  await io.write(output,doc);
  console.log('size',fs.statSync(output).size);
 }
