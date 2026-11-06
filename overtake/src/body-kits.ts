@@ -108,6 +108,21 @@ function golfLowerBumper(rear:boolean,level:number) {
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
 }
 
+// RS6 lower leading edge, sampled at the front bumper's bottom instead of
+// spanning the large central grille with a generic box-shaped fascia.
+function audiFrontLip(level:number) {
+  const xs=[0,.2,.4,.55,.65,.75,.8,.85],zs=[-2.486,-2.479,-2.466,-2.424,-2.343,-2.285,-2.251,-2.191];
+  const vertices:number[]=[],indices:number[]=[],n=32;
+  for(let i=0;i<=n;i++){
+    const x=(2*i/n-1)*.84,abs=Math.abs(x);let j=0;while(j<xs.length-2&&abs>xs[j+1])j++;
+    const z=THREE.MathUtils.lerp(zs[j],zs[j+1],(abs-xs[j])/(xs[j+1]-xs[j]));
+    const edge=abs/.84,lead=THREE.MathUtils.lerp(.02,.055,level)*(1-.3*edge);
+    for(const [y,zz] of [[.196,z+.045],[.18,z-lead],[.167,z-lead],[.168,z+.10]] as const) vertices.push(x,y,zz);
+    if(i<n)for(let k=0;k<4;k++){const a=i*4+k,b=i*4+(k+1)%4,c=(i+1)*4+k,d=(i+1)*4+(k+1)%4;indices.push(a,b,c,b,d,c);}
+  }
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
+}
+
 // Mustang's chin is a shallow extension of its measured lower nose contour,
 // not a generic wide apron underneath the chrome factory bumper.
 function mustangChin(level:number) {
@@ -216,6 +231,8 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     const nose=f.frontZ-.015;
     if(id==='golf') {
       const fascia=new THREE.Mesh(golfLowerBumper(false,amount),panel);fascia.name='front-fascia';a.add(fascia);
+    } else if(id==='audi') {
+      const lip=new THREE.Mesh(audiFrontLip(amount),panel);lip.name='front-fascia';a.add(lip);
     } else if(id==='mustang') {
       const chin=new THREE.Mesh(mustangChin(amount),panel);chin.name='front-fascia';a.add(chin);
       if(amount>=.67) {
@@ -296,15 +313,15 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     const oval=f.character==='luxury'||f.character==='wagon'||f.character==='midengine';
     // One mouth position is shared by the pipe and flame. The measured rear
     // offsets place the rim just beyond the stock bumper, not inside it.
-    const z=id==='mustang' ? 2.240 : f.rearZ-.06, mouthZ=z+.054, y=id==='mustang' ? .401 : f.tipY+.08;
+    const z=id==='mustang' ? 2.240 : id==='ferrari' ? 1.948 : f.rearZ-.06, mouthZ=z+.054, y=id==='mustang' ? .401 : id==='ferrari' ? .334 : f.tipY+.08;
     // The exact same outlet descriptions drive rims and flame origins.
     const ferrariFactoryFlame=id==='ferrari' && config.exhaust==='flame';
     const mustangFactoryFlame=id==='mustang' && config.exhaust==='flame';
-    const centers=mustangFactoryFlame ? [-.598,-.515,.526,.609] : track && id==='ferrari' ? [-.061,.048,.150] : id==='golf'
+    const centers=mustangFactoryFlame ? [-.598,-.515,.526,.609] : id==='ferrari' ? [-.061,.048,.150] : id==='golf'
       ? config.exhaust==='sport' ? [-f.tipX] : [-f.tipX-f.tipSpacing*(config.exhaust==='touring'?.38:.5),-f.tipX+f.tipSpacing*(config.exhaust==='touring'?.38:.5)]
       : (track||config.exhaust==='sport') ? [-f.tipX-f.tipSpacing*(track?.5:.4),-f.tipX+f.tipSpacing*(track?.5:.4),f.tipX-f.tipSpacing*(track?.5:.4),f.tipX+f.tipSpacing*(track?.5:.4)]
       : [-f.tipX,f.tipX];
-    const radius=track && id==='ferrari' ? f.tipRadius*.85 : id==='golf'
+    const radius=id==='ferrari' ? f.tipRadius*THREE.MathUtils.lerp(.68,.85,amount) : id==='golf'
       ? f.tipRadius*(config.exhaust==='sport'?1.2:THREE.MathUtils.lerp(.72,.85,amount)) : f.tipRadius*((track||config.exhaust==='sport')?.64:THREE.MathUtils.lerp(.85,1.02,amount));
     if(mustangFactoryFlame) {
       // Four real factory tailpipes, measured from the source mesh.
