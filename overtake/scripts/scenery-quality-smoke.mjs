@@ -5,6 +5,7 @@ import chromium from '@sparticuz/chromium';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const base = process.env.BASE_URL || 'http://localhost:3000';
+const realRender = process.env.REAL_RENDER === '1';
 const browser = await pw.launch({ executablePath: await chromium.executablePath(), headless: true,
   args: chromium.args.filter(a => a !== '--single-process').concat(['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox']),
   env: { ...process.env, LD_LIBRARY_PATH: `/home/user/.local/lib/chromium-deps:${process.env.LD_LIBRARY_PATH || ''}` } });
@@ -13,7 +14,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 960, height: 640 }, deviceScaleFactor: 1 });
   page.on('pageerror',e=>errors.push(String(e)));
   page.on('console',m=>{ if(m.type()==='error') errors.push(m.text()); });
-  await page.goto(`${base}/?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
+  await page.goto(realRender ? `${base}/` : `${base}/?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
   await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.waitForFunction(()=>window.__overtake.detailedScenery.ready,null,{timeout:180000});
   await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
@@ -31,6 +32,20 @@ try {
     return {quality:g.getSceneryQuality(),species,triangles,oldTrees:g.cheapBroadleaf.visible,panorama:g.mountainBackdrop.visible};
   });
   const high=await snapshot();assert.ok(high.species.conifer>30);assert.ok(high.species.broadleaf>10);assert.ok(high.species.fern>10);assert.equal(high.oldTrees,false);assert.equal(high.panorama,true);
+  const biomes=await page.evaluate(()=>{
+    const g=window.__overtake, out=[];
+    for(const distance of [500,1750,5250,8250,14750]) {
+      g.playerS=distance;g.updateRoad();
+      const pos=g.terrain.geometry.getAttribute('position').array;
+      out.push({distance,desert:g.desertPanoramaBlend.value,buildings:g.detailedBuildings.count,
+        finite:Array.from(pos).every(Number.isFinite),visible:g.mountainBackdrop.visible});
+    }
+    g.playerS=1500;g.updateRoad();return out;
+  });
+  assert.ok(biomes[0].desert > .9 && biomes[1].desert < .1);
+  assert.equal(biomes[0].buildings,0);
+  assert.ok(biomes[3].buildings > 0);
+  assert.ok(biomes.every(b=>b.finite&&b.visible));
   // Absolute slots don't jitter when the car crosses a recycling boundary.
   const stability=await page.evaluate(()=>{
     const g=window.__overtake;
@@ -67,5 +82,5 @@ try {
   await page.click('#btn-graphics');await page.click('[data-scenery=high]');
   await page.waitForFunction(()=>window.__overtake.detailedScenery.ready,null,{timeout:180000});
   assert.equal(await page.evaluate(()=>window.__overtake.cheapBroadleaf.visible),false);
-  assert.deepEqual(errors,[]);console.log({high,medium,low,stability,mobile,errors});
+  assert.deepEqual(errors,[]);console.log({realRender,high,medium,low,biomes,stability,mobile,errors});
 } finally {await browser.close();}
