@@ -2,7 +2,7 @@
 import { medalFor, RUN_MODES } from './run.mjs';
 
 const MODES = Object.keys(RUN_MODES);
-const CARS = ['golf', 'mercedes', 'audi', 'mustang', 'ferrari'];
+const CARS = ['golf', 'mercedes', 'audi', 'mustang', 'ferrari', 'r8', 'challenger'];
 
 export function emptyRecords() {
   const modes = {};

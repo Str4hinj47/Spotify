@@ -65,3 +65,12 @@ test('medals and summaries are mode-aware', () => {
   signaled.finished = true;
   assert.equal(registerPass(signaled, 'same', false, 1, true).points, 0);
 });
+
+test('records retain Challenger and R8 runs on reload', async () => {
+  const { emptyRecords, recordRun, sanitizeRecords } = await import('../src/records.mjs');
+  let records = emptyRecords();
+  for (const car of ['r8', 'challenger']) {
+    records = recordRun(records, { mode: 'endless', car, score: 100, distance: 200, overtakes: 0, nearMisses: 0, oncomingDodges: 0, topSpeed: 0, contractsDone: 0, elapsed: 1, reason: null, date: 1 }).records;
+  }
+  assert.deepEqual(sanitizeRecords(JSON.parse(JSON.stringify(records))).modes.endless.recent.map(run => run.car), ['challenger', 'r8']);
+});
