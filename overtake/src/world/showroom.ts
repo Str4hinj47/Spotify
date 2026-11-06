@@ -86,5 +86,16 @@ export function createShowroom(group: THREE.Group) {
     new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 }));
   shadow.name = 'showroom-contact-shadow'; shadow.rotation.x = -Math.PI / 2; shadow.position.y = .006;
   group.add(shadow);
+  // Four small, soft tire-contact patches add weight without a shadow map.
+  const contactGeo = new THREE.PlaneGeometry(1, 1);
+  contactGeo.rotateX(-Math.PI / 2);
+  const tireContacts = new THREE.InstancedMesh(contactGeo,
+    new THREE.MeshBasicMaterial({ map: (shadow.material as THREE.MeshBasicMaterial).map,
+      transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, opacity: .72 }), 4);
+  tireContacts.name = 'showroom-tire-contacts';
+  tireContacts.count = 0;
+  tireContacts.frustumCulled = false;
+  group.add(tireContacts);
+  shadow.userData.tireContacts = tireContacts;
   return shadow;
 }

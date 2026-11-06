@@ -1317,6 +1317,20 @@ export class OvertakeGame {
     const meta = this.library.get(id);
     this.playerMeta = { length: meta.length, width: meta.width };
     this.showroomShadow.scale.set(meta.width * 1.65, meta.length * 1.3, 1);
+    // The normalized wheel pivots are in car coordinates, so each of the
+    // seven different wheelbases gets its own correctly placed contact patch.
+    const contacts = this.showroomShadow.userData.tireContacts as THREE.InstancedMesh;
+    const wheels = (this.player.userData.wheels ?? []) as THREE.Group[];
+    this.player.updateMatrixWorld(true);
+    contacts.count = Math.min(wheels.length, 4);
+    for (let i = 0; i < contacts.count; i++) {
+      wheels[i].getWorldPosition(this.dummy.position);
+      this.dummy.position.y = .009;
+      this.dummy.rotation.set(0, 0, 0);
+      this.dummy.scale.set(.38, 1, .48);
+      this.dummy.updateMatrix(); contacts.setMatrixAt(i, this.dummy.matrix);
+    }
+    contacts.instanceMatrix.needsUpdate = true;
     this.playerBrakes = [];
     for (const sign of [-1, 1]) {
       const brake = this.makeBrakeGlow();
