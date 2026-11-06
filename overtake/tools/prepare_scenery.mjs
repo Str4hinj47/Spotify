@@ -14,11 +14,11 @@ for (const name of ['tree_small_02','pine_sapling_01','fern_02']) {
      const index=p.getIndices(), old=index.getArray(), pos=p.getAttribute('POSITION').getArray(); const indices=[];
      for(let q=0;q<old.length/6;q++){
        let x=q+1; x=Math.imul(x^(x>>>16),0x45d9f3b);x=Math.imul(x^(x>>>16),0x45d9f3b);x=(x^(x>>>16))>>>0;
-       if(x%5!==0) continue;
+       if(x%2!==0) continue;
        const ids=[old[q*6],old[q*6+1],old[q*6+2],old[q*6+5]];
        for(let j=0;j<3;j++){
          const mean=ids.reduce((v,i)=>v+pos[i*3+j],0)/4;
-         for(const id of ids)pos[id*3+j]=Math.max(-32767,Math.min(32767,Math.round(mean+(pos[id*3+j]-mean)*1.8)));
+         for(const id of ids)pos[id*3+j]=Math.max(-32767,Math.min(32767,Math.round(mean+(pos[id*3+j]-mean)*1.38)));
        }
        for(let k=0;k<6;k++)indices.push(old[q*6+k]);
      }
