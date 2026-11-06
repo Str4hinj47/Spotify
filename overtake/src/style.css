@@ -594,3 +594,5 @@ svg { stroke-width: 1.75; }
 .upgrade-panel { border-top:1px solid var(--border); padding-top:9px; margin-bottom:10px; }
 #upgrade-list { display:grid; gap:5px; }
 #upgrade-list button { text-align:left; }
+
+.upgrade-hint { margin:0 0 7px; color:var(--muted); font-size:10px; line-height:1.4; }
