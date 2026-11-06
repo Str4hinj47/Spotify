@@ -62,7 +62,7 @@ export function indicatorMaterial(id: CarId, source: THREE.Material, meshToCar: 
         // strip and white reversing segment in the original textured lens.
         float redLens = smoothstep(0.06, 0.22, diffuseColor.r - max(diffuseColor.g, diffuseColor.b));
         float lowerLens = 1.0 - smoothstep(0.795, 0.815, indicatorPos.y);
-        totalEmissiveRadiance += vec3(1.0, 0.012, 0.006) * brakeLevel * redLens * lowerLens * 2.0;
+        totalEmissiveRadiance += vec3(1.0, 0.012, 0.006) * brakeLevel * redLens * lowerLens * 0.75;
         ` : ''}
       `);
   };
