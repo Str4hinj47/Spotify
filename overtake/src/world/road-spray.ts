@@ -5,7 +5,7 @@ import * as THREE from 'three';
 // bounded draw call; particles remain behind when the car turns or moves on.
 export class RoadSpray {
   readonly points: THREE.Points;
-  private readonly count = 384;
+  private readonly count = 512;
   private positions = new Float32Array(this.count * 3);
   private colors = new Float32Array(this.count * 3);
   private sizes = new Float32Array(this.count);
@@ -78,7 +78,7 @@ export class RoadSpray {
     const movement = THREE.MathUtils.smoothstep(speed, 4, 22);
     const amount = moisture * movement;
     const fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
-    this.carry += dt * amount * THREE.MathUtils.lerp(90, 190, powder);
+    this.carry += dt * amount * THREE.MathUtils.lerp(90, 280, powder);
     while (this.carry >= 1) {
       this.carry--;
       const i = this.cursor++ % this.count, p = i * 3;
@@ -94,7 +94,7 @@ export class RoadSpray {
       this.positions[p + 2] = position.z - fz * back + rz * (side + jitter);
       // The rotating tire throws particles rearward relative to the vehicle;
       // they keep some forward momentum but are left behind in world space.
-      const drift = speed * (isSnow ? 0.25 + Math.random() * 0.30 : 0.70 + Math.random() * 0.12);
+      const drift = speed * (isSnow ? 0.48 + Math.random() * 0.25 : 0.70 + Math.random() * 0.12);
       const sideways = (side < 0 ? -1 : 1) * (isSnow ? 0.30 + Math.random() * 0.8 : 0.25 + Math.random() * 0.35);
       this.velocities[p] = fx * drift + rx * sideways;
       this.velocities[p + 1] = grain ? 0.8 + Math.random() * 1.5 : isSnow ? 0.18 + Math.random() * 0.5 : 0.22 + Math.random() * 0.35;
@@ -104,7 +104,7 @@ export class RoadSpray {
       this.strengths[i] = amount;
       this.kinds[i] = kind;
       this.seeds[i] = Math.random();
-      this.initialSizes[i] = grain ? 0.025 + Math.random() * 0.045 : isSnow ? 0.16 + Math.random() * 0.22 : 0.28 + Math.random() * 0.16;
+      this.initialSizes[i] = grain ? 0.025 + Math.random() * 0.045 : isSnow ? 0.22 + Math.random() * 0.20 : 0.28 + Math.random() * 0.16;
       const shade = 0.87 + Math.random() * 0.10;
       this.colors[p] = isSnow ? shade * 0.97 : 0.63;
       this.colors[p + 1] = isSnow ? shade * 0.99 : 0.70;
@@ -129,7 +129,7 @@ export class RoadSpray {
       this.positions[p + 1] += this.velocities[p + 1] * dt;
       this.positions[p + 2] += this.velocities[p + 2] * dt;
       const fade = Math.min(1, t * 8) * Math.pow(1 - t, kind === 2 ? 1 : 1.5);
-      this.opacity[i] = fade * this.strengths[i] * (kind === 2 ? 0.65 : kind === 1 ? 0.30 : 0.14);
+      this.opacity[i] = fade * this.strengths[i] * (kind === 2 ? 0.65 : kind === 1 ? 0.18 : 0.14);
       this.sizes[i] = this.initialSizes[i] * (kind === 2 ? 1 : kind === 1 ? 1 + t * 2.0 : 1 + t * 2.4);
       active++;
     }
