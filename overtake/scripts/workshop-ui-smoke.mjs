@@ -9,6 +9,7 @@ try {
   page.on('pageerror',e=>errors.push(String(e)));
   await page.goto('http://localhost:3000/?test=1'); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.evaluate(()=>localStorage.removeItem('overtake-customization-v1'));
+  await page.click('#dev-toggle');
   await page.click('.car-card[data-car="r8"]'); await page.click('#btn-customize');
   assert.equal(await page.locator('#custom-panel select:visible').count(),0);
   await page.click('[data-workshop-part="exhaust"]');

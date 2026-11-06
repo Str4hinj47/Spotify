@@ -12,6 +12,7 @@ try {
   page.on('pageerror', e => errors.push(String(e)));
   await page.goto('http://localhost:3000/?test=1');
   await page.waitForSelector('#topbar:not(.hidden)', { timeout: 180000 });
+  await page.click('#dev-toggle');
   await page.click('.car-card[data-car="audi"]');
   await page.click('#btn-start');
   await page.evaluate(() => {

@@ -25,6 +25,7 @@ await page.waitForTimeout(800);
 const cards = await page.locator('.car-card').count();
 await shot('garage.png');
 
+await page.click('#dev-toggle');
 await page.click('.car-card[data-car="ferrari"]');
 await page.waitForTimeout(500);
 await shot('garage-ferrari.png');

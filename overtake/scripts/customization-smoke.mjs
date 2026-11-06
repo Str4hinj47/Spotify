@@ -11,6 +11,7 @@ try {
   page.on('console',m=>{if(m.type()==='error')errors.push(m.text())}); page.on('pageerror',e=>errors.push(String(e)));
   await page.goto('http://localhost:3000/?test=1'); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.evaluate(()=>{localStorage.removeItem('overtake-customization-v1')});
+  await page.click('#dev-toggle');
   await page.click('.car-card[data-car="golf"]'); await page.click('#btn-customize');
   assert.ok(await page.locator('#custom-panel').isVisible());
   for (const part of ['front','rear','skirts','spoiler','exhaust']) { await page.click(`[data-workshop-part="${part}"]`); await page.click(`[data-part-panel="${part}"] .workshop-choices button[data-value="track"]`); }
