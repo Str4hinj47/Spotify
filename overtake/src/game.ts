@@ -1198,6 +1198,10 @@ export class OvertakeGame {
   private buildGarage() {
     this.showroomShadow = createShowroom(this.garageGroup);
 
+    // A broad fill reveals dark paints without flattening the key and rims.
+    const fill = new THREE.HemisphereLight(0xc9dae5, 0x34424c, .42);
+    fill.name = 'showroom-fill';
+    this.garageGroup.add(fill);
     // Soft studio key + rim lights for readable paint highlights.
     const key = new THREE.SpotLight(0xffffff, 55, 35, Math.PI / 4, 0.6, 1.6);
     key.position.set(6, 9, 5); key.target.position.set(0, 0.5, 0);
