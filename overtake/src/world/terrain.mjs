@@ -7,5 +7,5 @@ export function terrainOffset(s, lateral) {
   const hills = 0.5 + 0.22 * Math.sin(s * .009 + lateral * .026)
     + 0.16 * Math.sin(s * .0042 - lateral * .041 + 2.1)
     + 0.12 * Math.cos(s * .018 + lateral * .015);
-  return fade * (distance * .035 + Math.max(0, hills) * 13);
+  return fade * (distance * .008 + Math.max(0, hills) * 2.8);
 }
