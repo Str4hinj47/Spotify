@@ -36,3 +36,24 @@ export function addFoliageSnow(material: THREE.MeshStandardMaterial, snow: { val
   };
   material.customProgramCacheKey = () => 'foliage-snow-caps-v1';
 }
+
+/** Gentle, anchored foliage motion. Materials are used by instanced meshes. */
+export function addFoliageWind(material: THREE.MeshStandardMaterial, time: { value: number }, wind: { value: number }, height: number) {
+  const previous = material.onBeforeCompile;
+  const key = material.customProgramCacheKey();
+  material.onBeforeCompile = (shader, renderer) => {
+    previous.call(material, shader, renderer);
+    shader.uniforms.foliageTime = time;
+    shader.uniforms.foliageWind = wind;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nuniform float foliageTime, foliageWind;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        #ifdef USE_INSTANCING
+          float crown = pow(clamp(position.y / ${Math.max(.01, height).toFixed(5)}, 0.0, 1.0), 1.6);
+          float phase = foliageTime * 0.65 + instanceMatrix[3].x * .035 + instanceMatrix[3].z * .025;
+          transformed.x += sin(phase) * ${(.006 * height).toFixed(5)} * crown * foliageWind;
+          transformed.z += cos(phase * .73) * ${(.003 * height).toFixed(5)} * crown * foliageWind;
+        #endif`);
+  };
+  material.customProgramCacheKey = () => `${key}|foliage-wind-v1-${height.toFixed(4)}`;
+}

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { addFoliageSnow } from './roadside';
+import { addFoliageSnow, addFoliageWind } from './roadside';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export type SceneryQuality = 'low' | 'medium' | 'high';
@@ -23,7 +23,7 @@ export class DetailedScenery {
   readonly capacity = 96;
   private loading = false;
 
-  constructor(private parent: THREE.Group, private snow: { value: number }, private maxAnisotropy: number, private onReady: () => void) {}
+  constructor(private parent: THREE.Group, private snow: { value: number }, private time: { value: number }, private wind: { value: number }, private maxAnisotropy: number, private onReady: () => void) {}
 
   ensureLoaded() {
     if (this.ready || this.loading) return;
@@ -63,6 +63,7 @@ export class DetailedScenery {
         if (material.alphaTest > 0) {
           material.side = THREE.DoubleSide;
           addFoliageSnow(material, this.snow);
+          addFoliageWind(material, this.time, this.wind, height);
         }
         const mesh = new THREE.InstancedMesh(geometry, material, this.capacity);
         mesh.name = `detailed-${kind}`;
@@ -95,6 +96,7 @@ export class DetailedScenery {
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.75, .82, .83), frosted);`);
     };
     material.customProgramCacheKey = () => 'pine-foliage-snow-v1';
+    addFoliageWind(material, this.time, this.wind, 1);
     const pine = new THREE.InstancedMesh(geometry, material, this.capacity);
     pine.name = 'detailed-conifer'; pine.count = 0; pine.frustumCulled = false;
     pine.instanceMatrix.setUsage(THREE.DynamicDrawUsage);

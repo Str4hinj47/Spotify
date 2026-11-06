@@ -199,7 +199,7 @@ export class OvertakeGame {
   private ground!: THREE.Mesh;
   private asphalt!: THREE.Mesh;
   private asphaltMat!: THREE.MeshStandardMaterial;
-  private roadSurface = { wet: { value: 0 }, snow: { value: 0 }, rain: { value: 0 }, time: { value: 0 }, cloud: { value: 0 } };
+  private roadSurface = { wet: { value: 0 }, snow: { value: 0 }, rain: { value: 0 }, time: { value: 0 }, cloud: { value: 0 }, wind: { value: 1 } };
   private snowLayer!: THREE.Mesh;
   private shoulderMat!: THREE.MeshStandardMaterial;
   private groundMat!: THREE.MeshStandardMaterial;
@@ -875,7 +875,7 @@ export class OvertakeGame {
 
     this.midgroundTreeline = new MidgroundTreeline(this.roadGroup, this.roadSurface.snow, this.renderer.capabilities.getMaxAnisotropy(), { centerX, centerY, rightAt, roadYaw });
     this.roadsideGrass = new RoadsideGrass(this.roadGroup, this.roadSurface.snow, this.roadSurface.time, this.renderer.capabilities.getMaxAnisotropy(), { centerX, centerY, rightAt });
-    this.detailedScenery = new DetailedScenery(this.roadGroup, this.roadSurface.snow, this.renderer.capabilities.getMaxAnisotropy(), () => this.updateScenery());
+    this.detailedScenery = new DetailedScenery(this.roadGroup, this.roadSurface.snow, this.roadSurface.time, this.roadSurface.wind, this.renderer.capabilities.getMaxAnisotropy(), () => this.updateScenery());
     if (this.sceneryQuality !== 'low') this.detailedScenery.ensureLoaded();
 
     const sign = createRoadsideSignGeometry();
@@ -1782,6 +1782,7 @@ export class OvertakeGame {
     this.roadSurface.snow.value = snow;
     this.roadSurface.rain.value = this.weather.rain;
     this.roadSurface.time.value = this.worldElapsed;
+    this.roadSurface.wind.value = 0.8 + Math.abs(this.weather.wind) * .6;
     // Strongest in broken daylight, fading out in overcast weather and at
     // night. Low scenery skips the extra noise samples entirely.
     this.roadSurface.cloud.value = this.sceneryQuality === 'low' ? 0 : .20 * atm.day * (1 - atm.cloud * .8);
