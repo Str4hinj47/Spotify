@@ -1066,16 +1066,25 @@ export class OvertakeGame {
     this.emitHud();
   }
 
-  pause() { if (this.mode === 'driving') this.setMode('paused'); }
+  pause() {
+    if (this.mode === 'driving') {
+      this.clearDrivingInput();
+      this.setMode('paused');
+    }
+  }
   resume() { if (this.mode === 'paused') this.setMode('driving'); }
 
   toGarage() {
     this.clearTraffic();
     this.setEnvironment('garage');
-    this.signal = null; this.input.brake = false; this.input.handbrake = false;
+    this.signal = null; this.clearDrivingInput();
     this.updatePlayerLights(0);
     if (this.player) { this.player.position.set(0, 0, 0); this.player.rotation.set(0, 0, 0); const glow = this.player.getObjectByName('underglow-pool'); if (glow) { glow.position.y = 0.035; glow.rotation.set(-Math.PI / 2, 0, 0); const positions = (glow as THREE.Mesh).geometry.getAttribute('position') as THREE.BufferAttribute; for (let i=0;i<positions.count;i++) positions.setZ(i,0); positions.needsUpdate=true; } }
     this.setMode('garage');
+  }
+
+  private clearDrivingInput() {
+    this.input.throttle = this.input.brake = this.input.left = this.input.right = this.input.handbrake = false;
   }
 
   setInput(name: 'throttle' | 'brake' | 'left' | 'right' | 'handbrake', v: boolean) {

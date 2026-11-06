@@ -510,7 +510,7 @@ function closeHelp() {
 
 function bindHold(id: string, name: 'throttle' | 'brake' | 'left' | 'right' | 'handbrake') {
   const el = $(id);
-  const down = (e: Event) => { e.preventDefault(); game.setInput(name, true); };
+  const down = (e: Event) => { e.preventDefault(); if (game.mode === 'driving') game.setInput(name, true); };
   const up = () => game.setInput(name, false);
   el.addEventListener('pointerdown', down);
   el.addEventListener('pointerup', up);
@@ -662,7 +662,7 @@ function bindUI() {
     }
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable || (target.tagName === 'BUTTON' && e.key === 'Enter'))) return;
     const name = keyMap[e.key];
-    if (name) { e.preventDefault(); game.setInput(name, true); return; }
+    if (name) { e.preventDefault(); if (game.mode === 'driving') game.setInput(name, true); return; }
     if (!e.repeat && (e.key === 'q' || e.key === 'Q')) { e.preventDefault(); game.toggleSignal('left'); return; }
     if (!e.repeat && (e.key === 'e' || e.key === 'E')) { e.preventDefault(); game.toggleSignal('right'); return; }
     switch (e.key) {

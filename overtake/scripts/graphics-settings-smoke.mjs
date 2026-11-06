@@ -30,7 +30,14 @@ try {
   await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
   assert.deepEqual(await inspect(),{quality:'balanced',ratio:1,canvas:[960,640],buffer:[960,640]});
-  await page.click('#btn-start');await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf);g.pause();});
+  await page.click('#btn-start');await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
+  await page.keyboard.down('ArrowUp');
+  assert.equal(await page.evaluate(()=>window.__overtake.input.throttle),true);
+  await page.evaluate(()=>window.__overtake.pause());
+  assert.equal(await page.evaluate(()=>window.__overtake.input.throttle),false);
+  await page.keyboard.down('ArrowLeft');
+  assert.equal(await page.evaluate(()=>window.__overtake.input.left),false);
+  await page.keyboard.up('ArrowUp');await page.keyboard.up('ArrowLeft');
   await page.click('#btn-pause-graphics');
   assert.equal(await page.locator('#btn-pause-graphics').getAttribute('aria-expanded'),'true');
   await page.click('[data-quality=sharp]');assert.equal((await inspect()).ratio,1.25);
