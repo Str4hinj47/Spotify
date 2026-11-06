@@ -588,3 +588,9 @@ svg { stroke-width: 1.75; }
 }
 /* Keep the primary action reachable while the garage details scroll. */
 #car-detail > #btn-start { position: sticky; bottom: 0; z-index: 2; box-shadow: 0 -5px 12px rgba(12,18,24,.65); }
+.purchase-button, #upgrade-list button { color:var(--text); border:1px solid var(--border); background:rgba(125,211,252,.1); border-radius:7px; padding:7px 9px; font-size:11px; font-weight:700; }
+.purchase-button { width:100%; margin-top:7px; }
+.purchase-button:disabled, #upgrade-list button:disabled, #btn-customize:disabled { opacity:.45; cursor:not-allowed; }
+.upgrade-panel { border-top:1px solid var(--border); padding-top:9px; margin-bottom:10px; }
+#upgrade-list { display:grid; gap:5px; }
+#upgrade-list button { text-align:left; }

@@ -4,7 +4,7 @@ import { ModelLibrary } from './models';
 import { OvertakeGame, CAMERA_ORDER, type Mode, type HudState, type RunStats, type CameraPreset } from './game';
 import { RUN_MODES, type RunMode } from './run.mjs';
 import { bestFor } from './records.mjs';
-import { CAR_XP, earnedCar, nextUnlock } from './progression.mjs';
+import { CAR_PRICES, UPGRADE_PRICES, earnedCar, upgradeLevels, tunePrice, emptyProgression, type Upgrade } from './progression.mjs';
 import { CARS, getCar, PAINT_COLORS, type CarId } from './catalog';
 import { GameAudio } from './audio';
 import { hexToNumber, sanitizePaints } from './paint.mjs';
@@ -26,6 +26,21 @@ let helpPaused = false;
 let paints: Record<string, string> = {};
 let customizations: Record<string, Customization> = {};
 
+// A new economy starts from zero exactly once. Keep a backup of old cosmetics,
+// but do not carry free, already-equipped tuning into the paid economy.
+function initializeEconomy() {
+  try {
+    if (localStorage.getItem('overtake-progression-v2') !== null) return;
+    for (const key of ['overtake-paints', 'overtake-customization-v1']) {
+      const old = localStorage.getItem(key);
+      if (old !== null) localStorage.setItem(`${key}-before-economy`, old);
+    }
+    localStorage.setItem('overtake-progression-v2', JSON.stringify(emptyProgression()));
+    localStorage.removeItem('overtake-paints');
+    localStorage.removeItem('overtake-customization-v1');
+    localStorage.removeItem('overtake-car');
+  } catch { /* storage may be unavailable */ }
+}
 function loadPaints() {
   try {
     paints = sanitizePaints(JSON.parse(localStorage.getItem('overtake-paints') || '{}'), CARS.map((c) => c.id));
@@ -64,7 +79,15 @@ function syncWorkshopChoices() {
         return button;
       }));
     }
+    const key = ({'custom-paint-scheme':'paintScheme','custom-secondary-finish':'secondaryFinish','custom-livery':'livery'} as Record<string,string>)[select.id]
+      ?? select.id.replace(/^custom-/, '').replace(/-finish$/, 'Finish');
+    const progress = game.getProgression();
     group.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
+      const value = button.dataset.value!;
+      const option = options.find(o => o.value === value)!;
+      const price = tunePrice(key, value);
+      const owned = progress.tunes[selected]?.includes(`${key}:${value}`);
+      button.textContent = `${option.text}${price ? progress.dev ? ' · DEV' : owned ? ' · Owned' : ` · $${fmt(price)}` : ''}`;
       button.disabled = select.disabled;
       button.setAttribute('aria-pressed', String(button.dataset.value === select.value));
     });
@@ -73,6 +96,7 @@ function syncWorkshopChoices() {
 function syncCustomizationUI() {
   const config = currentCustomization();
   $('custom-car-name').textContent = `${getCar(selected).maker} ${getCar(selected).name}`;
+  $('custom-balance').textContent = `$${fmt(game.getProgression().money)}`;
   for (const part of BODY_PARTS) {
     const select = $(`custom-${part}`) as HTMLSelectElement;
     const labels = BODY_FITS[selected].labels[part];
@@ -104,13 +128,25 @@ function syncCustomizationUI() {
   syncWorkshopChoices();
 }
 function applyCustomization(value: Customization) {
-  const config = sanitizeCustomization(value);
+  const config = sanitizeCustomization(value), current = currentCustomization();
+  for (const key of Object.keys(config) as (keyof Customization)[]) {
+    if (config[key] === current[key]) continue;
+    const option = key === 'underglow' ? (config[key] ? 'on' : 'off') : String(config[key]);
+    if (!game.purchaseTune(selected, key, option)) {
+      $('tune-message').textContent = `Not enough money. This option costs $${fmt(tunePrice(key, option))}.`;
+      syncCustomizationUI(); return;
+    }
+  }
   customizations[selected] = config;
-  try { localStorage.setItem('overtake-customization-v1', JSON.stringify(customizations)); } catch { /* storage may be unavailable */ }
+  if (!game.getProgression().dev) {
+    try { localStorage.setItem('overtake-customization-v1', JSON.stringify(customizations)); } catch { /* storage may be unavailable */ }
+  }
+  $('tune-message').textContent = game.getProgression().dev ? 'Dev preview is temporary. Paid options remain yours.' : 'Purchased options can be reused free.';
   library.setCustomization(selected, config);
   game.setSelectedCar(selected);
-  syncCustomizationUI();
+  syncCustomizationUI(); syncProgressionUI();
 }
+
 function showCustomization(show: boolean) {
   $('garage').classList.toggle('customizing', show);
   game.setGarageWorkshop(show);
@@ -120,7 +156,7 @@ function showCustomization(show: boolean) {
 }
 
 function savePaints() {
-  try { localStorage.setItem('overtake-paints', JSON.stringify(paints)); } catch { /* ignore */ }
+  try { if (!game.getProgression().dev) localStorage.setItem('overtake-paints', JSON.stringify(paints)); } catch { /* ignore */ }
 }
 
 function syncPaintUI(id: CarId) {
@@ -141,6 +177,11 @@ async function refreshThumbnail(id: CarId) {
 }
 
 function applyPaint(hex: string | null) {
+  if (hex !== null && hex !== (paints[selected] ?? getCar(selected).color) && !game.purchaseTune(selected, 'paint', 'paint')) {
+    $('car-requirement').textContent = 'Paint costs $250. Earn more money first.';
+    $('tune-message').textContent = 'Paint costs $250. Earn more money first.';
+    syncPaintUI(selected); syncCustomizationUI(); return;
+  }
   if (hex === null) {
     delete paints[selected];
     library.setPaint(selected, null);
@@ -151,6 +192,7 @@ function applyPaint(hex: string | null) {
   savePaints();
   if (game) game.setSelectedCar(selected);
   syncPaintUI(selected);
+  syncProgressionUI();
   void refreshThumbnail(selected);
   audio.click();
 }
@@ -185,25 +227,38 @@ function updateDetail(id: CarId) {
 function syncProgressionUI() {
   if (!game) return;
   const progress = game.getProgression();
-  const next = nextUnlock(progress);
-  $('progress-xp').textContent = `${fmt(progress.xp)} XP`;
-  $('progress-next').textContent = next ? `Next: ${getCar(next[0]).name} at ${fmt(next[1])} XP` : 'All cars earned';
+  $('progress-xp').textContent = `$${fmt(progress.money)}`;
+  $('progress-next').textContent = 'Money earned from your score';
   const dev = $('dev-toggle') as HTMLButtonElement;
   dev.textContent = `Dev options: ${progress.dev ? 'ON' : 'OFF'}`;
   dev.setAttribute('aria-pressed', String(progress.dev));
-  const earned = earnedCar(progress, selected);
-  const available = game.canDrive(selected);
-  $('car-requirement').textContent = earned ? 'Unlocked' : progress.dev ? `Dev access · unlock at ${fmt(CAR_XP[selected])} XP` : `Locked · unlock at ${fmt(CAR_XP[selected])} XP`;
+  const owned = earnedCar(progress, selected), available = game.canDrive(selected);
+  $('car-requirement').textContent = owned ? 'Owned' : progress.dev ? `Dev access · purchase for $${fmt(CAR_PRICES[selected])}` : `Not owned · $${fmt(CAR_PRICES[selected])}`;
+  const buy = $('buy-car') as HTMLButtonElement;
+  buy.classList.toggle('hidden', owned);
+  buy.textContent = `Buy car · $${fmt(CAR_PRICES[selected])}`;
+  buy.disabled = progress.money < CAR_PRICES[selected];
   ($('btn-start') as HTMLButtonElement).disabled = !available;
-  $('start-label').textContent = available ? 'Start engine' : 'Car locked';
+  ($('btn-customize') as HTMLButtonElement).disabled = !available;
+  $('start-label').textContent = available ? 'Start engine' : 'Buy car to drive';
   document.querySelectorAll<HTMLButtonElement>('.car-card').forEach(card => {
-    const id = card.dataset.car as CarId;
-    const owned = earnedCar(progress, id);
+    const id = card.dataset.car as CarId, hasCar = earnedCar(progress, id);
     const status = card.querySelector<HTMLElement>('.cc-unlock')!;
-    status.textContent = owned ? 'Unlocked' : progress.dev ? `Dev access · ${fmt(CAR_XP[id])} XP` : `${fmt(CAR_XP[id])} XP`;
-    card.classList.toggle('locked', !owned);
+    status.textContent = hasCar ? 'Owned' : progress.dev ? `Dev · $${fmt(CAR_PRICES[id])}` : `$${fmt(CAR_PRICES[id])}`;
+    card.classList.toggle('locked', !hasCar);
     card.setAttribute('aria-label', `${getCar(id).maker} ${getCar(id).name}, ${status.textContent}`);
   });
+  const levels = upgradeLevels(progress, selected);
+  const list = $('upgrade-list'); list.replaceChildren();
+  for (const [key, name, effect] of [['engine','Engine','+8% acceleration, +4% top speed'],['tires','Tires','+6% grip'],['brakes','Brakes','+10% braking']] as [Upgrade,string,string][]) {
+    const level = levels[key], price = UPGRADE_PRICES[key][level];
+    const button = document.createElement('button'); button.type = 'button'; button.dataset.upgrade = key;
+    button.textContent = `${name} ${level}/3 · ${price === undefined ? 'MAX' : `$${fmt(price)}`}`;
+    button.title = `${effect} per stage${progress.dev ? ' · Dev uses maximum stages temporarily' : ''}`;
+    button.disabled = !owned || price === undefined || progress.money < price;
+    button.addEventListener('click', () => { if (game.purchaseUpgrade(selected, key)) { syncProgressionUI(); audio.click(); } });
+    list.appendChild(button);
+  }
 }
 
 function selectCar(id: CarId) {
@@ -327,7 +382,7 @@ function selectMode(mode: RunMode) {
 function onHud(h: HudState) {
   $('hud-score').textContent = fmt(h.score);
   $('hud-speed').textContent = String(Math.round(h.speed));
-  const maxSpeed = getCar(selected).maxSpeed * 3.6;
+  const maxSpeed = game.getMaxSpeed() * 3.6;
   $('speed-max').textContent = String(Math.round(maxSpeed));
   $('speed-arc').style.strokeDashoffset = String(100 * (1 - Math.min(1, Math.max(0, h.speed / maxSpeed))));
   $('hud-dist').textContent = (h.distance / 1000).toFixed(2);
@@ -427,7 +482,7 @@ function onEvent(e: { kind: 'overtake' | 'near' | 'combo' | 'crash' | 'oncoming'
 }
 
 function onGameOver(s: RunStats) {
-  $('final-progress').textContent = `+${fmt(s.xpGained)} XP${s.unlocked.length ? ` · Unlocked: ${s.unlocked.map(id => getCar(id).name).join(', ')}` : ''}`;
+  $('final-progress').textContent = `+$${fmt(s.moneyGained)} earned`;
   $('final-score').textContent = fmt(s.score);
   $('final-overtakes').textContent = String(s.overtakes);
   $('final-near').textContent = String(s.nearMisses);
@@ -553,7 +608,17 @@ function bindHold(id: string, name: 'throttle' | 'brake' | 'left' | 'right' | 'h
 
 function bindUI() {
   $('btn-start').addEventListener('click', startRun);
-  $('dev-toggle').addEventListener('click', () => { game.setDeveloperMode(!game.getProgression().dev); syncProgressionUI(); audio.click(); });
+  $('dev-toggle').addEventListener('click', () => {
+    const enabled = !game.getProgression().dev;
+    game.setDeveloperMode(enabled);
+    if (!enabled) {
+      loadPaints(); loadCustomizations();
+      for (const car of CARS) { library.setPaint(car.id, paints[car.id] ? hexToNumber(paints[car.id]) : null); library.setCustomization(car.id, customizations[car.id] ?? { ...DEFAULT_CUSTOMIZATION }); void refreshThumbnail(car.id); }
+      game.setSelectedCar(selected); syncPaintUI(selected);
+    }
+    syncProgressionUI(); audio.click();
+  });
+  $('buy-car').addEventListener('click', () => { if (game.purchaseCar(selected)) { syncProgressionUI(); audio.click(); } });
   document.querySelectorAll<HTMLButtonElement>('.mode-card').forEach((b) => {
     b.addEventListener('click', () => selectMode(b.dataset.mode as RunMode));
   });
@@ -735,6 +800,7 @@ function bindUI() {
 }
 
 async function boot() {
+  initializeEconomy();
   library = new ModelLibrary();
   loadPaints();
   loadCustomizations();

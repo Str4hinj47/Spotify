@@ -78,15 +78,20 @@
         <div class="class-pill" id="d-class">Hot hatch</div>
         <p id="d-tagline" class="tagline"></p>
         <section class="progression" aria-label="Car progression">
-          <div class="progression-head"><b id="progress-xp">0 XP</b><button id="dev-toggle" type="button" aria-pressed="false">Dev options: OFF</button></div>
+          <div class="progression-head"><b id="progress-xp">$0</b><button id="dev-toggle" type="button" aria-pressed="false">Dev options: OFF</button></div>
           <div id="progress-next" class="progress-next"></div>
+          <button id="buy-car" class="purchase-button hidden" type="button"></button>
           <div id="car-requirement" class="car-requirement" aria-live="polite"></div>
-          <p class="progress-hint">Earn XP when a run ends or you return to the garage: 1 XP per 10 points and per 50 m. Dev options bypass locks without changing earned progress.</p>
+          <p class="progress-hint">Money is paid when a run ends or you return to the garage. Each 1,000 points increases your payout per point by 25%, up to 3×. Dev options grant temporary access.</p>
         </section>
         <div class="stats">
           <div class="stat"><span>Top speed</span><div class="dots" id="stat-speed"></div></div>
           <div class="stat"><span>Handling</span><div class="dots" id="stat-handling"></div></div>
           <div class="stat"><span>Score bonus</span><div class="dots" id="stat-bonus"></div></div>
+        </div>
+        <div class="upgrade-panel" aria-label="Performance upgrades">
+          <div class="paint-head"><span>Performance upgrades</span><span class="count">3 stages</span></div>
+          <div id="upgrade-list"></div>
         </div>
         <div class="mode-select" role="group" aria-label="Run mode">
           <button class="mode-card active" data-mode="endless" type="button">
@@ -122,7 +127,8 @@
       </aside>
       <aside id="custom-panel" class="car-detail custom-panel panel hidden" aria-label="Car customization">
         <div class="custom-heading"><div><div class="custom-kicker">PERSONALIZE YOUR RIDE</div><h2>Body workshop</h2></div><button id="custom-close" class="mini-btn" type="button" aria-label="Close customization">✕</button></div>
-        <p class="custom-subtitle"><span id="custom-car-name"></span> · Fitted for this car</p>
+        <p class="custom-subtitle"><span id="custom-car-name"></span> · <b id="custom-balance"></b></p>
+        <p id="tune-message" class="custom-note" aria-live="polite">Paint $250 per car · Underglow $500 · Purchased options can be reused free.</p>
         <div class="custom-views" role="group" aria-label="Preview angle">
           <button type="button" data-custom-view="front">Front</button><button type="button" data-custom-view="side">Side</button><button type="button" data-custom-view="rear">Rear</button>
         </div>
