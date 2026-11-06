@@ -21,9 +21,14 @@ export class DetailedScenery {
   private loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   private counts: Record<Species, number> = { broadleaf: 0, conifer: 0, fern: 0, rock: 0 };
   readonly capacity = 96;
+  private loading = false;
 
-  constructor(private parent: THREE.Group, private snow: { value: number }, private maxAnisotropy: number, onReady: () => void) {
-    void this.load().then(() => { this.ready = true; onReady(); }).catch(error => {
+  constructor(private parent: THREE.Group, private snow: { value: number }, private maxAnisotropy: number, private onReady: () => void) {}
+
+  ensureLoaded() {
+    if (this.ready || this.loading) return;
+    this.loading = true;
+    void this.load().then(() => { this.ready = true; this.onReady(); }).catch(error => {
       console.warn('Detailed scenery unavailable; using lightweight scenery.', error);
     });
   }

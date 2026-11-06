@@ -794,6 +794,7 @@ export class OvertakeGame {
     }
 
     this.detailedScenery = new DetailedScenery(this.roadGroup, this.roadSurface.snow, this.renderer.capabilities.getMaxAnisotropy(), () => this.updateScenery());
+    if (this.sceneryQuality !== 'low') this.detailedScenery.ensureLoaded();
 
     const sign = createRoadsideSignGeometry();
     const signMaterials = [
@@ -999,7 +1000,9 @@ export class OvertakeGame {
     (this.mountainBackdrop.material as THREE.MeshStandardMaterial).color.set(0xffffff)
       .lerp(new THREE.Color(p.mountain), .18).lerp(new THREE.Color(0xdde9ef), snow * .16);
     this.ground.position.set(centerX(base), centerY(base) - 8, -base);
-    this.mountains.position.set(centerX(base), centerY(base), -base);
+    // Slow bounded parallax prevents the horizon from feeling glued to the
+    // car while retaining an unbroken backdrop on an endless road.
+    this.mountains.position.set(centerX(base) + 90 * Math.sin(base * .00018), centerY(base), -base + 120 * Math.sin(base * .00013));
   }
 
   private updateDetailedScenery(base: number) {
@@ -1752,6 +1755,7 @@ export class OvertakeGame {
   getSceneryQuality() { return this.sceneryQuality; }
   setSceneryQuality(value: SceneryQuality) {
     this.sceneryQuality = sanitizeSceneryQuality(value);
+    if (this.sceneryQuality !== 'low') this.detailedScenery.ensureLoaded();
     try { localStorage.setItem('overtake-scenery-quality', this.sceneryQuality); } catch { /* storage unavailable */ }
     this.updateScenery();
   }
