@@ -456,6 +456,19 @@ export class OvertakeGame {
       strip(120, 46, 0.95);
       strip(210, 22, 0.55);
       strip(330, 60, 0.25);
+      // Softbox-shaped reflections add shape to paint and glass without
+      // touching the original vehicle geometry or aftermarket fittings.
+      const softbox = (x: number, y: number, width: number, height: number, opacity: number) => {
+        ctx.save(); ctx.translate(x, y); ctx.scale(width, height);
+        const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+        glow.addColorStop(0, `rgba(245,250,255,${opacity})`);
+        glow.addColorStop(.5, `rgba(230,242,255,${opacity * .62})`);
+        glow.addColorStop(1, 'rgba(220,235,255,0)');
+        ctx.fillStyle = glow; ctx.fillRect(-1, -1, 2, 2); ctx.restore();
+      };
+      softbox(230, 145, 150, 38, .42);
+      softbox(680, 160, 170, 42, .38);
+      softbox(420, 278, 115, 30, .23);
       const side = ctx.createLinearGradient(0, 0, 1024, 0);
       side.addColorStop(0, 'rgba(80,140,255,0.18)');
       side.addColorStop(0.5, 'rgba(0,0,0,0)');
