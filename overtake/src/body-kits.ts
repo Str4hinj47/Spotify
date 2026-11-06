@@ -203,8 +203,8 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     const a=reg('rear'),track=isTrack('rear'), tail=f.rearZ-.035, panel=config.rearFinish==='carbon'?woven:body;
     if(id==='ferrari') {
       // Retain the factory diffuser and its fins. A shallow edge extension
-      // sits beneath it rather than adding a second, hanging set of fins.
-      const blade=new THREE.Mesh(taperedBand(track?.57:.50,1.73,.143,track?.20:.14,.012,0),config.rearFinish==='carbon'?woven:carbon);
+      // is tucked into it rather than adding a second, hanging set of fins.
+      const blade=new THREE.Mesh(taperedBand(track?.53:.47,1.74,.19,track?.15:.10,.012,0),config.rearFinish==='carbon'?woven:carbon);
       blade.name='rear-diffuser-extension';a.add(blade);
     } else if(id==='mustang') {
       // Tuck a shallow lower valance under the factory bumper and keep it
