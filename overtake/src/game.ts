@@ -17,6 +17,7 @@ import { createTreeGeometries } from './world/trees';
 import { createRidgeGeometry, createBuildingGeometry, createGrassGeometry, createDistantTreeGeometries, createRockGeometry } from './world/landscape';
 import { createGroundMaterial } from './world/ground';
 import { terrainOffset } from './world/terrain.mjs';
+import { DetailedScenery, sanitizeSceneryQuality, type SceneryQuality } from './world/detailed-scenery';
 import { createStreetlightGeometry } from './world/streetlight';
 import { addFoliageSnow, createRoadsideSignGeometry } from './world/roadside';
 import { disposeBodyKit, updateExhaustFlames } from './body-kits';
@@ -173,6 +174,8 @@ export class OvertakeGame {
   private composer!: EffectComposer;
   private testMode = false;
   private graphicsQuality: GraphicsQuality = 'sharp';
+  private sceneryQuality: SceneryQuality = 'high';
+  private detailedScenery!: DetailedScenery;
   private roadEnv: THREE.Texture | null = null;
   private studioEnv: THREE.Texture | null = null;
   private worldClock = createClock(9.5, 1, true);
@@ -278,7 +281,10 @@ export class OvertakeGame {
   constructor(canvas: HTMLCanvasElement, library: ModelLibrary, cb: GameCallbacks) {
     this.library = library;
     this.cb = cb;
-    try { this.graphicsQuality = sanitizeGraphicsQuality(localStorage.getItem('overtake-graphics-quality')); } catch { /* storage unavailable */ }
+    try {
+      this.graphicsQuality = sanitizeGraphicsQuality(localStorage.getItem('overtake-graphics-quality'));
+      this.sceneryQuality = sanitizeSceneryQuality(localStorage.getItem('overtake-scenery-quality'));
+    } catch { /* storage unavailable */ }
     const testMode = this.testMode = new URLSearchParams(location.search).has('test');
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !testMode, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(1);
@@ -777,6 +783,8 @@ export class OvertakeGame {
       this.roadGroup.add(m);
     }
 
+    this.detailedScenery = new DetailedScenery(this.roadGroup, this.roadSurface.snow, this.renderer.capabilities.getMaxAnisotropy(), () => this.updateScenery());
+
     const sign = createRoadsideSignGeometry();
     const signMaterials = [
       new THREE.MeshStandardMaterial({ color: 0x879199, metalness: 0.7, roughness: 0.48 }),
@@ -890,6 +898,7 @@ export class OvertakeGame {
       m.instanceMatrix.needsUpdate = true;
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
+    this.updateDetailedScenery(base);
     // Recycled sign slots use absolute road distance, so they never jump as
     // the road and scenery buffers shift around a moving car.
     const signStart = Math.floor((base - BACK) / 155) - 1;
@@ -923,6 +932,51 @@ export class OvertakeGame {
     }
     this.ground.position.set(centerX(base), centerY(base) - 8, -base);
     this.mountains.position.set(centerX(base), centerY(base), -base);
+  }
+
+  private updateDetailedScenery(base: number) {
+    const detailed = this.detailedScenery;
+    const enabled = detailed.ready && this.sceneryQuality !== 'low';
+    for (const mesh of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks, this.distantTrees, this.distantTrunks, this.distantPines, this.distantPineTrunks]) mesh.visible = !enabled;
+    detailed.begin();
+    if (enabled) {
+      const high = this.sceneryQuality === 'high';
+      const spacing = high ? 13 : 21;
+      const begin = Math.floor((base - 55) / spacing);
+      const rows = high ? 35 : 20;
+      const limit = high ? 72 : 36;
+      let total = 0;
+      for (let i = 0; i < rows; i++) for (const side of [-1, 1]) {
+        const k = begin + i;
+        const s = k * spacing + hash01(k * 179 + side * 31) * spacing;
+        const p = biomeParams(s);
+        const seed = k * 211 + side * 113;
+        if (hash01(seed + 3) > p.treeDensity || total >= limit) continue;
+        const kind = hash01(seed + 11) < p.coniferRatio ? 'conifer' : 'broadleaf';
+        const dist = 13 + hash01(seed + 5) * 65;
+        const off = side * dist, r = rightAt(s, this.tmpA);
+        const desiredHeight = (kind === 'conifer' ? 9.5 : 8.5) * (.75 + hash01(seed + 7) * .65);
+        const scale = desiredHeight / detailed.height(kind);
+        this.dummy.position.set(centerX(s) + r.x * off, centerY(s) - .6 + terrainOffset(s, off) - .12, -s + r.z * off);
+        this.dummy.rotation.set(0, hash01(seed + 17) * Math.PI * 2, 0);
+        this.dummy.scale.set(scale, scale * (.93 + hash01(seed + 19) * .14), scale);
+        this.dummy.updateMatrix(); detailed.place(kind, this.dummy.matrix); total++;
+      }
+      // Ferns are restricted to the near verge and fade out under snow.
+      const fernRows = high ? 32 : 12;
+      for (let i=0;i<fernRows;i++) for (const side of [-1,1]) {
+        const k = Math.floor((base - 20) / 6) + i;
+        const s = k * 6 + hash01(k * 97 + side * 29) * 6;
+        const p = biomeParams(s), seed = k * 193 + side * 23;
+        if (hash01(seed) > p.treeDensity * (1 - this.weather.snowCover * .9)) continue;
+        const off = side * (9 + hash01(seed + 1) * 22), r = rightAt(s, this.tmpA);
+        const scale = (.6 + hash01(seed + 2) * .6) / detailed.height('fern');
+        this.dummy.position.set(centerX(s) + r.x * off, centerY(s) - .6 + terrainOffset(s, off) - .06, -s + r.z * off);
+        this.dummy.rotation.set(0, hash01(seed + 3) * Math.PI * 2, 0);
+        this.dummy.scale.setScalar(scale); this.dummy.updateMatrix(); detailed.place('fern', this.dummy.matrix);
+      }
+    }
+    detailed.end(enabled);
   }
 
   private buildGarage() {
@@ -1604,6 +1658,13 @@ export class OvertakeGame {
     this.composer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+  }
+
+  getSceneryQuality() { return this.sceneryQuality; }
+  setSceneryQuality(value: SceneryQuality) {
+    this.sceneryQuality = sanitizeSceneryQuality(value);
+    try { localStorage.setItem('overtake-scenery-quality', this.sceneryQuality); } catch { /* storage unavailable */ }
+    this.updateScenery();
   }
 
   getGraphicsQuality() { return this.graphicsQuality; }
