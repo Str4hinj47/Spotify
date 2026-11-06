@@ -282,17 +282,39 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     } else for(const x of centers) tip(a,x,y,z,radius,finish,dark,!track && oval && id!=='golf');
     if (config.exhaust==='flame') {
       const flames=new THREE.Group(); flames.name='exhaust-flames';
-      const outerMat=new THREE.MeshBasicMaterial({color:0xff6b16,transparent:true,opacity:.87,depthWrite:false,blending:THREE.AdditiveBlending});
-      const innerMat=new THREE.MeshBasicMaterial({color:0xffe196,transparent:true,opacity:.95,depthWrite:false,blending:THREE.AdditiveBlending});
-      for (const x of centers) {
+      const flameMaterials:THREE.ShaderMaterial[]=[];
+      for (const [i,x] of centers.entries()) {
         const jet=new THREE.Group(); jet.position.set(x,ferrariFactoryFlame ? .334 : y, ferrariFactoryFlame ? 2.002 : mouthZ);
-        for (const [radius,length,mat] of [[f.tipRadius*.72,.34,outerMat],[f.tipRadius*.44,.21,innerMat]] as const) {
-          const geo=new THREE.ConeGeometry(radius,length,12);geo.translate(0,length/2,0);geo.rotateX(Math.PI/2);
-          jet.add(new THREE.Mesh(geo,mat));
-        }
-        flames.add(jet);
+        // Original procedural, animated volume: a noisy, luminous shell rather
+        // than the old flat-coloured cones. +Z points out of the tailpipe.
+        const length=.35, radius=f.tipRadius*1.25;
+        const geo=new THREE.SphereGeometry(1,24,18);geo.scale(radius,radius,length*.5);geo.translate(0,0,length*.5);
+        const mat=new THREE.ShaderMaterial({
+          uniforms:{uTime:{value:0},uSeed:{value:i*7.31},uLength:{value:length},uRadius:{value:radius}},
+          transparent:true,depthWrite:false,depthTest:true,blending:THREE.AdditiveBlending,side:THREE.FrontSide,
+          vertexShader:`varying vec3 vLocal; varying vec3 vNormal; varying vec3 vView;
+            void main(){vLocal=position;vNormal=normalize(normalMatrix*normal);
+              vec4 mv=modelViewMatrix*vec4(position,1.0);vView=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`,
+          fragmentShader:`uniform float uTime,uSeed,uLength,uRadius;varying vec3 vLocal,vNormal,vView;
+            float hash3(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+            float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+              return mix(mix(mix(hash3(i),hash3(i+vec3(1,0,0)),f.x),mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x),f.y),
+                         mix(mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x),mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x),f.y),f.z);}
+            void main(){float t=clamp(vLocal.z/uLength,0.0,1.0);
+              vec3 p=vec3(vLocal.xy/uRadius*2.0,t*5.0-uTime*4.0+uSeed);
+              float n=noise3(p)*.7+noise3(p*2.2+9.0)*.3;
+              float envelope=(1.0-smoothstep(.70,1.0,t))*smoothstep(.08,.65,n+(.5-t)*.20);
+              float facing=.45+.55*abs(dot(normalize(vNormal),normalize(vView)));
+              float heat=clamp((1.0-t)*.85+n*.45,0.0,1.0);
+              vec3 col=mix(vec3(.95,.055,.003),vec3(1.0,.43,.025),smoothstep(.25,.65,heat));
+              col=mix(col,vec3(1.0,.92,.48),smoothstep(.72,1.0,heat));
+              gl_FragColor=vec4(col*1.45,envelope*facing*.7);
+            }`,
+        });
+        const volume=new THREE.Mesh(geo,mat);volume.name='flame-volume';jet.add(volume);
+        flameMaterials.push(mat);flames.add(jet);
       }
-      flames.userData.flameMaterials=[outerMat,innerMat]; a.add(flames);
+      flames.userData.flameMaterials=flameMaterials; a.add(flames);
     }
   }
   if(config.underglow) {
@@ -330,8 +352,9 @@ export function updateExhaustFlames(car: THREE.Group | null, time: number, activ
   if (!flames) return;
   flames.visible=active;
   if (!active) return;
+  for (const material of (flames.userData.flameMaterials || []) as THREE.ShaderMaterial[]) material.uniforms.uTime.value=time;
   flames.children.forEach((jet,i)=>{
-    const flicker=.72+.28*(.5+.5*Math.sin(time*26+i*2.7));
+    const flicker=.82+.18*(.5+.5*Math.sin(time*21+i*2.7));
     jet.scale.set(1,1,flicker);
   });
 }
