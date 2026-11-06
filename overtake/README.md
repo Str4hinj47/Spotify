@@ -196,3 +196,25 @@ node scripts/controls-scenery-smoke.mjs # indicators, brake lights, traffic and 
 node scripts/truck-traffic-smoke.mjs # NPC trucks, queues and passing-lane safety
 node scripts/upgrade-smoke.mjs # Rush / contracts / records browser test
 ```
+
+### Car image quality
+
+The renderer uses modest, pixel-budgeted desktop supersampling and anisotropic
+filtering on vehicle textures; mobile keeps its existing pixel-ratio cap. These
+settings trade some GPU time and memory for sharper details. The W222 photo
+atlas is restored from the original 4096-pixel source (after the same badge and
+plate masking), and the 458 tire textures use their original resolutions. The
+other cars' source assets have limited or no useful color textures, so the game
+cannot invent finer photographic detail for them.
+
+For a texture-only restore without changing mesh geometry, extract the packed
+source images `W222_Photo_Texture.1001.png`, `wheel_tread.png.000` and
+`wheel_side.png.000` from the respective Blender source files. Redact the W222
+image with `tools/redact_mercedes_atlas.py`, save the opaque result as a
+high-quality JPEG named `mercedes-clean.jpg`, and name the Ferrari files
+`ferrari-tread.png` and `ferrari-side.png`. Run
+`node tools/restore_car_textures.mjs <prepared-image-directory>` from this
+folder. The tool replaces only image buffer views; it doesn't decimate or
+re-encode the car meshes. The Blender converter's texture caps preserve these
+resolutions on future full conversions; run the branding cleanup after any
+full conversion.

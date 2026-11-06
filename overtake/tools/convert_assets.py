@@ -32,6 +32,7 @@ SPECS = {
     "mercedes": {
         "path": Path("/home/user/Spotify/google_drive/MB.W222.AMG.blend"),
         "length": 5.25,
+        "texture_limit": 4096,
         "paint": (0.035, 0.04, 0.05),
         "transform": Matrix(((-1, 0, 0), (0, -1, 0), (0, 0, 1))),
     },
@@ -54,6 +55,7 @@ SPECS = {
     "ferrari": {
         "path": ROOT / "source-assets/ferrari/ferrari_studio.blend",
         "length": 4.57,
+        "texture_limit": 2048,
         "paint": (0.62, 0.012, 0.018),
         "transform": Matrix(((-1, 0, 0), (0, -1, 0), (0, 0, 1))),
     },
@@ -110,7 +112,7 @@ def first_color_image(mat: bpy.types.Material):
     return None
 
 
-def make_material(src: bpy.types.Material, paint_rgb, cache: dict):
+def make_material(src: bpy.types.Material, paint_rgb, cache: dict, texture_limit=1024):
     if src.name in cache:
         return cache[src.name]
     cat = category(src.name)
@@ -184,8 +186,8 @@ def make_material(src: bpy.types.Material, paint_rgb, cache: dict):
         img = first_color_image(src)
         if img is not None:
             try:
-                if max(img.size) > 1024:
-                    ratio = 1024 / max(img.size)
+                if max(img.size) > texture_limit:
+                    ratio = texture_limit / max(img.size)
                     img.scale(max(1, int(img.size[0] * ratio)), max(1, int(img.size[1] * ratio)))
             except Exception:
                 pass
@@ -284,9 +286,9 @@ def convert(key: str, spec: dict):
         me.materials.clear()
         for src in src_mats:
             if src is None:
-                me.materials.append(make_material(bpy.data.materials.new("Unknown"), spec["paint"], cache))
+                me.materials.append(make_material(bpy.data.materials.new("Unknown"), spec["paint"], cache, spec.get("texture_limit", 1024)))
             else:
-                me.materials.append(make_material(src, spec["paint"], cache))
+                me.materials.append(make_material(src, spec["paint"], cache, spec.get("texture_limit", 1024)))
         for p, slot in zip(me.polygons, face_slots):
             p.material_index = min(slot, max(0, len(me.materials) - 1))
         new_obj = bpy.data.objects.new(name=f"{key}_{obj.name}", object_data=me)

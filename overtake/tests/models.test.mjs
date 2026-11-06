@@ -140,3 +140,11 @@ test('RS6 retains smooth body detail within its traffic triangle budget', async 
   assert.ok(body >= 30000, `RS6 body was over-simplified: ${body} triangles`);
   assert.ok(triangles(primitives) < 460000, 'RS6 exceeds its traffic geometry budget');
 });
+
+test('source-detail textures are kept at their real resolutions', async () => {
+  const mercedes=(await io.read(new URL('../public/models/mercedes.glb',import.meta.url).pathname)).getRoot();
+  assert.deepEqual(mercedes.listTextures().find(t=>t.getName()==='MB_W222_Photo_Textures.1001').getSize(),[4096,4096]);
+  const ferrari=(await io.read(new URL('../public/models/ferrari.glb',import.meta.url).pathname)).getRoot();
+  assert.deepEqual(ferrari.listTextures().find(t=>t.getName()==='wheel_tread').getSize(),[2000,2000]);
+  assert.deepEqual(ferrari.listTextures().find(t=>t.getName()==='wheel_side').getSize(),[1181,1181]);
+});
