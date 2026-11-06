@@ -5,14 +5,14 @@ import type { TrafficId } from './catalog';
 // Front is -Z; rear is +Z. No red road beams are created.
 type Lamps = { front: [number,number,number]; rear: [number,number,number] };
 export const LAMP_POSITIONS: Record<TrafficId, Lamps> = {
-  golf:       {front:[.54,.67,-1.84],rear:[.67,.76,1.77]},
-  mercedes:   {front:[.68,.72,-2.30],rear:[.72,.68,2.30]},
-  audi:       {front:[.69,.67,-2.20],rear:[.70,.87,2.24]},
+  golf:       {front:[.54,.67,-1.93],rear:[.67,.76,1.94]},
+  mercedes:   {front:[.68,.72,-2.39],rear:[.72,.68,2.49]},
+  audi:       {front:[.69,.67,-2.25],rear:[.70,.87,2.32]},
   mustang:    {front:[.70,.69,-2.16],rear:[.54,.72,2.30]},
   ferrari:    {front:[.70,.68,-1.68],rear:[.71,.76,1.88]},
-  r8:         {front:[.65,.59,-1.87],rear:[.65,.69,1.98]},
-  challenger: {front:[.65,.73,-2.35],rear:[.59,.87,2.46]},
-  semi:       {front:[.75,.74,-8.08],rear:[.84,.69,7.64]},
+  r8:         {front:[.65,.56,-1.91],rear:[.65,.69,2.06]},
+  challenger: {front:[.65,.73,-2.30],rear:[.59,.87,2.39]},
+  semi:       {front:[.75,.74,-8.08],rear:[.84,.76,7.99]},
   kraz:       {front:[.79,.78,-4.08],rear:[.85,.85,3.90]},
 };
 
