@@ -27,22 +27,31 @@ try {
   const render=()=>{g.composer.render();return g.renderer.domElement.toDataURL()};
   const withShadows=render();shadow.visible=false;const withoutShadows=render();shadow.visible=true;
   const daylight=g.roadSurface.cloud.value;g.roadSurface.cloud.value=0;const noCloud=render();g.roadSurface.cloud.value=daylight;const clouds=render();
+  g.roadSurface.time.value+=90;const moved=render();
   const pixels=url=>new Promise(resolve=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);resolve(ctx.getImageData(0,0,c.width,c.height).data)};img.src=url;});
-  const [a,b,c,d]=await Promise.all([withShadows,withoutShadows,noCloud,clouds].map(pixels));
+  const [a,b,c,d,e]=await Promise.all([withShadows,withoutShadows,noCloud,clouds,moved].map(pixels));
   const diff=(a,b)=>{let count=0;for(let i=0;i<a.length;i+=4)if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>10)count++;return count;};
-  const pixelsShadow=diff(a,b),pixelsCloud=diff(c,d);
+  const pixelsShadow=diff(a,b),pixelsCloud=diff(c,d),pixelsMotion=diff(d,e);
   const names=['detailed-broadleaf','detailed-conifer','detailed-fern'];
   const materials=names.map(name=>g.roadGroup.getObjectByName(name)?.material?.customProgramCacheKey()).filter(Boolean);
-  g.setSceneryQuality('low');g.updateWorld(0);const low=g.roadSurface.cloud.value;
+  g.setSceneryQuality('low');const low=g.roadSurface.cloud.value;g.updateWorld(0);
   g.setSceneryQuality('high');g.setTimeOfDay(0);g.updateWorld(0);const night=g.roadSurface.cloud.value;
   g.setTimeOfDay(12);Object.assign(g.weather,{rain:1,snow:0});g.updateWorld(0);const rain=g.roadSurface.cloud.value;
+  // Shadows stay compact and follow the road at different distances and in snow.
+  const shapes=['golf','mercedes','audi','mustang','ferrari','r8','challenger','semi','kraz'].map((id,i)=>{
+    const meta=g.library.get(id);return {s:g.playerS+20+i*8,offset:i%2?2.1:-2.1,width:meta.width,length:meta.length};
+  });
+  g.trafficShadows.update(shapes,g.playerS,0);const dryY=Array.from({length:shapes.length},(_,i)=>shadow.instanceMatrix.array[i*16+13]);
+  g.trafficShadows.update(shapes,g.playerS,1);const snowY=Array.from({length:shapes.length},(_,i)=>shadow.instanceMatrix.array[i*16+13]);
+  const snowLift=snowY.every((y,i)=>y>=dryY[i] && y-dryY[i]<.3);
   g.clearTraffic();const cleared=shadow.count;g.toGarage();const garage=g.roadGroup.visible;
-  return {live,matrices,pixelsShadow,pixelsCloud,daylight,low,night,rain,cleared,garage,wind:materials.some(k=>k.includes('foliage-wind-v1')),image:withShadows};
+  return {live,matrices,pixelsShadow,pixelsCloud,pixelsMotion,daylight,low,night,rain,cleared,garage,snowLift,wind:materials.some(k=>k.includes('foliage-wind-v1')),image:withShadows};
  });
  fs.mkdirSync('test-results',{recursive:true});fs.writeFileSync('test-results/graphics-upgrade-traffic.png',Buffer.from(result.image.split(',')[1],'base64'));delete result.image;
  assert.equal(result.live,2);assert.ok(result.matrices.every(Number.isFinite));
  for(let i=0;i<result.live;i++){const m=result.matrices.slice(i*16,(i+1)*16);const sx=Math.hypot(m[0],m[1],m[2]),sz=Math.hypot(m[8],m[9],m[10]);assert.ok(sx>1 && sx<4 && sz>2 && sz<20,'bounded contact patch');}
  assert.ok(result.pixelsShadow>20,`traffic shadow pixels: ${result.pixelsShadow}`);assert.ok(result.pixelsCloud>100,`cloud shadow pixels: ${result.pixelsCloud}`);
+ assert.ok(result.pixelsMotion>100 && result.snowLift);
  assert.ok(result.daylight>.15 && result.low===0 && result.night<.001 && result.rain<result.daylight);
  assert.ok(result.wind && result.cleared===0 && !result.garage);assert.deepEqual(errors,[]);
  console.log({real,...result});
