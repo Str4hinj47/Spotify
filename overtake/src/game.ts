@@ -13,6 +13,7 @@ import { EffectComposer, RenderPass, EffectPass, BloomEffect, VignetteEffect, FX
 import { Atmosphere } from './world/atmosphere';
 import { Precipitation } from './world/precipitation';
 import { RoadSpray } from './world/road-spray';
+import { TrafficShadows } from './world/traffic-shadows';
 import { vehiclePixelRatio, sanitizeGraphicsQuality, type GraphicsQuality } from './render-quality.mjs';
 import { createTreeGeometries } from './world/trees';
 import { createRidgeGeometry, createBuildingGeometry, createGrassGeometry, createDistantTreeGeometries, createRockGeometry } from './world/landscape';
@@ -175,6 +176,7 @@ export class OvertakeGame {
   private atmosphere!: Atmosphere;
   private precipitation!: Precipitation;
   private spray!: RoadSpray;
+  private trafficShadows!: TrafficShadows;
   private composer!: EffectComposer;
   private testMode = false;
   private graphicsQuality: GraphicsQuality = 'sharp';
@@ -324,6 +326,7 @@ export class OvertakeGame {
     this.precipitation = new Precipitation(this.scene);
     this.spray = new RoadSpray(this.scene);
     this.buildRoad();
+    this.trafficShadows = new TrafficShadows(this.roadGroup, { centerX, centerY, rightAt, roadYaw, step: STEP, back: BACK, snowHeight: (offset, s, cover) => snowDriftHeight(offset, s, cover, ROAD_HALF) });
     this.buildScenery();
     this.buildGarage();
     this.buildContactShadow();
@@ -1460,6 +1463,7 @@ export class OvertakeGame {
   private clearTraffic() {
     for (const t of this.traffic) { this.scene.remove(t.group); this.disposeCarLights(t.group); }
     this.traffic = [];
+    this.trafficShadows.mesh.count = 0;
   }
 
   private spawnSame(s: number, speed: number) {
@@ -1545,6 +1549,7 @@ export class OvertakeGame {
     this.updateRibbon(this.railCaps[0], 0, undefined, -(ROAD_HALF + 0.51));
     this.updateRibbon(this.railCaps[1], 0, undefined, ROAD_HALF + 0.51);
     this.updateCenterLine();
+    this.trafficShadows.update(this.traffic, this.playerS, this.weather.snowCover);
     this.updatePosts();
     this.updateScenery();
   }
