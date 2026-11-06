@@ -336,33 +336,32 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       const flameMaterials:THREE.ShaderMaterial[]=[];
       for (const [i,x] of centers.entries()) {
         const jet=new THREE.Group(); jet.position.set(x,ferrariFactoryFlame ? .334 : y, ferrariFactoryFlame ? 2.002 : mouthZ);
-        // Original procedural, animated volume: a noisy, luminous shell rather
-        // than the old flat-coloured cones. +Z points out of the tailpipe.
-        const length=.35, radius=f.tipRadius*1.25;
-        const geo=new THREE.SphereGeometry(1,24,18);geo.scale(radius,radius,length*.5);geo.translate(0,0,length*.5);
+        // Three intersecting, soft turbulent sheets make a tapered jet rather
+        // than a glowing sphere. Geometry starts exactly at the real pipe mouth.
+        const length=.34, jetRadius=radius*1.18;
         const mat=new THREE.ShaderMaterial({
-          uniforms:{uTime:{value:0},uSeed:{value:i*7.31},uLength:{value:length},uRadius:{value:radius}},
-          transparent:true,depthWrite:false,depthTest:true,blending:THREE.AdditiveBlending,side:THREE.FrontSide,
-          vertexShader:`varying vec3 vLocal; varying vec3 vNormal; varying vec3 vView;
-            void main(){vLocal=position;vNormal=normalize(normalMatrix*normal);
-              vec4 mv=modelViewMatrix*vec4(position,1.0);vView=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`,
-          fragmentShader:`uniform float uTime,uSeed,uLength,uRadius;varying vec3 vLocal,vNormal,vView;
-            float hash3(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
-            float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
-              return mix(mix(mix(hash3(i),hash3(i+vec3(1,0,0)),f.x),mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x),f.y),
-                         mix(mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x),mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x),f.y),f.z);}
-            void main(){float t=clamp(vLocal.z/uLength,0.0,1.0);
-              vec3 p=vec3(vLocal.xy/uRadius*2.0,t*5.0-uTime*4.0+uSeed);
-              float n=noise3(p)*.7+noise3(p*2.2+9.0)*.3;
-              float envelope=(1.0-smoothstep(.70,1.0,t))*smoothstep(.40,.72,n+(.5-t)*.25);
-              float facing=pow(abs(dot(normalize(vNormal),normalize(vView))),1.5);
-              float heat=clamp((1.0-t)*.85+n*.45,0.0,1.0);
-              vec3 col=mix(vec3(.95,.055,.003),vec3(1.0,.43,.025),smoothstep(.25,.65,heat));
-              col=mix(col,vec3(1.0,.92,.48),smoothstep(.72,1.0,heat));
-              gl_FragColor=vec4(col*1.45,envelope*facing*.7);
+          uniforms:{uTime:{value:0},uSeed:{value:i*7.31}},
+          transparent:true,depthWrite:false,depthTest:true,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,
+          vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+          fragmentShader:`uniform float uTime,uSeed;varying vec2 vUv;
+            float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+            float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
+            void main(){float t=vUv.y;float x=abs(vUv.x-.5)*2.0;
+              float n=noise(vec2(vUv.x*4.0+uSeed,t*7.0-uTime*5.5));
+              float ripple=noise(vec2(vUv.x*8.0-uTime*1.5,t*15.0-uTime*9.0+uSeed));
+              float taper=mix(.85,.06,pow(t,.72))*(.75+.38*n);
+              float edge=1.0-smoothstep(taper*.55,taper,x);
+              float tail=1.0-smoothstep(.65,1.0,t+.11*(ripple-.5));
+              float core=1.0-smoothstep(.0,taper*.62,x);
+              vec3 blue=vec3(.13,.36,1.0), hot=vec3(1.0,.78,.42), orange=vec3(1.0,.20,.015);
+              vec3 col=mix(blue,hot,smoothstep(.02,.22,t));col=mix(col,orange,smoothstep(.25,.85,t)*(1.0-core*.45));
+              gl_FragColor=vec4(col,edge*tail*(.22+.30*core)*(.72+.28*ripple));
             }`,
         });
-        const volume=new THREE.Mesh(geo,mat);volume.name='flame-volume';jet.add(volume);
+        for (const angle of [0,Math.PI/3,-Math.PI/3]) {
+          const geo=new THREE.PlaneGeometry(jetRadius*2,length,1,1);geo.translate(0,length/2,0);geo.rotateX(Math.PI/2);geo.rotateZ(angle);
+          const sheet=new THREE.Mesh(geo,mat);sheet.name='flame-volume';sheet.frustumCulled=false;jet.add(sheet);
+        }
         flameMaterials.push(mat);flames.add(jet);
       }
       flames.userData.flameMaterials=flameMaterials; a.add(flames);
@@ -405,7 +404,7 @@ export function updateExhaustFlames(car: THREE.Group | null, time: number, activ
   if (!active) return;
   for (const material of (flames.userData.flameMaterials || []) as THREE.ShaderMaterial[]) material.uniforms.uTime.value=time;
   flames.children.forEach((jet,i)=>{
-    const flicker=.82+.18*(.5+.5*Math.sin(time*21+i*2.7));
-    jet.scale.set(1,1,flicker);
+    const flicker=.55+.45*(.5+.5*Math.sin(time*19+i*2.7)*Math.sin(time*7.7+i));
+    jet.scale.set(.8+flicker*.2,.8+flicker*.2,flicker);
   });
 }
