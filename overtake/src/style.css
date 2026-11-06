@@ -519,3 +519,31 @@ svg { stroke-width: 1.75; }
 .graphics-section { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
 .graphics-panel { max-height: calc(100dvh - 78px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
 @media (max-width: 700px) { .graphics-panel { max-height: calc(100dvh - 66px); } }
+
+/* Keep the vehicle visible above compact showroom controls on phones. */
+@media (max-width: 700px) {
+  #garage:not(.customizing) .car-list { bottom:10px; }
+  #garage:not(.customizing) .car-list .panel-title { padding:8px 12px 4px; }
+  #garage:not(.customizing) #car-cards { padding:0 8px 7px; gap:4px; }
+  #garage:not(.customizing) .car-card { min-width:100px; padding:4px 6px; gap:1px; }
+  #garage:not(.customizing) .car-card img { width:80px; height:35px; }
+  #garage:not(.customizing) .car-card .cc-maker,
+  #garage:not(.customizing) .car-card .cc-class { display:none; }
+  #garage:not(.customizing) .car-card .cc-name { font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #car-detail { top:auto; bottom:120px; padding:12px 14px; max-height:min(39dvh, 330px); touch-action:pan-y; overscroll-behavior:contain; }
+  #car-detail h1 { font-size:19px; margin:2px 0 5px; }
+  #car-detail .class-pill, #car-detail .hint { display:none; }
+  #car-detail .stats { gap:16px; margin:0 0 7px; }
+  #car-detail .stat { font-size:9px; gap:2px; }
+  #car-detail .dots i { width:12px; height:4px; }
+  #car-detail .mode-select { gap:6px; margin:0 0 6px; }
+  #car-detail .mode-card { padding:6px 8px; flex-direction:row; align-items:center; justify-content:space-between; }
+  #car-detail .mode-desc { display:none; }
+  #car-detail .mode-best { margin:0; }
+  #car-detail .paint { padding-top:6px; margin:0 0 7px; }
+  #car-detail .paint-head { margin-bottom:5px; }
+  #car-detail .paint-swatches { gap:5px; margin-bottom:5px; grid-template-columns:repeat(10, 20px); }
+  #car-detail .paint-custom { font-size:11px; }
+  #car-detail .customize-open { margin-bottom:6px; padding:8px 10px; }
+  #car-detail .primary { padding:9px 12px; }
+}

@@ -1757,14 +1757,16 @@ export class OvertakeGame {
   private updateCamera(dt: number) {
     if (this.mode === 'garage') {
       if (this.garageAuto && !this.garageDragging) this.garageAngle += dt * 0.05;
-      const compactWorkshop = this.garageWorkshop && window.innerWidth <= 700;
-      const r = compactWorkshop ? Math.max(this.garageZoom, 10.5) : this.garageZoom;
+      // On phones the controls occupy the lower half; lift the preview into
+      // the clear upper area, in both the showroom and workshop.
+      const compactGarage = window.innerWidth <= 700;
+      const r = compactGarage ? Math.max(this.garageZoom, 10.5) : this.garageZoom;
       const y = 0.7 + Math.sin(this.garagePitch) * r;
       const horiz = Math.cos(this.garagePitch) * r;
       this.camera.position.set(Math.sin(this.garageAngle) * horiz, y, Math.cos(this.garageAngle) * horiz);
       this.camera.lookAt(0, 0.65, 0);
-      this.camera.fov = compactWorkshop ? 50 : 42;
-      if (compactWorkshop) this.camera.setViewOffset(window.innerWidth, window.innerHeight, 0, window.innerHeight * 0.2, window.innerWidth, window.innerHeight);
+      this.camera.fov = compactGarage ? 50 : 42;
+      if (compactGarage) this.camera.setViewOffset(window.innerWidth, window.innerHeight, 0, window.innerHeight * 0.2, window.innerWidth, window.innerHeight);
       else this.camera.clearViewOffset();
       this.camera.updateProjectionMatrix();
       this.atmosphere.sky.position.copy(this.camera.position);
