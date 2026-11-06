@@ -1,3 +1,4 @@
+import { seedEconomy } from './seed-economy.mjs';
 import { chromium as pw } from '@playwright/test';
 import chromium from '@sparticuz/chromium';
 import fs from 'node:fs';
@@ -18,6 +19,7 @@ page.on('pageerror', (e) => errors.push(String(e)));
 const shot = (name) => page.screenshot({ path: out + name, timeout: 90000 });
 const g = (fn) => page.evaluate(fn);
 
+await seedEconomy(page);
 await page.goto('http://localhost:3000/?test=1', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('#topbar:not(.hidden)', { timeout: 120000 });
 await page.addStyleTag({ content: '*{backdrop-filter:none!important;animation:none!important;transition:none!important}' });
@@ -25,7 +27,6 @@ await page.waitForTimeout(800);
 const cards = await page.locator('.car-card').count();
 await shot('garage.png');
 
-await page.click('#dev-toggle');
 await page.click('.car-card[data-car="ferrari"]');
 await page.waitForTimeout(500);
 await shot('garage-ferrari.png');

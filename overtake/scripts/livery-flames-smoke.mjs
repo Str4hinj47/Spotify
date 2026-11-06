@@ -1,3 +1,4 @@
+import { seedEconomy } from './seed-economy.mjs';
 import { chromium as pw } from '@playwright/test';
 import chromium from '@sparticuz/chromium';
 import assert from 'node:assert/strict';
@@ -9,6 +10,7 @@ const errors=[];
 try {
   const page=await browser.newPage({viewport:{width:1280,height:800}});
   page.on('console',m=>{if(m.type()==='error')errors.push(m.text())}); page.on('pageerror',e=>errors.push(String(e)));
+  await seedEconomy(page);
   await page.goto('http://localhost:3000/?test=1'); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.click('.car-card[data-car="golf"]');await page.click('#btn-customize');
   await page.click('[data-workshop-tab="paint"]');
@@ -70,6 +72,7 @@ try {
   await page.close();
   const mobile=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   mobile.on('pageerror',e=>errors.push(String(e)));
+  await seedEconomy(mobile);
   await mobile.goto('http://localhost:3000/?test=1',{timeout:180000,waitUntil:'domcontentloaded'});
   await mobile.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await mobile.click('#btn-customize');
   assert.equal(await mobile.locator('#custom-front-finish').isDisabled(),true);

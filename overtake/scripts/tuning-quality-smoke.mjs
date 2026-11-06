@@ -1,3 +1,4 @@
+import { seedEconomy } from './seed-economy.mjs';
 // Expanded tuning options, Golf lamps, and procedural flames against Vite.
 import { chromium as pw } from '@playwright/test';
 import chromium from '@sparticuz/chromium';
@@ -9,6 +10,7 @@ const errors=[];
 try {
   const page=await browser.newPage({viewport:{width:1100,height:760}});
   page.on('pageerror',e=>errors.push(String(e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+  await seedEconomy(page);
   await page.goto('http://localhost:3000/?test=1',{timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.evaluate(()=>localStorage.removeItem('overtake-customization-v1'));
   await page.click('.car-card[data-car="golf"]');await page.click('#btn-customize');
