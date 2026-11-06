@@ -586,3 +586,5 @@ svg { stroke-width: 1.75; }
 @media (max-width: 700px) and (max-height: 500px) and (orientation: landscape) {
   .progression-head { align-items: flex-start; flex-direction: column; gap: 3px; }
 }
+/* Keep the primary action reachable while the garage details scroll. */
+#car-detail > #btn-start { position: sticky; bottom: 0; z-index: 2; box-shadow: 0 -5px 12px rgba(12,18,24,.65); }
