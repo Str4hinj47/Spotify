@@ -44,6 +44,11 @@ try {
   assert.equal((await state()).dev,false);
   for (const viewport of [{width:390,height:844},{width:667,height:375}]) {
     await page.setViewportSize(viewport);
+    const actionInPanel = await page.evaluate(() => {
+      const b=document.querySelector('#btn-start').getBoundingClientRect(), p=document.querySelector('#car-detail').getBoundingClientRect();
+      return b.top >= p.top && b.bottom <= p.bottom;
+    });
+    assert.equal(actionInPanel,true,'start stays visible in the scrollable garage panel');
     await page.locator('#dev-toggle').scrollIntoViewIfNeeded();
     assert.equal(await page.locator('#dev-toggle').isVisible(),true);
     await page.click('#dev-toggle'); assert.equal((await state()).dev,true);
