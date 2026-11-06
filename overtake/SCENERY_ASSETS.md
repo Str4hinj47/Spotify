@@ -17,3 +17,8 @@ The meadow texture `public/textures/landscape/grass.jpg` and pine foliage cutout
 `public/textures/landscape/pine.png` were AI-generated specifically for this game; it is not a Poly Haven asset. Existing vehicle
 assets have separate provenance; their licenses are not implied by the
 vegetation's CC0 status.
+
+The mountain material uses a reduced 1024px version of Poly Haven's CC0
+[`cliff_side`](https://polyhaven.com/a/cliff_side) texture by James Ray Cock,
+Jenelle van Heerden and Dario Barresi. The 2K source was obtained from the
+[AstraWeave Poly Haven asset manifest](https://github.com/lazyxeon/AstraWeave/blob/d01720a81c3776efa233ee3fd84d72f1094ac7a7/assets/terrain/polyhaven/pine_forest/manifest.json).

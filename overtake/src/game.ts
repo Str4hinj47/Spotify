@@ -215,6 +215,10 @@ export class OvertakeGame {
   private rocks!: THREE.InstancedMesh;
   private buildings!: THREE.InstancedMesh;
   private grass!: THREE.InstancedMesh;
+  private cheapBroadleaf!: THREE.InstancedMesh;
+  private cheapBroadTrunks!: THREE.InstancedMesh;
+  private cheapPines!: THREE.InstancedMesh;
+  private cheapPineTrunks!: THREE.InstancedMesh;
   private distantTrees!: THREE.InstancedMesh;
   private distantTrunks!: THREE.InstancedMesh;
   private distantPines!: THREE.InstancedMesh;
@@ -774,11 +778,15 @@ export class OvertakeGame {
     this.buildings = new THREE.InstancedMesh(createBuildingGeometry(), this.buildingMat, 70);
     this.grass = new THREE.InstancedMesh(createGrassGeometry(), new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 1, side: THREE.DoubleSide }), 420);
     const distant = createDistantTreeGeometries();
+    this.cheapBroadleaf = new THREE.InstancedMesh(distant.crown, this.treeMat, 150);
+    this.cheapBroadTrunks = new THREE.InstancedMesh(distant.wood, bark, 150);
+    this.cheapPines = new THREE.InstancedMesh(distant.pine, this.coniferMat, 150);
+    this.cheapPineTrunks = new THREE.InstancedMesh(distant.wood, bark, 150);
     this.distantTrees = new THREE.InstancedMesh(distant.crown, this.treeMat, 180);
     this.distantTrunks = new THREE.InstancedMesh(distant.wood, bark, 180);
     this.distantPines = new THREE.InstancedMesh(distant.pine, this.coniferMat, 180);
     this.distantPineTrunks = new THREE.InstancedMesh(distant.wood, bark, 180);
-    for (const m of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks, this.rocks, this.buildings, this.grass, this.distantTrees, this.distantTrunks, this.distantPines, this.distantPineTrunks]) {
+    for (const m of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks, this.rocks, this.buildings, this.grass, this.cheapBroadleaf, this.cheapBroadTrunks, this.cheapPines, this.cheapPineTrunks, this.distantTrees, this.distantTrunks, this.distantPines, this.distantPineTrunks]) {
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       m.frustumCulled = false;
       this.roadGroup.add(m);
@@ -820,23 +828,34 @@ export class OvertakeGame {
     }
 
     this.mountainMat = new THREE.MeshStandardMaterial({ color: 0x728598, roughness: 1, vertexColors: true, side: THREE.DoubleSide });
+    const mountainTexture = new THREE.TextureLoader().load('./textures/landscape/mountain.jpg');
+    mountainTexture.colorSpace = THREE.SRGBColorSpace;
+    mountainTexture.wrapS = mountainTexture.wrapT = THREE.RepeatWrapping;
+    mountainTexture.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
     this.mountainMat.onBeforeCompile = shader => {
       shader.uniforms.mountainSnow = this.mountainSnow;
-      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 mountainWorld;')
-        .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nmountainWorld = (modelMatrix * vec4(transformed,1.0)).xyz;');
+      shader.uniforms.mountainMap = { value: mountainTexture };
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 mountainWorld; varying vec3 mountainLocal; varying vec3 mountainNormal;')
+        .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nmountainWorld = (modelMatrix * vec4(transformed,1.0)).xyz; mountainLocal = position; mountainNormal = normal;');
       shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
-        varying vec3 mountainWorld; uniform float mountainSnow;
+        varying vec3 mountainWorld; varying vec3 mountainLocal; varying vec3 mountainNormal; uniform float mountainSnow; uniform sampler2D mountainMap;
         float mountainHash(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
         float mountainNoise(vec2 p) { vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
           return mix(mix(mountainHash(i),mountainHash(i+vec2(1.,0.)),f.x),mix(mountainHash(i+vec2(0.,1.)),mountainHash(i+vec2(1.,1.)),f.x),f.y); }`)
         .replace('#include <color_fragment>', `#include <color_fragment>
           float rock = mountainNoise(mountainWorld.xz * .025 + mountainWorld.y * .017);
           float crags = mountainNoise(mountainWorld.xz * .11 + mountainWorld.y * .12);
-          diffuseColor.rgb *= .66 + rock * .34 + crags * .16;
+          vec3 weights = pow(abs(normalize(mountainNormal)), vec3(4.0));
+          weights /= max(weights.x + weights.y + weights.z, .001);
+          vec3 rockPhoto = texture2D(mountainMap, mountainLocal.zy * .012).rgb * weights.x
+            + texture2D(mountainMap, mountainLocal.xz * .012).rgb * weights.y
+            + texture2D(mountainMap, mountainLocal.xy * .012).rgb * weights.z;
+          float stone = dot(rockPhoto, vec3(.299,.587,.114));
+          diffuseColor.rgb *= mix(.75, clamp(stone * 3.3, .35, 1.6), .65) * (.72 + rock * .25 + crags * .12);
           float cap = smoothstep(45.0, 115.0, mountainWorld.y - cameraPosition.y + rock * 25.0) * mountainSnow;
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.78,.84,.86), cap * .8);`);
     };
-    this.mountainMat.customProgramCacheKey = () => 'mountain-rock-detail-v1';
+    this.mountainMat.customProgramCacheKey = () => 'mountain-rock-detail-v2';
     for (const [radius, height, phase] of [[525, 110, 0.7], [760, 175, 2.4]]) {
       const ridge = new THREE.Mesh(createRidgeGeometry(radius, height, phase), this.mountainMat);
       ridge.frustumCulled = false;
@@ -860,7 +879,7 @@ export class OvertakeGame {
       this.dummy.scale.set(sc, sc, sc);
       this.dummy.updateMatrix();
       mesh.setMatrixAt(i, this.dummy.matrix);
-      const foliage = mesh === this.broadleaf || mesh === this.conifers || mesh === this.distantTrees || mesh === this.distantPines;
+      const foliage = mesh === this.cheapBroadleaf || mesh === this.cheapPines || mesh === this.distantTrees || mesh === this.distantPines;
       color.set(hex).lerp(snowyColor, snow * (foliage ? 0.16 : 0.65));
       mesh.setColorAt(i, color);
     };
@@ -875,10 +894,10 @@ export class OvertakeGame {
       const coniferFade = treeFade * smooth01(hash01(k * 17 + 3), p.coniferRatio);
       const broadFade = treeFade * (1 - smooth01(hash01(k * 17 + 3), p.coniferRatio));
       if (!detailedActive) {
-      place(this.broadleaf, i, s, side, dist, sc * broadFade, 0, p.tree);
-      place(this.broadTrunks, i, s, side, dist, sc * broadFade, 0, 0x564333);
-      place(this.conifers, i, s, -side, dist + 6, sc * coniferFade, 0, p.conifer);
-      place(this.pineTrunks, i, s, -side, dist + 6, sc * coniferFade, 0, 0x4c392c);
+      place(this.cheapBroadleaf, i, s, side, dist, sc * broadFade, 0, p.tree);
+      place(this.cheapBroadTrunks, i, s, side, dist, sc * broadFade, 0, 0x564333);
+      place(this.cheapPines, i, s, -side, dist + 6, sc * coniferFade, 0, p.conifer);
+      place(this.cheapPineTrunks, i, s, -side, dist + 6, sc * coniferFade, 0, 0x4c392c);
       }
       if (i < 100) {
         const rockFade = smooth01(hash01(k * 19 + 7), p.rockDensity);
@@ -915,7 +934,7 @@ export class OvertakeGame {
       place(this.distantPines, i, s, side, dist, scale * pine, 0, p.conifer);
       place(this.distantPineTrunks, i, s, side, dist, scale * pine, 0, 0x4c392c);
     }
-    for (const m of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks, this.rocks, this.buildings, this.grass, this.distantTrees, this.distantTrunks, this.distantPines, this.distantPineTrunks]) {
+    for (const m of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks, this.rocks, this.buildings, this.grass, this.cheapBroadleaf, this.cheapBroadTrunks, this.cheapPines, this.cheapPineTrunks, this.distantTrees, this.distantTrunks, this.distantPines, this.distantPineTrunks]) {
       m.instanceMatrix.needsUpdate = true;
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
@@ -965,7 +984,8 @@ export class OvertakeGame {
     const detailed = this.detailedScenery;
     const enabled = detailed.ready && this.sceneryQuality !== 'low';
     this.grass.visible = !enabled;
-    for (const mesh of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks, this.distantTrees, this.distantTrunks, this.distantPines, this.distantPineTrunks]) mesh.visible = !enabled;
+    for (const mesh of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks]) mesh.visible = false;
+    for (const mesh of [this.cheapBroadleaf, this.cheapBroadTrunks, this.cheapPines, this.cheapPineTrunks, this.distantTrees, this.distantTrunks, this.distantPines, this.distantPineTrunks]) mesh.visible = !enabled;
     detailed.begin();
     if (enabled) {
       const high = this.sceneryQuality === 'high';
