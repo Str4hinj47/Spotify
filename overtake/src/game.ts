@@ -209,6 +209,7 @@ export class OvertakeGame {
   private edgeL!: THREE.Mesh;
   private edgeR!: THREE.Mesh;
   private centerLine!: THREE.Mesh;
+  private roadStuds!: THREE.InstancedMesh;
   private railL!: THREE.Mesh;
   private railR!: THREE.Mesh;
   private posts!: THREE.InstancedMesh;
@@ -676,6 +677,13 @@ export class OvertakeGame {
     this.centerLine.userData.dashCount = dashCount;
     this.centerLine.frustumCulled = false;
     this.roadGroup.add(this.centerLine);
+    // Small raised reflectors sit in the gaps between the centre-line dashes.
+    this.roadStuds = new THREE.InstancedMesh(new THREE.BoxGeometry(.12, .025, .14),
+      new THREE.MeshStandardMaterial({ color: 0xd9b754, emissive: 0x8f6b22, emissiveIntensity: .1, metalness: .3, roughness: .38 }), dashCount);
+    this.roadStuds.name = 'road-centre-reflectors';
+    this.roadStuds.frustumCulled = false;
+    this.roadStuds.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.roadGroup.add(this.roadStuds);
 
     this.posts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.13, 0.75, 0.16), railMat, 320);
     this.posts.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -744,6 +752,16 @@ export class OvertakeGame {
     }
     attr.needsUpdate = true;
     this.centerLine.geometry.computeVertexNormals();
+    for (let i = 0; i < count; i++) {
+      const s = start + i * 9 + 6.5;
+      this.dummy.position.set(centerX(s), centerY(s) + .045, -s);
+      this.dummy.rotation.set(Math.atan(centerDy(s)), roadYaw(s), 0);
+      this.dummy.scale.set(1, 1, 1); this.dummy.updateMatrix();
+      this.roadStuds.setMatrixAt(i, this.dummy.matrix);
+    }
+    this.roadStuds.count = count;
+    this.roadStuds.visible = this.weather.snowCover < .55;
+    this.roadStuds.instanceMatrix.needsUpdate = true;
   }
 
   private updatePosts() {
@@ -1741,6 +1759,7 @@ export class OvertakeGame {
     this.asphaltMat.metalness = 0.02 + wet * 0.04;
     this.asphaltMat.color.set(0xb2b5ba);
     this.lampMat.emissiveIntensity = 0.25 + atm.night * 2.4 + atm.cloud * 0.8;
+    (this.roadStuds.material as THREE.MeshStandardMaterial).emissiveIntensity = .1 + atm.night * .45;
 
     // Player headlights follow the car and fade in at night / in precipitation.
     const beam = Math.max(atm.night, atm.cloud * 0.65);

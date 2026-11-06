@@ -67,6 +67,11 @@ export function createAsphaltMaterial(roadWidth: number, aniso: number, values: 
     `).replace('#include <color_fragment>', `#include <color_fragment>
       vec2 roadPos = roadMetres();
       float puddle = puddleAt(roadPos);
+      // Road aggregate and resurfacing vary gradually in road-space. The
+      // low-contrast mottling avoids obvious tile repetitions or long stripes.
+      float aggregate = surfaceNoise(roadPos * vec2(.32, .22) + 31.0);
+      float fineWear = surfaceNoise(roadPos * vec2(1.2, .9) - 7.0);
+      diffuseColor.rgb *= 0.92 + aggregate * .12 + fineWear * .04;
       // Two subtle, worn wheel paths per lane, not alternating rectangles.
       float tracks = 0.0;
       for (int i = 0; i < 4; i++) {
@@ -99,7 +104,7 @@ export function createAsphaltMaterial(roadWidth: number, aniso: number, values: 
       metalnessFactor = mix(metalnessFactor, 0.35, puddle);
     `);
   };
-  material.customProgramCacheKey = () => 'road-asphalt-pbr-v3';
+  material.customProgramCacheKey = () => 'road-asphalt-pbr-v4';
   return material;
 }
 
