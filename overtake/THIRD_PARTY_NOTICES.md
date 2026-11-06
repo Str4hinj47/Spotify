@@ -53,6 +53,16 @@ re-encoded and distributed in the [Torqa texture assets](https://github.com/boss
 whose credits identify these sources and the CC0 dedication.
 
 
+## Scenery models and textures
+
+The modified `tree_small_02` and `boulder_01` models by Rico Cilliers,
+`fern_02` by Rob Tuytel and Rico Cilliers, and the `cliff_side` texture by
+James Ray Cock, Jenelle van Heerden and Dario Barresi are from
+[Poly Haven](https://polyhaven.com/) under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+See `SCENERY_ASSETS.md` in the source repository for asset links, derivative
+sources and optimization details. The meadow, pine, facade and panoramic
+textures were generated for this game and are not Poly Haven assets.
+
 ## Vehicle models
 
 The project owner reports permission to redistribute and modify all supplied

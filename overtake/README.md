@@ -118,12 +118,20 @@ of that model.
 
 ## World, weather and day–night
 
-The background no longer swaps biomes abruptly. Roadside scenery is placed in
-deterministic slots with layered foliage and visible trunks, low-poly middle-distance tree lines, grass tufts and detailed building facades, and cross-faded by distance through **meadow → forest →
-alpine → desert → outskirts** using `simplex-noise` and smoothstep weights
-(`src/world/biomes.mjs`). Ground, shoulder, mountain and fog colours blend with
-the same weights. Layered continuous ridgelines, world-anchored ground variation
-and drifting procedural clouds add depth while responding to weather and time of day.
+The scenery blends smoothly between meadow, forest, alpine, desert and
+outskirts using `simplex-noise` and distance-based weights
+(`src/world/biomes.mjs`). Rolling road-aligned terrain, world-space ground
+detail, instanced vegetation, scan-based rocks, textured buildings and
+biome-matched panoramic mountain backdrops give the roadside more depth.
+The distant panoramas and evergreen foliage use image-based cutouts; the sky,
+weather, illumination, near ground and deciduous trees remain dynamic 3D.
+The source and provenance of the scenery assets are in `SCENERY_ASSETS.md`.
+
+The Graphics panel offers **High / Medium / Low scenery detail** independently
+of render resolution. High uses denser foliage; Medium reduces detail and
+instance counts; Low switches to lightweight procedural trees and ridges.
+Detailed models are not loaded at startup when Low is saved. Preferences are
+saved locally, and changes take effect without restarting the run.
 
 A day–night clock (`src/world/clock.mjs`) drives the sky gradient, sun disc,
 moon, stars, street lamps and player headlights. A full cycle takes 10 minutes
@@ -193,6 +201,8 @@ node scripts/road-detail-smoke.mjs # streetlight close-up and mobile snow view
 node scripts/extra-graphics-smoke.mjs # tire spray, snowy foliage and roadside signs
 node scripts/vehicle-snow-smoke.mjs # car materials, snow density and antialiasing
 node scripts/graphics-settings-smoke.mjs # real render buffers, saved graphics settings and mobile layout
+node scripts/scenery-quality-smoke.mjs # quality levels, recycling, weather and low-detail loading
+node scripts/scenery-motion-smoke.mjs # sustained driving through moving scenery
 node scripts/controls-scenery-smoke.mjs # indicators, brake lights, traffic and collisions
 node scripts/truck-traffic-smoke.mjs # NPC trucks, queues and passing-lane safety
 node scripts/upgrade-smoke.mjs # Rush / contracts / records browser test
