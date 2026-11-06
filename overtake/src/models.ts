@@ -246,7 +246,7 @@ export class ModelLibrary {
     const lightCopies = new Map<THREE.Material, THREE.MeshStandardMaterial>();
     const indicatorCopies: THREE.MeshStandardMaterial[] = [];
     const brakeIndicatorCopies: THREE.MeshStandardMaterial[] = [];
-    const signal: IndicatorUniforms = { left: { value: 0 }, right: { value: 0 }, viewZ: { value: 1 } };
+    const signal: IndicatorUniforms = { left: { value: 0 }, right: { value: 0 }, viewZ: { value: 1 }, brake: { value: 0 } };
     let factoryPaint: number | undefined;
     const customPaintCopies: THREE.Material[] = [];
     const customGeometries: THREE.BufferGeometry[] = [];
@@ -259,7 +259,7 @@ export class ModelLibrary {
       mesh.receiveShadow = false;
       const recolor = (mat: THREE.Material) => {
         if (factoryPaint === undefined && mat.name.startsWith('paint__')) factoryPaint = (mat as THREE.MeshStandardMaterial).color?.getHex();
-        if (opts.player && id !== 'semi' && id !== 'kraz' && isIndicatorMaterial(id, mat)) {
+        if ((opts.player || id === 'golf') && id !== 'semi' && id !== 'kraz' && isIndicatorMaterial(id, mat)) {
           const meshToCar = new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
           const lamp = indicatorMaterial(id, mat, meshToCar, signal);
           if (mat.name.startsWith('taillight__')) { lamp.emissiveIntensity = 0.55; brakeIndicatorCopies.push(lamp); }

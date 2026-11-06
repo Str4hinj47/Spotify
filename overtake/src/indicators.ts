@@ -4,7 +4,7 @@ import type { CarId } from './catalog';
 // Coordinates are measured in the car's oriented, ground-level space, not
 // world space. The shader runs only on existing lamp meshes and thus follows
 // their original lens shapes, depth, occlusion, perspective and animation.
-export type IndicatorUniforms = { left: { value: number }; right: { value: number }; viewZ: { value: number } };
+export type IndicatorUniforms = { left: { value: number }; right: { value: number }; viewZ: { value: number }; brake: { value: number } };
 type Config = { materials: string[]; x: [number, number]; y: [number, number]; z: number; color: 'amber' | 'red'; ellipse?: [number, number, number, number] };
 export const INDICATOR_LAYOUTS: Record<CarId, Config> = {
   golf:       { materials: ['taillight__Rear-lights'], x: [0.50, 0.82], y: [0.80, 0.88], z: 1.63, color: 'amber' },
@@ -34,14 +34,16 @@ export function indicatorMaterial(id: CarId, source: THREE.Material, meshToCar: 
   // glass cover; the real lens supplies the corners and thickness.
   const color = layout.color === 'red' ? 'vec3(1.0, 0.015, 0.008)' : 'vec3(1.0, 0.30, 0.008)';
   const dark = layout.color === 'red' ? 'step(sideState, -0.5) * zone' : '0.0';
+  if (id === 'golf') material.userData.selectiveBrake = true;
   material.onBeforeCompile = shader => {
     shader.uniforms.indicatorToCar = { value: meshToCar };
     shader.uniforms.indicatorLeft = state.left;
     shader.uniforms.indicatorRight = state.right;
     shader.uniforms.indicatorViewZ = state.viewZ;
+    shader.uniforms.brakeLevel = state.brake;
     shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nuniform mat4 indicatorToCar;\nvarying vec3 indicatorPos;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nindicatorPos = (indicatorToCar * vec4(transformed, 1.0)).xyz;');
-    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 indicatorPos;\nuniform float indicatorLeft, indicatorRight, indicatorViewZ;')
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 indicatorPos;\nuniform float indicatorLeft, indicatorRight, indicatorViewZ, brakeLevel;')
       .replace('#include <color_fragment>', `#include <color_fragment>
         float sideState = indicatorPos.x < 0.0 ? indicatorLeft : indicatorRight;
         float ax = abs(indicatorPos.x);
@@ -55,8 +57,15 @@ export function indicatorMaterial(id: CarId, source: THREE.Material, meshToCar: 
       `).replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         totalEmissiveRadiance = mix(totalEmissiveRadiance, ${color} * 2.0, signalOn);
         totalEmissiveRadiance *= 1.0 - signalOff * 0.95;
+        ${id === 'golf' ? `
+        // Only the red lower lens is a brake lamp. Preserve the amber turn
+        // strip and white reversing segment in the original textured lens.
+        float redLens = smoothstep(0.06, 0.22, diffuseColor.r - max(diffuseColor.g, diffuseColor.b));
+        float lowerLens = 1.0 - smoothstep(0.795, 0.815, indicatorPos.y);
+        totalEmissiveRadiance += vec3(1.0, 0.012, 0.006) * brakeLevel * redLens * lowerLens * 2.0;
+        ` : ''}
       `);
   };
-  material.customProgramCacheKey = () => `rear-indicator-${id}-v2`;
+  material.customProgramCacheKey = () => `rear-indicator-${id}-v3`;
   return material;
 }

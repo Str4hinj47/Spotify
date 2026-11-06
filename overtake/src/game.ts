@@ -1088,7 +1088,7 @@ export class OvertakeGame {
   private updatePlayerLights(dt: number) {
     this.signalElapsed += dt;
     const braking = this.input.brake || this.input.handbrake;
-    for (const m of (this.player?.userData.brakeMaterials ?? []) as THREE.MeshStandardMaterial[]) m.emissiveIntensity = braking ? 2.8 : 0.55;
+    for (const m of (this.player?.userData.brakeMaterials ?? []) as THREE.MeshStandardMaterial[]) m.emissiveIntensity = braking && !m.userData.selectiveBrake ? 2.8 : 0.55;
     // Fallback lamps for models without dedicated tail-light materials. Other
     // cars use their actual rear lenses, not a floating red billboard.
     const needsFallback = !(this.player?.userData.brakeMaterials?.length);
@@ -1096,6 +1096,7 @@ export class OvertakeGame {
     const lit = !!this.signal && (this.signalElapsed % 1.0) < 0.5;
     const state = this.player?.userData.indicatorState;
     if (state) {
+      state.brake.value = braking ? 1 : 0;
       state.left.value = this.signal === 'left' ? (lit ? 1 : -1) : 0;
       state.right.value = this.signal === 'right' ? (lit ? 1 : -1) : 0;
     }
@@ -1359,7 +1360,8 @@ export class OvertakeGame {
       t.group.position.set(px, centerY(t.s), pz);
       t.group.rotation.y = roadYaw(t.s) + (t.dir === -1 ? Math.PI : 0);
       if (t.brakeGlow) (t.brakeGlow.material as THREE.SpriteMaterial).opacity = t.braking && !t.group.userData.brakeMaterials?.length ? 0.9 : 0;
-      for (const m of (t.group.userData.brakeMaterials ?? []) as THREE.MeshStandardMaterial[]) m.emissiveIntensity = t.braking ? 2.8 : 0.55;
+      for (const m of (t.group.userData.brakeMaterials ?? []) as THREE.MeshStandardMaterial[]) m.emissiveIntensity = t.braking && !m.userData.selectiveBrake ? 2.8 : 0.55;
+      if (t.group.userData.indicatorState) t.group.userData.indicatorState.brake.value = t.braking ? 1 : 0;
 
       const ds = t.s - this.playerS;
       const dOff = t.offset - this.offset;
