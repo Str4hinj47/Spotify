@@ -6,6 +6,7 @@ The following already-optimized 1K glTF versions were obtained from the
 ([source manifest](https://github.com/agrimuitobom/landscape/blob/b39728c1c782ce377da77befd256b28d6002d459/presets/manifest.json)):
 
 - `tree_small_02`: Rico Cilliers / Poly Haven, [original](https://polyhaven.com/a/tree_small_02). The source's textured leaf cards were thinned deterministically and enlarged, and branches simplified.
+- `boulder_01`: Rico Cilliers / Poly Haven, [original](https://polyhaven.com/a/boulder_01). Further reduced using meshoptimizer sloppy simplification for roadside use.
 - `fern_02`: Rob Tuytel and Rico Cilliers / Poly Haven, [original](https://polyhaven.com/a/fern_02).
 
 Each asset uses meshopt and WebP compression. `tools/prepare_scenery.mjs`

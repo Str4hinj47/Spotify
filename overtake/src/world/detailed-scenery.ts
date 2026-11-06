@@ -9,7 +9,7 @@ export function sanitizeSceneryQuality(value: unknown): SceneryQuality {
   return value === 'low' || value === 'medium' || value === 'high' ? value : 'high';
 }
 
-type Species = 'broadleaf' | 'conifer' | 'fern';
+type Species = 'broadleaf' | 'conifer' | 'fern' | 'rock';
 interface Vegetation { meshes: THREE.InstancedMesh[]; height: number; }
 
 // Three shared, textured models replace many unique draw calls. Instances are
@@ -19,7 +19,7 @@ export class DetailedScenery {
   ready = false;
   private species = {} as Record<Species, Vegetation>;
   private loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  private counts: Record<Species, number> = { broadleaf: 0, conifer: 0, fern: 0 };
+  private counts: Record<Species, number> = { broadleaf: 0, conifer: 0, fern: 0, rock: 0 };
   readonly capacity = 96;
 
   constructor(private parent: THREE.Group, private snow: { value: number }, private maxAnisotropy: number, onReady: () => void) {
@@ -29,7 +29,7 @@ export class DetailedScenery {
   }
 
   private async load() {
-    const names: [Species, string][] = [['broadleaf', 'deciduous'], ['fern', 'fern']];
+    const names: [Species, string][] = [['broadleaf', 'deciduous'], ['fern', 'fern'], ['rock', 'boulder']];
     const models = await Promise.all(names.map(([, file]) => this.loader.loadAsync(`./models/scenery/${file}.glb`)));
     names.forEach(([kind], index) => {
       const root = models[index].scene;
@@ -97,7 +97,7 @@ export class DetailedScenery {
 
   }
 
-  begin() { this.counts = { broadleaf: 0, conifer: 0, fern: 0 }; }
+  begin() { this.counts = { broadleaf: 0, conifer: 0, fern: 0, rock: 0 }; }
   place(kind: Species, matrix: THREE.Matrix4) {
     if (!this.ready || this.counts[kind] >= this.capacity) return;
     const i = this.counts[kind]++;
@@ -106,7 +106,7 @@ export class DetailedScenery {
   height(kind: Species) { return this.species[kind]?.height || 1; }
   end(visible: boolean) {
     if (!this.ready) return;
-    for (const kind of ['broadleaf', 'conifer', 'fern'] as const) {
+    for (const kind of ['broadleaf', 'conifer', 'fern', 'rock'] as const) {
       for (const mesh of this.species[kind].meshes) {
         mesh.visible = visible;
         mesh.count = visible ? this.counts[kind] : 0;

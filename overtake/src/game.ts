@@ -1006,6 +1006,7 @@ export class OvertakeGame {
     const detailed = this.detailedScenery;
     const enabled = detailed.ready && this.sceneryQuality !== 'low';
     this.grass.visible = !enabled;
+    this.rocks.visible = !enabled;
     for (const mesh of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks]) mesh.visible = false;
     for (const mesh of [this.cheapBroadleaf, this.cheapBroadTrunks, this.cheapPines, this.cheapPineTrunks, this.distantTrees, this.distantTrunks, this.distantPines, this.distantPineTrunks]) mesh.visible = !enabled;
     detailed.begin();
@@ -1036,6 +1037,19 @@ export class OvertakeGame {
         this.dummy.scale.set(scale, scale * (.93 + hash01(seed + 19) * .14), scale);
         this.dummy.updateMatrix(); detailed.place(kind, this.dummy.matrix);
         if (kind === 'broadleaf') broadCount++; else pineCount++;
+      }
+      // CC0 scan-based rocks follow biome density and sit on the terrain.
+      const rockRows = high ? 36 : 18;
+      for (let i = 0; i < rockRows; i++) for (const side of [-1, 1]) {
+        const k = Math.floor((base - 45) / 11) + i, seed = k * 223 + side * 37;
+        const s = k * 11 + hash01(seed + 1) * 11, p = biomeParams(s);
+        if (hash01(seed + 2) > p.rockDensity) continue;
+        const off = side * (12 + hash01(seed + 3) * 74), r = rightAt(s, this.tmpA);
+        const scale = (.7 + hash01(seed + 4) * 1.4) / detailed.height('rock');
+        this.dummy.position.set(centerX(s) + r.x * off, centerY(s) - .6 + terrainOffset(s, off) - .10, -s + r.z * off);
+        this.dummy.rotation.set(0, hash01(seed + 5) * Math.PI * 2, 0);
+        this.dummy.scale.set(scale * (1.0 + hash01(seed + 6) * .6), scale, scale);
+        this.dummy.updateMatrix(); detailed.place('rock', this.dummy.matrix);
       }
       // Ferns are restricted to the near verge and fade out under snow.
       const fernRows = high ? 32 : 12;

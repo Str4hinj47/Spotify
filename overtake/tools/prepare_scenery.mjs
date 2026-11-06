@@ -6,7 +6,7 @@ import {simplifyPrimitive, prune} from '@gltf-transform/functions';
 await Promise.all([MeshoptDecoder.ready,MeshoptEncoder.ready,MeshoptSimplifier.ready]);
 const io=new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({'meshopt.decoder':MeshoptDecoder,'meshopt.encoder':MeshoptEncoder});
 // Input GLBs are the optimized CC0 Poly Haven assets documented in SCENERY_ASSETS.md.
-for (const name of ['tree_small_02','fern_02']) {
+for (const name of ['tree_small_02','fern_02','boulder_01']) {
  const doc=await io.read(`source-assets/polyhaven-landscape/${name}.glb`);
  for(const p of doc.getRoot().listMeshes()[0].listPrimitives()){
    const mat=p.getMaterial(), n=mat.getName(); console.log(name,n,p.getIndices()?.getCount()/3);
@@ -25,11 +25,14 @@ for (const name of ['tree_small_02','fern_02']) {
      index.setArray(new Uint32Array(indices));
    }else if(name==='tree_small_02'){
      simplifyPrimitive(p,{simplifier:MeshoptSimplifier,ratio:.28,error:.01});
+   }else if(name==='boulder_01'){
+     const sloppy = { simplify: (idx, positions, stride, target, error) => MeshoptSimplifier.simplifySloppy(idx, positions, stride, null, target, error) };
+     simplifyPrimitive(p,{simplifier:sloppy,ratio:.06,error:.04});
    }
    console.log('  after',p.getIndices().getCount()/3);
  }
  await doc.transform(prune());
- const output = `public/models/scenery/${{tree_small_02:'deciduous',fern_02:'fern'}[name]}.glb`;
+ const output = `public/models/scenery/${{tree_small_02:'deciduous',fern_02:'fern',boulder_01:'boulder'}[name]}.glb`;
  await io.write(output,doc);
  console.log('size',fs.statSync(output).size);
 }
