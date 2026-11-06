@@ -1,3 +1,4 @@
+import { spinWheels } from './wheels';
 import * as THREE from 'three';
 import { ModelLibrary } from './models';
 import { CARS, getCar, TRAFFIC_COLORS, type CarId, type TrafficId } from './catalog';
@@ -1605,6 +1606,7 @@ export class OvertakeGame {
     const params = {
       ...spec.physics, accel: spec.accel, maxSpeed: spec.maxSpeed, grip, surfaceGrip: weatherGrip(this.weather),
     };
+    const previousS = this.vehicle.s, previousOffset = this.vehicle.offset;
     const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
     const h = dt / steps;
     for (let i = 0; i < steps; i++) {
@@ -1632,6 +1634,7 @@ export class OvertakeGame {
     }
 
     if (this.player) {
+      spinWheels(this.player, Math.hypot(this.playerS - previousS, this.offset - previousOffset));
       this.player.position.copy(this.pos);
       // Keep the body level under throttle/brake; only a small cornering roll.
       const roll = THREE.MathUtils.clamp(-this.vehicle.latAccel / 9.81 * 0.025, -0.035, 0.035);
@@ -1668,6 +1671,7 @@ export class OvertakeGame {
         }
       }
       t.s += t.dir * t.speed * dt;
+      spinWheels(t.group, t.speed * dt);
       const r = rightAt(t.s, this.tmpA);
       const px = centerX(t.s) + r.x * t.offset, pz = -t.s + r.z * t.offset;
       t.group.position.set(px, centerY(t.s), pz);

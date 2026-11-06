@@ -4,6 +4,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { CARS, TRUCKS, type CarId, type TrafficId } from './catalog';
 import { indicatorMaterial, isIndicatorMaterial, type IndicatorUniforms } from './indicators';
 import { createBodyKit } from './body-kits';
+import { rigWheels } from './wheels';
 import { createCarbonMaterial, customPaintMaterial } from './livery';
 import { sanitizeCustomization, type Customization } from './customization.mjs';
 
@@ -208,9 +209,12 @@ export class ModelLibrary {
         }
       });
       separateLampLenses(scene);
+      const normalized = new THREE.Group();
+      normalized.add(scene);
+      rigWheels(normalized, spec.id);
       this.models.set(spec.id, {
         id: spec.id,
-        scene,
+        scene: normalized,
         length: size.z,
         width: size.x,
         height: size.y,
@@ -361,6 +365,9 @@ export class ModelLibrary {
         wrapper.add(createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080));
       }
     }
+    const wheels: THREE.Group[] = [];
+    inner.traverse(o => { if (o.name.startsWith('wheel_pivot_')) wheels.push(o as THREE.Group); });
+    wrapper.userData.wheels = wheels;
     wrapper.userData.customPaintMaterials = customPaintCopies;
     wrapper.userData.customGeometries = customGeometries;
     wrapper.userData.brakeMaterials = [...lightCopies.values(), ...brakeIndicatorCopies];
