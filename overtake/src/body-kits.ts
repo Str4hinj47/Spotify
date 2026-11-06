@@ -117,7 +117,7 @@ function audiFrontLip(level:number) {
     const x=(2*i/n-1)*.84,abs=Math.abs(x);let j=0;while(j<xs.length-2&&abs>xs[j+1])j++;
     const z=THREE.MathUtils.lerp(zs[j],zs[j+1],(abs-xs[j])/(xs[j+1]-xs[j]));
     const edge=abs/.84,lead=THREE.MathUtils.lerp(.02,.055,level)*(1-.3*edge);
-    for(const [y,zz] of [[.196,z+.045],[.18,z-lead],[.167,z-lead],[.168,z+.10]] as const) vertices.push(x,y,zz);
+    for(const [y,zz] of [[.211,z+.045],[.195,z-lead],[.182,z-lead],[.183,z+.10]] as const) vertices.push(x,y,zz);
     if(i<n)for(let k=0;k<4;k++){const a=i*4+k,b=i*4+(k+1)%4,c=(i+1)*4+k,d=(i+1)*4+(k+1)%4;indices.push(a,b,c,b,d,c);}
   }
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
@@ -232,7 +232,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     if(id==='golf') {
       const fascia=new THREE.Mesh(golfLowerBumper(false,amount),panel);fascia.name='front-fascia';a.add(fascia);
     } else if(id==='audi') {
-      const lip=new THREE.Mesh(audiFrontLip(amount),panel);lip.name='front-fascia';a.add(lip);
+      const lip=new THREE.Mesh(audiFrontLip(amount),config.frontFinish==='carbon'?woven:carbon);lip.name='front-fascia';a.add(lip);
     } else if(id==='mustang') {
       const chin=new THREE.Mesh(mustangChin(amount),panel);chin.name='front-fascia';a.add(chin);
       if(amount>=.67) {
