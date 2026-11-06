@@ -30,3 +30,12 @@ test('paint, livery, carbon finishes and afterfire validate independently', () =
   const invalid=sanitizeCustomization({exhaust:'rocket',paintScheme:'bad',secondaryFinish:'unknown',rearFinish:'glass',livery:'licensed'});
   assert.equal(invalid.exhaust,'stock');assert.equal(invalid.paintScheme,'single');assert.equal(invalid.secondaryFinish,'paint');assert.equal(invalid.rearFinish,'standard');assert.equal(invalid.livery,'none');
 });
+
+test('touring and sport options persist independently for every part', () => {
+  for (const variant of ['touring','sport']) {
+    const config = Object.fromEntries(BODY_PARTS.map(part=>[part,variant]));
+    const loaded = sanitizeCustomizations({golf:config}, ['golf']);
+    for (const part of BODY_PARTS) assert.equal(loaded.golf[part],variant);
+    assert.deepEqual(sanitizeCustomization(JSON.parse(JSON.stringify(loaded.golf))), loaded.golf);
+  }
+});
