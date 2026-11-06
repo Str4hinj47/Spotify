@@ -134,7 +134,7 @@ biome-matched panoramic mountain backdrops give the roadside more depth.
 The outskirts mix modern and brick building facades.
 Distant panoramas, midground treelines, evergreen foliage and roadside plants
 use image-based cutouts;
-a photographic cloud layer complements the procedural sky. Soft, world-space cloud shadows move across the road and landscape, detailed foliage sways gently with the wind, and traffic has compact road-following contact shadows. At night, road-conforming pools of light follow the alternating streetlights, including on snow and wet asphalt, without extra shadow maps. Cloud shadows, streetlight pools and detailed vegetation are disabled in Low scenery mode. Weather,
+a photographic cloud layer complements the procedural sky. Soft, world-space cloud shadows move across the road and landscape, detailed foliage sways gently with the wind, and traffic has compact road-following contact shadows. At night, road-conforming pools and wet reflections follow the alternating streetlights; two recycled, non-shadowing lights illuminate nearby vehicles and scenery without adding shadow maps. Cloud shadows, streetlight pools and detailed vegetation are disabled in Low scenery mode. Weather,
 illumination, near ground and deciduous trees remain dynamic.
 The source and provenance of the scenery assets are in `SCENERY_ASSETS.md`.
 
