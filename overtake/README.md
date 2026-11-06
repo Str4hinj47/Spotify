@@ -134,7 +134,7 @@ biome-matched panoramic mountain backdrops give the roadside more depth.
 The outskirts mix modern and brick building facades.
 Distant panoramas, midground treelines, evergreen foliage and roadside plants
 use image-based cutouts;
-a photographic cloud layer complements the procedural sky. Weather,
+a photographic cloud layer complements the procedural sky. Soft, world-space cloud shadows move across the road and landscape, detailed foliage sways gently with the wind, and traffic has compact road-following contact shadows. Cloud-shadow sampling and detailed vegetation are disabled in Low scenery mode. Weather,
 illumination, near ground and deciduous trees remain dynamic.
 The source and provenance of the scenery assets are in `SCENERY_ASSETS.md`.
 
@@ -213,6 +213,7 @@ node scripts/livery-flames-smoke.mjs # paint, carbon, liveries and exhaust flame
 node scripts/road-smoke.mjs  # road, barriers, lamps and weather shader checks
 node scripts/road-detail-smoke.mjs # streetlight close-up and mobile snow view
 node scripts/extra-graphics-smoke.mjs # tire spray, snowy foliage and roadside signs
+node scripts/graphics-upgrade-smoke.mjs # traffic contacts, cloud shadows, wind and quality modes
 node scripts/vehicle-snow-smoke.mjs # car materials, snow density and antialiasing
 node scripts/graphics-settings-smoke.mjs # real render buffers, saved graphics settings and mobile layout
 node scripts/scenery-quality-smoke.mjs # quality levels, recycling, weather and low-detail loading

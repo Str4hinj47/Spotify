@@ -1894,6 +1894,8 @@ export class OvertakeGame {
   setSceneryQuality(value: SceneryQuality) {
     this.sceneryQuality = sanitizeSceneryQuality(value);
     this.atmosphere.skyMat.uniforms.photoDetail.value = this.sceneryQuality === 'low' ? 0 : 1;
+    const cloud = Math.min(1, this.weather.rain * .85 + this.weather.snow * .75);
+    this.roadSurface.cloud.value = this.sceneryQuality === 'low' ? 0 : .20 * dayFactor(this.worldClock.hour) * (1 - cloud * .8);
     if (this.sceneryQuality !== 'low') this.detailedScenery.ensureLoaded();
     try { localStorage.setItem('overtake-scenery-quality', this.sceneryQuality); } catch { /* storage unavailable */ }
     this.updateScenery();
