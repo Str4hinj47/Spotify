@@ -113,6 +113,13 @@ export function rigWheels(root: THREE.Group, id: TrafficId): void {
     empty.setIndex(stationary);
     mesh.geometry = empty;
   }
+  // The Golf source mesh was exported with its front wheels turned left,
+  // unlike its straight rear wheels. Correct the baked-in toe at the pivot
+  // so the tires, rims, discs and nuts rotate together on a straight axle.
+  if (id === 'golf') {
+    pivots[0].rotation.y = THREE.MathUtils.degToRad(10.89);
+    pivots[1].rotation.y = THREE.MathUtils.degToRad(12.70);
+  }
 }
 
 export function spinWheels(car: THREE.Group, distance: number): void {
