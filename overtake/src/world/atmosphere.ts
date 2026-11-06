@@ -88,11 +88,11 @@ export class Atmosphere {
     this.hemi = new THREE.HemisphereLight(0x9db8dd, 0x4a4038, 0.65);
     scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight(0xffe0b0, 2.0);
-    this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(1024, 1024);
-    const cam = this.sun.shadow.camera;
-    cam.left = -24; cam.right = 24; cam.top = 24; cam.bottom = -24; cam.near = 1; cam.far = 220;
-    this.sun.shadow.bias = -0.0004;
+    // The long-range directional shadow map projects a hard-edged dark wedge
+    // from the car across the road as the camera/shadow frustum moves. The
+    // road already has a soft, road-conforming contact shadow for the player;
+    // use that instead. Garage shadows still come from the studio key light.
+    this.sun.castShadow = false;
     scene.add(this.sun, this.sun.target);
     this.moonLight = new THREE.DirectionalLight(0x8fa8d8, 0.0);
     scene.add(this.moonLight, this.moonLight.target);
