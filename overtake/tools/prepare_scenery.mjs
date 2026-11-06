@@ -25,8 +25,6 @@ for (const name of ['tree_small_02','pine_sapling_01','fern_02']) {
      index.setArray(new Uint32Array(indices));
    }else if(name==='tree_small_02'){
      simplifyPrimitive(p,{simplifier:MeshoptSimplifier,ratio:.28,error:.01});
-   }else if(name==='pine_sapling_01'){
-     simplifyPrimitive(p,{simplifier:MeshoptSimplifier,ratio:.12,error:.035});
    }
    console.log('  after',p.getIndices().getCount()/3);
  }
