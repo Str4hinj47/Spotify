@@ -4,14 +4,35 @@ OVERTAKE uses the following open-source projects.
 
 | Project | Repository | License | Use |
 | --- | --- | --- | --- |
-| three.js | https://github.com/mrdoob/three.js | MIT | Rendering, instancing, lights, materials |
+| three.js | https://github.com/mrdoob/three.js | MIT | Rendering, PBR materials, PMREM/HDRLoader, Reflector, RectAreaLight, RoomEnvironment |
 | simplex-noise | https://github.com/jwagner/simplex-noise.js | MIT | Biome selection and weather noise |
 | maath | https://github.com/pmndrs/maath | MIT | Frame-rate-independent damping/easing |
-| postprocessing | https://github.com/pmndrs/postprocessing | Zlib | Bloom and vignette |
+| postprocessing | https://github.com/pmndrs/postprocessing | Zlib | HDR bloom, AgX tone mapping, SMAA, vignette and colour grading |
+| glTF-Transform | https://github.com/donmccurdy/glTF-Transform | MIT | Build-time Khronos PBR material baking in `tools/upgrade_pbr.mjs` |
+| ImageMagick | https://github.com/ImageMagick/ImageMagick | ImageMagick License | Offline CC0 HDRI downsampling |
 | Inter | https://github.com/rsms/inter | SIL OFL 1.1 | UI font, via @fontsource-variable/inter |
 | Elemental-Serenity | https://github.com/SahilK-027/Elemental-Serenity | MIT | Rain/snow particle approach adapted in `src/world/precipitation.ts` |
 | Engine_Sim | https://github.com/YigitSalihEmecen/Engine_Sim | MIT | Procedural engine audio, vendored in `src/vendor/engine-sim` |
 | Lucide | https://github.com/lucide-icons/lucide | ISC | UI icons |
+
+## HDR environment maps
+
+The CC0 [Poly Haven](https://polyhaven.com/license) HDRIs in `public/env/` were
+obtained from the three.js repository's `examples/textures/equirectangular/`
+directory (dev commit `a70ee1ad92a681b7b8c42d23b6ede4febb28b25c`) and
+downsampled from 1024×512 to 512×256 with ImageMagick. They are used only as
+prefiltered image-based lighting, never as the visible sky. Exact source
+filenames, purpose and the runtime day/night blend are documented in
+`ENV_ASSETS.md` in the source repository. The three.js loader and studio helper
+code used with them is covered by the MIT license text below. Poly Haven assets
+are CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/ .
+
+| Distributed file | Poly Haven asset | Author |
+| --- | --- | --- |
+| `studio.hdr` | [Monochrome Studio 02](https://polyhaven.com/a/monochrome_studio_02) | Grzegorz Wronkowski |
+| `day.hdr` | [Spruit Sunrise](https://polyhaven.com/a/spruit_sunrise) | Greg Zaal |
+| `arid.hdr` | [Quarry 01](https://polyhaven.com/a/quarry_01) | Sergej Majboroda |
+| `night.hdr` | [Moonless Golf](https://polyhaven.com/a/moonless_golf) | Greg Zaal |
 
 ## Elemental-Serenity adaptation
 

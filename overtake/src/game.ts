@@ -9,8 +9,12 @@ import {
 } from './rules.mjs';
 import { createVehicleState, stepVehicle } from './physics.mjs';
 import { easing } from 'maath';
-import { EffectComposer, RenderPass, EffectPass, BloomEffect, VignetteEffect, FXAAEffect } from 'postprocessing';
+import {
+  EffectComposer, RenderPass, EffectPass, BloomEffect, VignetteEffect, SMAAEffect, SMAAPreset,
+  ToneMappingEffect, ToneMappingMode, BrightnessContrastEffect, HueSaturationEffect,
+} from 'postprocessing';
 import { Atmosphere } from './world/atmosphere';
+import { EnvironmentRig } from './world/environment';
 import { Precipitation } from './world/precipitation';
 import { RoadSpray } from './world/road-spray';
 import { TrafficShadows } from './world/traffic-shadows';
@@ -184,8 +188,7 @@ export class OvertakeGame {
   private detailedScenery!: DetailedScenery;
   private roadsideGrass!: RoadsideGrass;
   private midgroundTreeline!: MidgroundTreeline;
-  private roadEnv: THREE.Texture | null = null;
-  private studioEnv: THREE.Texture | null = null;
+  private environments!: EnvironmentRig;
   private worldClock = createClock(9.5, 1, true);
   private weather: WeatherState = createWeatherState('auto');
   private worldElapsed = 0;
@@ -311,8 +314,10 @@ export class OvertakeGame {
     this.renderer.setPixelRatio(1);
     this.library.setTextureAnisotropy(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 0.95;
+    // Keep the scene linear/HDR until the composer's final tone-mapping pass.
+    // Bloom then operates on real highlight radiance instead of clamped LDR.
+    this.renderer.toneMapping = THREE.NoToneMapping;
+    this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.enabled = !testMode;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1200);
@@ -335,13 +340,21 @@ export class OvertakeGame {
     // Canvas antialiasing does not affect the composer's offscreen buffers.
     // Multisample those buffers so car silhouettes remain smooth in motion.
     const samples = testMode ? 0 : Math.min(4, this.renderer.capabilities.maxSamples);
-    this.composer = new EffectComposer(this.renderer, { multisampling: samples });
+    this.composer = new EffectComposer(this.renderer, {
+      multisampling: samples,
+      frameBufferType: THREE.HalfFloatType,
+    });
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    const bloom = new BloomEffect({ intensity: 0.55, luminanceThreshold: 0.72, luminanceSmoothing: 0.25, mipmapBlur: true });
+    // HDR bloom -> filmic AgX -> restrained cinematic grade. All effects share
+    // one EffectPass, so the extra colour work costs one fullscreen draw.
+    const bloom = new BloomEffect({ intensity: 0.62, luminanceThreshold: 0.88, luminanceSmoothing: 0.22, mipmapBlur: true });
+    const toneMapping = new ToneMappingEffect({ mode: ToneMappingMode.AGX });
     const vignette = new VignetteEffect({ offset: 0.42, darkness: 0.24 });
-    this.composer.addPass(new EffectPass(this.camera, bloom, vignette));
-    // Shader AA is a low-cost fallback on devices without multisample support.
-    if (!testMode && samples === 0) this.composer.addPass(new EffectPass(this.camera, new FXAAEffect()));
+    const contrast = new BrightnessContrastEffect({ brightness: 0.004, contrast: 0.035 });
+    const saturation = new HueSaturationEffect({ saturation: 0.055 });
+    this.composer.addPass(new EffectPass(this.camera, bloom, toneMapping, vignette, contrast, saturation));
+    // SMAA is a higher-quality fallback than FXAA when MSAA is unavailable.
+    if (!testMode && samples === 0) this.composer.addPass(new EffectPass(this.camera, new SMAAEffect({ preset: SMAAPreset.HIGH })));
     this.setEnvironment('garage');
 
     window.addEventListener('resize', () => this.resize());
@@ -431,66 +444,16 @@ export class OvertakeGame {
   }
 
   // --- Environment / lighting -------------------------------------------------
-  private makeEnvTexture(kind: 'road' | 'studio'): THREE.Texture {
-    const c = document.createElement('canvas');
-    c.width = 1024; c.height = 512;
-    const ctx = c.getContext('2d')!;
-    if (kind === 'road') {
-      const g = ctx.createLinearGradient(0, 0, 0, 512);
-      g.addColorStop(0, '#314c6c');
-      g.addColorStop(0.42, '#9bacbc');
-      g.addColorStop(0.5, '#c6c9c6');
-      g.addColorStop(0.55, '#777d80');
-      g.addColorStop(1, '#2c2c2c');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, 1024, 512);
-      const sun = ctx.createRadialGradient(700, 235, 4, 700, 235, 120);
-      sun.addColorStop(0, 'rgba(255,250,238,0.8)');
-      sun.addColorStop(0.2, 'rgba(231,231,218,0.4)');
-      sun.addColorStop(1, 'rgba(210,219,225,0)');
-      ctx.fillStyle = sun; ctx.fillRect(0, 0, 1024, 512);
-    } else {
-      ctx.fillStyle = '#0a0c11'; ctx.fillRect(0, 0, 1024, 512);
-      const strip = (y: number, h: number, a: number) => {
-        const g = ctx.createLinearGradient(0, y - h, 0, y + h);
-        g.addColorStop(0, 'rgba(255,255,255,0)');
-        g.addColorStop(0.5, `rgba(235,242,255,${a})`);
-        g.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = g; ctx.fillRect(0, y - h, 1024, h * 2);
-      };
-      strip(120, 46, 0.95);
-      strip(210, 22, 0.55);
-      strip(330, 60, 0.25);
-      // Softbox-shaped reflections add shape to paint and glass without
-      // touching the original vehicle geometry or aftermarket fittings.
-      const softbox = (x: number, y: number, width: number, height: number, opacity: number) => {
-        ctx.save(); ctx.translate(x, y); ctx.scale(width, height);
-        const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
-        glow.addColorStop(0, `rgba(245,250,255,${opacity})`);
-        glow.addColorStop(.5, `rgba(230,242,255,${opacity * .62})`);
-        glow.addColorStop(1, 'rgba(220,235,255,0)');
-        ctx.fillStyle = glow; ctx.fillRect(-1, -1, 2, 2); ctx.restore();
-      };
-      softbox(230, 145, 150, 38, .42);
-      softbox(680, 160, 170, 42, .38);
-      softbox(420, 278, 115, 30, .23);
-      const side = ctx.createLinearGradient(0, 0, 1024, 0);
-      side.addColorStop(0, 'rgba(80,140,255,0.18)');
-      side.addColorStop(0.5, 'rgba(0,0,0,0)');
-      side.addColorStop(1, 'rgba(255,170,90,0.16)');
-      ctx.fillStyle = side; ctx.fillRect(0, 0, 1024, 512);
-    }
-    const tex = new THREE.CanvasTexture(c);
-    tex.mapping = THREE.EquirectangularReflectionMapping;
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    const env = pmrem.fromEquirectangular(tex).texture;
-    tex.dispose(); pmrem.dispose();
-    return env;
+  private buildEnvironments() {
+    this.environments = new EnvironmentRig(this.renderer, this.scene);
   }
 
-  private buildEnvironments() {
-    this.roadEnv = this.makeEnvTexture('road');
-    this.studioEnv = this.makeEnvTexture('studio');
+  whenGraphicsReady() { return this.environments.whenReady(); }
+  getEnvironmentStatus() { return this.environments.getStatus(); }
+
+  private syncShowroomReflections() {
+    const reflector = this.garageGroup.userData.reflector as (THREE.Mesh & { dispose?: () => void }) | undefined;
+    if (reflector) reflector.visible = this.graphicsQuality !== 'performance';
   }
 
   private buildHeadlights() {
@@ -1200,21 +1163,22 @@ export class OvertakeGame {
   }
 
   private buildGarage() {
-    this.showroomShadow = createShowroom(this.garageGroup);
+    this.showroomShadow = createShowroom(this.garageGroup, { reflections: true });
+    this.syncShowroomReflections();
 
     // A broad fill reveals dark paints without flattening the key and rims.
     const fill = new THREE.HemisphereLight(0xc9dae5, 0x34424c, .42);
     fill.name = 'showroom-fill';
     this.garageGroup.add(fill);
     // Soft studio key + rim lights for readable paint highlights.
-    const key = new THREE.SpotLight(0xffffff, 55, 35, Math.PI / 4, 0.6, 1.6);
+    const key = new THREE.SpotLight(0xffffff, 38, 35, Math.PI / 4, 0.6, 1.6);
     key.position.set(6, 9, 5); key.target.position.set(0, 0.5, 0);
     key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
     this.garageGroup.add(key, key.target);
-    const rim = new THREE.SpotLight(0x88bbff, 35, 35, Math.PI / 4, 0.7, 1.6);
+    const rim = new THREE.SpotLight(0x88bbff, 24, 35, Math.PI / 4, 0.7, 1.6);
     rim.position.set(-7, 6, -6); rim.target.position.set(0, 0.5, 0);
     this.garageGroup.add(rim, rim.target);
-    const warm = new THREE.SpotLight(0xffb070, 20, 30, Math.PI / 5, 0.8, 1.6);
+    const warm = new THREE.SpotLight(0xffb070, 12, 30, Math.PI / 5, 0.8, 1.6);
     warm.position.set(0, 5, -8); warm.target.position.set(0, 0.5, 0);
     this.garageGroup.add(warm, warm.target);
   }
@@ -1294,15 +1258,17 @@ export class OvertakeGame {
 
   private setEnvironment(mode: 'garage' | 'road') {
     if (mode === 'garage') {
-      this.scene.environment = this.studioEnv;
       this.atmosphere.setGarage();
+      this.environments.setGarage();
+      this.syncShowroomReflections();
       this.roadGroup.visible = false; this.garageGroup.visible = true; this.mountains.visible = false;
       this.contactShadow.visible = false;
       this.precipitation.setVisible(false);
       this.spray.clear();
       for (const h of this.headlights) h.intensity = 0;
     } else {
-      this.scene.environment = this.roadEnv;
+      this.environments.setRoad();
+      this.environments.update(this.worldClock.hour, this.weather, dominantBiome(this.playerS), 5);
       this.roadGroup.visible = true; this.garageGroup.visible = false; this.mountains.visible = true;
       this.contactShadow.visible = true;
       this.precipitation.setVisible(true);
@@ -1783,6 +1749,7 @@ export class OvertakeGame {
     const biome = biomeParams(this.playerS);
     stepWeather(this.weather, dt, biome.temperature);
     const atm = this.atmosphere.update(this.worldClock.hour, this.weather, biome, this.camera.position, dt);
+    this.environments.update(this.worldClock.hour, this.weather, dominantBiome(this.playerS), dt);
     this.nightFactor = atm.night;
     this.precipitation.update(dt, this.camera.position, this.speed, this.weather, this.worldElapsed);
     this.spray.update(dt, this.pos, this.yaw, this.playerMeta.width, this.playerMeta.length, this.speed,
@@ -1919,6 +1886,7 @@ export class OvertakeGame {
   setGraphicsQuality(value: GraphicsQuality) {
     this.graphicsQuality = sanitizeGraphicsQuality(value);
     try { localStorage.setItem('overtake-graphics-quality', this.graphicsQuality); } catch { /* storage unavailable */ }
+    this.syncShowroomReflections();
     this.resize();
   }
 
@@ -1939,10 +1907,18 @@ export class OvertakeGame {
   setTimeOfDay(hour: number) {
     this.worldClock.hour = ((hour % 24) + 24) % 24;
     this.atmosphere.update(this.worldClock.hour, this.weather, biomeParams(this.playerS), this.camera.position, 5);
+    this.environments.update(this.worldClock.hour, this.weather, dominantBiome(this.playerS), 5);
   }
   setCycleSpeed(speed: number) { this.worldClock.speed = Math.max(0, Math.min(8, speed)); }
   setCycleRunning(running: boolean) { this.worldClock.running = running; }
 
   getBest() { return this.best; }
-  dispose() { cancelAnimationFrame(this.raf); this.spray.dispose(); this.renderer.dispose(); }
+  dispose() {
+    cancelAnimationFrame(this.raf);
+    this.spray.dispose();
+    const reflector = this.garageGroup.userData.reflector as (THREE.Mesh & { dispose?: () => void }) | undefined;
+    reflector?.dispose?.();
+    this.environments.dispose();
+    this.renderer.dispose();
+  }
 }

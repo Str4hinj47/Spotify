@@ -753,6 +753,9 @@ async function boot() {
     onHud, onEvent, onGameOver, onMode: setMode,
   });
   (window as any).__overtake = game; // test/debug hook
+  $('load-bar').style.width = '95%';
+  $('load-label').textContent = 'Calibrating HDR lighting…';
+  await game.whenGraphicsReady();
   game.setSelectedCar(selected);
   updateDetail(selected);
   syncModeUI();

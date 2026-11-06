@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { CARS, TRUCKS, type CarId, type TrafficId } from './catalog';
 import { indicatorMaterial, isIndicatorMaterial, addFrontIndicator, isFrontIndicatorMaterial, type IndicatorUniforms } from './indicators';
 import { createBodyKit } from './body-kits';
@@ -32,6 +33,34 @@ const ORIENTATION: Record<TrafficId, number> = {
   semi: 0,
   kraz: 0,
 };
+
+// glTFLoader produces MeshStandardMaterial for the converted cars. Promote
+// every paint material to MeshPhysicalMaterial so the KHR clearcoat response,
+// specular colour and IOR are available on the original factory finishes too.
+// The glTF-Transform PBR tool bakes the same clearcoat into the distributed
+// assets; this conversion keeps older/alternate GLBs consistent at runtime.
+function upgradePaintMaterials(scene: THREE.Group) {
+  const converted = new Map<THREE.Material, THREE.MeshPhysicalMaterial>();
+  scene.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const convert = (material: THREE.Material): THREE.Material => {
+      if (!material.name.startsWith('paint__') || material instanceof THREE.MeshPhysicalMaterial) return material;
+      let physical = converted.get(material);
+      if (!physical) {
+        physical = new THREE.MeshPhysicalMaterial();
+        // MeshPhysicalMaterial.copy() expects physical-only fields on the
+        // source, so copy the shared standard fields explicitly instead.
+        THREE.MeshStandardMaterial.prototype.copy.call(physical, material as THREE.MeshStandardMaterial);
+        (physical as any).defines = { STANDARD: '', PHYSICAL: '' };
+        physical.name = material.name;
+        converted.set(material, physical);
+      }
+      return physical;
+    };
+    mesh.material = Array.isArray(mesh.material) ? mesh.material.map(convert) : convert(mesh.material);
+  });
+}
 
 // A few source meshes reuse one "glass" material for both the cabin and lamp
 // lenses (notably the W222). Preserve transparent lenses while making cabin
@@ -164,6 +193,7 @@ export class ModelLibrary {
       scene.name = spec.id;
       scene.rotation.y = ORIENTATION[spec.id];
       scene.updateMatrixWorld(true);
+      upgradePaintMaterials(scene);
       const box = new THREE.Box3().setFromObject(scene);
       const size = box.getSize(new THREE.Vector3());
       // Recenter on X/Z and sit the tires on y=0 (export is already normalized,
@@ -187,19 +217,20 @@ export class ModelLibrary {
             if (tuned.has(m)) continue;
             tuned.add(m);
             const std = m as THREE.MeshStandardMaterial;
-            std.envMapIntensity = 0.9;
+            std.envMapIntensity = 1.05;
             if (m.name.startsWith('paint__')) {
-              std.metalness = 0.45;
-              std.roughness = 0.36;
+              std.metalness = 0.55;
+              std.roughness = 0.28;
               const phys = m as THREE.MeshPhysicalMaterial;
-              if ('clearcoat' in phys) {
-                phys.clearcoat = 0.4;
-                phys.clearcoatRoughness = 0.22;
-              }
+              phys.clearcoat = 0.9;
+              phys.clearcoatRoughness = 0.075;
+              phys.envMapIntensity = 1.2;
+              phys.specularIntensity = 1;
+              if ('ior' in phys) phys.ior = 1.5;
             } else if (m.name.startsWith('glass__')) {
-              std.color.set(0x0a0f14);
-              std.metalness = 0.1;
-              std.roughness = 0.06;
+              std.color.set(0x090e15);
+              std.metalness = 0;
+              std.roughness = 0.045;
               // Some source GLBs disable depth writes even on nominally opaque
               // glass. That lets cabin geometry and rear lights render through it.
               // Treat glazing as smoked, depth-writing exterior bodywork on both
@@ -212,11 +243,13 @@ export class ModelLibrary {
               std.alphaMap = null;
               if ('transmission' in std) (std as THREE.MeshPhysicalMaterial).transmission = 0;
               std.side = THREE.DoubleSide;
-              std.envMapIntensity = 1.2;
+              std.envMapIntensity = 1.8;
+              const phys = m as THREE.MeshPhysicalMaterial;
+              if ('ior' in phys) phys.ior = 1.48;
             } else if (m.name.startsWith('chrome__')) {
               std.metalness = 1.0;
-              std.roughness = 0.12;
-              std.envMapIntensity = 1.1;
+              std.roughness = 0.08;
+              std.envMapIntensity = 1.45;
             } else if (m.name.startsWith('headlight__')) {
               if (spec.id === 'golf' && m.name === 'headlight__Glass-light-cover') {
                 // This primitive is the outer lens, not a bulb. Let the
@@ -353,7 +386,11 @@ export class ModelLibrary {
             const key = `${mat.uuid}:${paint}`;
             let cached = this.paintCache.get(key);
             if (!cached) {
-              cached = new THREE.MeshPhysicalMaterial({ color: paint, metalness: 0.45, roughness: 0.36, clearcoat: 0.4, clearcoatRoughness: 0.22, envMapIntensity: 0.9 });
+              cached = new THREE.MeshPhysicalMaterial({
+                color: paint, metalness: 0.55, roughness: 0.28,
+                clearcoat: 0.9, clearcoatRoughness: 0.075,
+                envMapIntensity: 1.2, specularIntensity: 1, ior: 1.5,
+              });
               this.paintCache.set(key, cached);
             }
             base = cached;
@@ -431,6 +468,15 @@ export class ModelLibrary {
     const camera = new THREE.PerspectiveCamera(30, 2, 0.1, 100);
     camera.position.set(5.2, 2.1, 5.8);
     camera.lookAt(0, 0.55, 0);
+    // three.js's RoomEnvironment gives the garage thumbnails real softbox
+    // reflections instead of the flat highlights of three punctual lights.
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const room = new RoomEnvironment();
+    const thumbnailEnv = pmrem.fromScene(room, 0.04).texture;
+    scene.environment = thumbnailEnv;
+    scene.environmentIntensity = 0.72;
+    room.dispose();
+    pmrem.dispose();
     scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x20242c, 0.8));
     const key = new THREE.DirectionalLight(0xffffff, 2.0);
     key.position.set(4, 6, 3);
@@ -446,6 +492,7 @@ export class ModelLibrary {
     renderer.render(scene, camera);
     const url = renderer.domElement.toDataURL('image/png');
     this.thumbs.set(id, url);
+    thumbnailEnv.dispose();
     scene.remove(car);
     for (const m of new Set([...(car.userData.brakeMaterials as THREE.Material[]), ...(car.userData.indicatorMaterials as THREE.Material[])])) m.dispose();
     renderer.dispose();

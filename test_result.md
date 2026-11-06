@@ -101,3 +101,44 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+## frontend:
+##   - task: "Open-source HDR/PBR graphics upgrade"
+##     implemented: true
+##     working: true
+##     file: "overtake/src/world/environment.ts"
+##     stuck_count: 0
+##     priority: "high"
+##     needs_retesting: false
+##     status_history:
+##         -working: true
+##         -agent: "main"
+##         -comment: "Added CC0 HDR image-based lighting, clearcoat/IOR/specular PBR materials, blurred showroom reflection, RectAreaLight softboxes, HDR AgX postprocessing and glTF-Transform asset baking. Final lighting tone-down verified; npm test (76), npm run build, scripts/pbr-graphics-smoke.mjs, showroom-graphics-smoke.mjs, graphics-settings-smoke.mjs and tuning-quality-smoke.mjs pass."
+##   - task: "Baked Khronos material extensions in car GLBs"
+##     implemented: true
+##     working: true
+##     file: "overtake/tools/upgrade_pbr.mjs"
+##     stuck_count: 0
+##     priority: "high"
+##     needs_retesting: false
+##     status_history:
+##         -working: true
+##         -agent: "main"
+##         -comment: "Tool written and executed; distributed GLBs remain self-contained Draco GLBs and manifest byte counts were refreshed. tests/environment-assets.test.mjs verifies extensions and HDR assets."
+##
+## metadata:
+##   created_by: "main_agent"
+##   version: "1.1"
+##   test_sequence: 1
+##   run_ui: true
+##
+## test_plan:
+##   current_focus:
+##     - "Open-source HDR/PBR graphics upgrade"
+##     - "HDR environment loading, showroom reflections and day/night lighting"
+##   stuck_tasks: []
+##   test_all: false
+##   test_priority: "high_first"
+##
+## agent_communication:
+##     -agent: "main"
+##     -message: "Graphics upgrade implemented and verified with npm test (76), production build and real-browser PBR smoke screenshots after final lighting tuning; showroom, graphics-settings and tuning-quality smokes also pass. CC0 provenance was checked against the four Poly Haven asset pages."

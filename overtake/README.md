@@ -124,10 +124,21 @@ reflections. The compact layout leaves the car visible on phones while retaining
 the garage and customization controls. Road surfaces include subtle wear and
 reflective centre-line studs that disappear beneath deep snow.
 
+The showroom now uses a CC0 Poly Haven studio HDRI for physically based
+reflections, three.js `RectAreaLight` softboxes, and a blurred planar reflection
+adapted from three.js `Reflector`. Car thumbnails are lit with three.js
+`RoomEnvironment`. Every factory paint is a clearcoat `MeshPhysicalMaterial`;
+`tools/upgrade_pbr.mjs` also bakes `KHR_materials_clearcoat`,
+`KHR_materials_ior` and `KHR_materials_specular` into the distributed GLBs with
+glTF-Transform, so the assets themselves carry the upgraded PBR definition.
+
 ## World, weather and day–night
 
-The scenery blends smoothly between meadow, forest, alpine, desert and
-outskirts using `simplex-noise` and distance-based weights
+Four CC0 HDR environments in `src/world/environment.ts` supply
+time-, weather- and biome-aware image-based lighting; dawn/dusk maps are linear
+radiance blends generated at startup. The scenery blends smoothly between
+meadow, forest, alpine, desert and outskirts using `simplex-noise` and
+distance-based weights
 (`src/world/biomes.mjs`). Rolling road-aligned terrain, world-space ground
 detail, instanced vegetation, scan-based rocks, textured buildings and
 biome-matched panoramic mountain backdrops give the roadside more depth.
@@ -163,12 +174,38 @@ speed-dependent mist or powder trail on wet or snowy roads. Road textures and sn
 adapted from [Elemental-Serenity](https://github.com/SahilK-027/Elemental-Serenity)
 (MIT).
 
-Rendering uses [three.js](https://github.com/mrdoob/three.js),
-[maath](https://github.com/pmndrs/maath) for frame-rate-independent damping, and
-[postprocessing](https://github.com/pmndrs/postprocessing) for bloom/vignette.
-The cleaner UI uses [Inter](https://github.com/rsms/inter) and
+Rendering uses [three.js](https://github.com/mrdoob/three.js) — including its
+`HDRLoader`, `PMREMGenerator`, `Reflector`, `RectAreaLight` and
+`RoomEnvironment` examples — [maath](https://github.com/pmndrs/maath) for
+frame-rate-independent damping, and
+[postprocessing](https://github.com/pmndrs/postprocessing) for HDR bloom, AgX
+tone mapping, SMAA, vignette and colour grading. The renderer keeps the scene
+in linear half-float buffers until the final tone-mapping pass, so emissive
+lamps and HDRI highlights bloom before they are compressed. The cleaner UI uses
+[Inter](https://github.com/rsms/inter) and
 [Lucide](https://github.com/lucide-icons/lucide) icons. See
-`THIRD_PARTY_NOTICES.md`.
+`THIRD_PARTY_NOTICES.md` and `ENV_ASSETS.md`.
+
+## Open-source 3D design pipeline
+
+The graphics upgrade is intentionally built from public repositories and
+open-source tooling rather than closed asset packs:
+
+| Source | What it contributes |
+| --- | --- |
+| [three.js](https://github.com/mrdoob/three.js) | `HDRLoader`, `PMREMGenerator`, `Reflector`, `RectAreaLightUniformsLib`, `RoomEnvironment`, `MeshPhysicalMaterial` |
+| [Poly Haven](https://polyhaven.com/) via three.js examples | Four CC0 studio/day/arid/night HDRIs, downsampled with ImageMagick |
+| [postprocessing](https://github.com/pmndrs/postprocessing) | Half-float HDR pipeline, bloom, AgX tone mapping, SMAA and colour grading |
+| [glTF-Transform](https://github.com/donmccurdy/glTF-Transform) | `tools/upgrade_pbr.mjs` bakes Khronos clearcoat/IOR/specular extensions into the car GLBs |
+| [ImageMagick](https://github.com/ImageMagick/ImageMagick) | Offline HDRI downsampling from 1K to 512×256 |
+| [Playwright](https://github.com/microsoft/playwright) | Real-browser graphics smoke checks and screenshots |
+
+Rebuild the baked material extensions after a fresh model conversion with:
+
+```bash
+cd overtake
+node tools/upgrade_pbr.mjs
+```
 
 ## Engine audio
 
@@ -214,6 +251,7 @@ node scripts/road-smoke.mjs  # road, barriers, lamps and weather shader checks
 node scripts/road-detail-smoke.mjs # streetlight close-up and mobile snow view
 node scripts/extra-graphics-smoke.mjs # tire spray, snowy foliage and roadside signs
 node scripts/graphics-upgrade-smoke.mjs # traffic contacts, cloud shadows, wind and quality modes
+node scripts/pbr-graphics-smoke.mjs # HDR IBL, clearcoat, reflections, AgX and night lighting
 node scripts/vehicle-snow-smoke.mjs # car materials, snow density and antialiasing
 node scripts/graphics-settings-smoke.mjs # real render buffers, saved graphics settings and mobile layout
 node scripts/scenery-quality-smoke.mjs # quality levels, recycling, weather and low-detail loading
@@ -230,7 +268,8 @@ and Sharp render-resolution presets. Sharp is the default and uses modest
 desktop supersampling; Performance reduces the pixel count to save GPU work.
 The selection is saved locally and applies immediately. A pixel budget and GPU
 limits cap large render buffers, and test mode always renders at pixel ratio 1.
-Vehicle textures also use anisotropic filtering where supported. The W222 photo
+Performance quality hides the extra showroom reflection pass; Balanced and Sharp
+keep it. Vehicle textures also use anisotropic filtering where supported. The W222 photo
 atlas is restored from the original 4096-pixel source (after the same badge and
 plate masking), and the 458 tire textures use their original resolutions. The
 other cars' source assets have limited or no useful color textures, so the game
