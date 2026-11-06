@@ -474,6 +474,11 @@ function syncGraphicsUI() {
     button.classList.toggle('active', selected);
     button.setAttribute('aria-pressed', String(selected));
   });
+  document.querySelectorAll<HTMLButtonElement>('[data-scenery]').forEach((button) => {
+    const selected = button.dataset.scenery === game.getSceneryQuality();
+    button.classList.toggle('active', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  });
 }
 
 function toggleGraphicsPanel() {
@@ -577,6 +582,13 @@ function bindUI() {
     button.addEventListener('click', () => {
       const value = button.dataset.quality;
       if (value === 'performance' || value === 'balanced' || value === 'sharp') game.setGraphicsQuality(value);
+      syncGraphicsUI();
+    });
+  });
+  document.querySelectorAll<HTMLButtonElement>('[data-scenery]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const value = button.dataset.scenery;
+      if (value === 'low' || value === 'medium' || value === 'high') game.setSceneryQuality(value);
       syncGraphicsUI();
     });
   });

@@ -849,6 +849,7 @@ export class OvertakeGame {
     const spacing = 14;
     const start = Math.floor((base - 80) / spacing);
     const snow = this.weather.snowCover;
+    const detailedActive = this.detailedScenery.ready && this.sceneryQuality !== 'low';
     const color = new THREE.Color();
     const snowyColor = new THREE.Color(0xe8eef4);
     const place = (mesh: THREE.InstancedMesh, i: number, s: number, side: number, dist: number, sc: number, y: number, hex: number) => {
@@ -873,10 +874,12 @@ export class OvertakeGame {
       const treeFade = smooth01(hash01(k * 13 + 8), p.treeDensity);
       const coniferFade = treeFade * smooth01(hash01(k * 17 + 3), p.coniferRatio);
       const broadFade = treeFade * (1 - smooth01(hash01(k * 17 + 3), p.coniferRatio));
+      if (!detailedActive) {
       place(this.broadleaf, i, s, side, dist, sc * broadFade, 0, p.tree);
       place(this.broadTrunks, i, s, side, dist, sc * broadFade, 0, 0x564333);
       place(this.conifers, i, s, -side, dist + 6, sc * coniferFade, 0, p.conifer);
       place(this.pineTrunks, i, s, -side, dist + 6, sc * coniferFade, 0, 0x4c392c);
+      }
       if (i < 100) {
         const rockFade = smooth01(hash01(k * 19 + 7), p.rockDensity);
         place(this.rocks, i, s + 5, side, dist + 10, (0.6 + hash01(k * 23 + 2)) * rockFade, 0.6, p.rock);
@@ -888,7 +891,7 @@ export class OvertakeGame {
     }
     // Fill the middle distance and verge without placing anything on the road.
     // Absolute-distance hashes make slots stable as the player moves.
-    for (let i = 0; i < 420; i++) {
+    if (!detailedActive) for (let i = 0; i < 420; i++) {
       const k = Math.floor((base - 40) / 4) + Math.floor(i / 2);
       const s = k * 4 + hash01(k * 41 + (i % 2) * 7) * 4;
       const side = i % 2 ? 1 : -1;
@@ -898,7 +901,7 @@ export class OvertakeGame {
       const fade = smooth01(hash01(k * 43 + i % 2 * 173), density);
       place(this.grass, i, s, side, dist, (0.65 + hash01(k * 47 + i % 2) * 1.15) * fade, 0.2, p.tree);
     }
-    for (let i = 0; i < 180; i++) {
+    if (!detailedActive) for (let i = 0; i < 180; i++) {
       const k = Math.floor((base - 80) / 9) + Math.floor(i / 2);
       const s = k * 9 + hash01(k * 53 + i % 2) * 9;
       const side = i % 2 ? 1 : -1;
