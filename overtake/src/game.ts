@@ -1791,7 +1791,7 @@ export class OvertakeGame {
       if (this.garageAuto && !this.garageDragging) this.garageAngle += dt * 0.05;
       // On phones the controls occupy the lower half; lift the preview into
       // the clear upper area, in both the showroom and workshop.
-      const compactGarage = window.innerWidth <= 700 && window.innerHeight > window.innerWidth;
+      const compactGarage = window.innerWidth <= 700 && (window.innerHeight > window.innerWidth || this.garageWorkshop);
       const r = compactGarage ? Math.max(this.garageZoom, 10.5) : this.garageZoom;
       const y = 0.7 + Math.sin(this.garagePitch) * r;
       const horiz = Math.cos(this.garagePitch) * r;
