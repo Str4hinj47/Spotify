@@ -12,6 +12,7 @@ import { EffectComposer, RenderPass, EffectPass, BloomEffect, VignetteEffect, FX
 import { Atmosphere } from './world/atmosphere';
 import { Precipitation } from './world/precipitation';
 import { RoadSpray } from './world/road-spray';
+import { vehiclePixelRatio } from './render-quality.mjs';
 import { createTreeGeometries } from './world/trees';
 import { createRidgeGeometry, createBuildingGeometry, createGrassGeometry, createDistantTreeGeometries, createRockGeometry } from './world/landscape';
 import { createGroundMaterial } from './world/ground';
@@ -169,6 +170,7 @@ export class OvertakeGame {
   private precipitation!: Precipitation;
   private spray!: RoadSpray;
   private composer!: EffectComposer;
+  private testMode = false;
   private roadEnv: THREE.Texture | null = null;
   private studioEnv: THREE.Texture | null = null;
   private worldClock = createClock(9.5, 1, true);
@@ -274,9 +276,10 @@ export class OvertakeGame {
   constructor(canvas: HTMLCanvasElement, library: ModelLibrary, cb: GameCallbacks) {
     this.library = library;
     this.cb = cb;
-    const testMode = new URLSearchParams(location.search).has('test');
+    const testMode = this.testMode = new URLSearchParams(location.search).has('test');
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !testMode, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(testMode ? 1 : Math.min(window.devicePixelRatio, 1.75));
+    this.renderer.setPixelRatio(1);
+    this.library.setTextureAnisotropy(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.95;
@@ -1550,6 +1553,10 @@ export class OvertakeGame {
 
   private resize() {
     const w = window.innerWidth, h = window.innerHeight;
+    const gl = this.renderer.getContext();
+    const maxSize = Math.min(this.renderer.capabilities.maxTextureSize, gl.getParameter(gl.MAX_RENDERBUFFER_SIZE));
+    const ratio = this.testMode ? 1 : vehiclePixelRatio(window.devicePixelRatio, w, h, window.matchMedia('(pointer: coarse)').matches, maxSize);
+    this.renderer.setPixelRatio(ratio);
     this.renderer.setSize(w, h, false);
     this.composer.setSize(w, h);
     this.camera.aspect = w / h;

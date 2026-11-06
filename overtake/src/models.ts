@@ -220,6 +220,24 @@ export class ModelLibrary {
     }
   }
 
+  /** Improve angled tire, lamp and trim textures without exceeding GPU limits. */
+  setTextureAnisotropy(value: number) {
+    const textures = new Set<THREE.Texture>();
+    for (const model of this.models.values()) model.scene.traverse(o => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+        for (const property of Object.values(material)) {
+          if (property && (property as THREE.Texture).isTexture) textures.add(property as THREE.Texture);
+        }
+      }
+    });
+    for (const texture of textures) {
+      texture.anisotropy = Math.max(1, value);
+      texture.needsUpdate = true;
+    }
+  }
+
   get(id: TrafficId): CarModel {
     const m = this.models.get(id);
     if (!m) throw new Error(`Model ${id} not loaded`);
