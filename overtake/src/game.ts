@@ -197,6 +197,7 @@ export class OvertakeGame {
   private groundMat!: THREE.MeshStandardMaterial;
   private mountainMat!: THREE.MeshStandardMaterial;
   private mountainSnow = { value: 0 };
+  private desertPanoramaBlend = { value: 0 };
   private mountainBackdrop!: THREE.Mesh;
   private lampMat!: THREE.MeshStandardMaterial;
   private shoulder!: THREE.Mesh;
@@ -870,11 +871,19 @@ export class OvertakeGame {
     panorama.wrapS = THREE.MirroredRepeatWrapping;
     panorama.repeat.x = 4; panorama.offset.x = .3;
     panorama.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+    const desertPanorama = new THREE.TextureLoader().load('./textures/landscape/desert-panorama.png');
+    desertPanorama.colorSpace = THREE.SRGBColorSpace;
+    desertPanorama.wrapS = THREE.MirroredRepeatWrapping;
+    desertPanorama.anisotropy = panorama.anisotropy;
     const panoMat = new THREE.MeshStandardMaterial({ map: panorama, side: THREE.BackSide, alphaTest: .4, roughness: 1 });
     panoMat.onBeforeCompile = shader => {
-      shader.fragmentShader = shader.fragmentShader.replace('#include <fog_fragment>', THREE.ShaderChunk.fog_fragment.replace('fogColor, fogFactor', 'fogColor, fogFactor * .58'));
+      shader.uniforms.desertPanorama = { value: desertPanorama };
+      shader.uniforms.desertBlend = this.desertPanoramaBlend;
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D desertPanorama; uniform float desertBlend;')
+        .replace('#include <map_fragment>', THREE.ShaderChunk.map_fragment.replace('diffuseColor *= sampledDiffuseColor;', 'sampledDiffuseColor = mix(sampledDiffuseColor, texture2D(desertPanorama, vMapUv), desertBlend); diffuseColor *= sampledDiffuseColor;'))
+        .replace('#include <fog_fragment>', THREE.ShaderChunk.fog_fragment.replace('fogColor, fogFactor', 'fogColor, fogFactor * .58'));
     };
-    panoMat.customProgramCacheKey = () => 'panorama-atmosphere-v1';
+    panoMat.customProgramCacheKey = () => 'panorama-atmosphere-v2';
     this.mountainBackdrop = new THREE.Mesh(new THREE.CylinderGeometry(510, 510, 180, 160, 1, true), panoMat);
     this.mountainBackdrop.name = 'mountain-panorama';
     this.mountainBackdrop.position.y = 45;
@@ -989,6 +998,7 @@ export class OvertakeGame {
     const weights = biomeWeights(base);
     const detailUniforms = this.groundMat.userData.groundDetail;
     detailUniforms.dry.value = weights.desert;
+    this.desertPanoramaBlend.value = weights.desert;
     detailUniforms.snow.value = snow;
     detailUniforms.detail.value = this.sceneryQuality === 'low' ? .35 : 1;
     this.mountainSnow.value = Math.min(1, weights.alpine * .85 + snow * .75);
