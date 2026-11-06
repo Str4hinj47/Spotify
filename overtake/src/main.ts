@@ -4,6 +4,7 @@ import { ModelLibrary } from './models';
 import { OvertakeGame, CAMERA_ORDER, type Mode, type HudState, type RunStats, type CameraPreset } from './game';
 import { RUN_MODES, type RunMode } from './run.mjs';
 import { bestFor } from './records.mjs';
+import { CAR_XP, earnedCar, nextUnlock } from './progression.mjs';
 import { CARS, getCar, PAINT_COLORS, type CarId } from './catalog';
 import { GameAudio } from './audio';
 import { hexToNumber, sanitizePaints } from './paint.mjs';
@@ -178,6 +179,31 @@ function updateDetail(id: CarId) {
     b.setAttribute('aria-pressed', String(active));
   });
   syncPaintUI(id);
+  syncProgressionUI();
+}
+
+function syncProgressionUI() {
+  if (!game) return;
+  const progress = game.getProgression();
+  const next = nextUnlock(progress);
+  $('progress-xp').textContent = `${fmt(progress.xp)} XP`;
+  $('progress-next').textContent = next ? `Next: ${getCar(next[0]).name} at ${fmt(next[1])} XP` : 'All cars earned';
+  const dev = $('dev-toggle') as HTMLButtonElement;
+  dev.textContent = `Dev options: ${progress.dev ? 'ON' : 'OFF'}`;
+  dev.setAttribute('aria-pressed', String(progress.dev));
+  const earned = earnedCar(progress, selected);
+  const available = game.canDrive(selected);
+  $('car-requirement').textContent = earned ? 'Unlocked' : progress.dev ? `Dev access · unlock at ${fmt(CAR_XP[selected])} XP` : `Locked · unlock at ${fmt(CAR_XP[selected])} XP`;
+  ($('btn-start') as HTMLButtonElement).disabled = !available;
+  $('start-label').textContent = available ? 'Start engine' : 'Car locked';
+  document.querySelectorAll<HTMLButtonElement>('.car-card').forEach(card => {
+    const id = card.dataset.car as CarId;
+    const owned = earnedCar(progress, id);
+    const status = card.querySelector<HTMLElement>('.cc-unlock')!;
+    status.textContent = owned ? 'Unlocked' : progress.dev ? `Dev access · ${fmt(CAR_XP[id])} XP` : `${fmt(CAR_XP[id])} XP`;
+    card.classList.toggle('locked', !owned);
+    card.setAttribute('aria-label', `${getCar(id).maker} ${getCar(id).name}, ${status.textContent}`);
+  });
 }
 
 function selectCar(id: CarId) {
@@ -192,7 +218,7 @@ function selectCar(id: CarId) {
 
 function setMode(m: Mode) {
   audio.setActive(m === 'driving');
-  if (m === 'garage') syncModeUI();
+  if (m === 'garage') { syncModeUI(); syncProgressionUI(); }
   $('garage').classList.toggle('hidden', m !== 'garage');
   $('hud').classList.toggle('hidden', m === 'garage');
   $('pause').classList.toggle('hidden', m !== 'paused');
@@ -401,6 +427,7 @@ function onEvent(e: { kind: 'overtake' | 'near' | 'combo' | 'crash' | 'oncoming'
 }
 
 function onGameOver(s: RunStats) {
+  $('final-progress').textContent = `+${fmt(s.xpGained)} XP${s.unlocked.length ? ` · Unlocked: ${s.unlocked.map(id => getCar(id).name).join(', ')}` : ''}`;
   $('final-score').textContent = fmt(s.score);
   $('final-overtakes').textContent = String(s.overtakes);
   $('final-near').textContent = String(s.nearMisses);
@@ -420,6 +447,7 @@ function onGameOver(s: RunStats) {
 }
 
 function startRun() {
+  if (!game.canDrive(selected)) return;
   closeSoundPanel();
   closeGraphicsPanel();
   audio.setCar(selected);
@@ -525,6 +553,7 @@ function bindHold(id: string, name: 'throttle' | 'brake' | 'left' | 'right' | 'h
 
 function bindUI() {
   $('btn-start').addEventListener('click', startRun);
+  $('dev-toggle').addEventListener('click', () => { game.setDeveloperMode(!game.getProgression().dev); syncProgressionUI(); audio.click(); });
   document.querySelectorAll<HTMLButtonElement>('.mode-card').forEach((b) => {
     b.addEventListener('click', () => selectMode(b.dataset.mode as RunMode));
   });
@@ -738,6 +767,7 @@ async function boot() {
         <div class="cc-maker">${c.maker}</div>
         <div class="cc-name">${c.name}</div>
         <div class="cc-class">${c.klass}</div>
+        <div class="cc-unlock"></div>
       </div>`;
     btn.addEventListener('click', () => selectCar(c.id));
     cards.appendChild(btn);

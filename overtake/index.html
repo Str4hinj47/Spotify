@@ -77,6 +77,12 @@
         <h1 id="d-name">Golf MK4 GTI</h1>
         <div class="class-pill" id="d-class">Hot hatch</div>
         <p id="d-tagline" class="tagline"></p>
+        <section class="progression" aria-label="Car progression">
+          <div class="progression-head"><b id="progress-xp">0 XP</b><button id="dev-toggle" type="button" aria-pressed="false">Dev options: OFF</button></div>
+          <div id="progress-next" class="progress-next"></div>
+          <div id="car-requirement" class="car-requirement" aria-live="polite"></div>
+          <p class="progress-hint">Earn XP when a run ends or you return to the garage: 1 XP per 10 points and per 50 m. Dev options bypass locks without changing earned progress.</p>
+        </section>
         <div class="stats">
           <div class="stat"><span>Top speed</span><div class="dots" id="stat-speed"></div></div>
           <div class="stat"><span>Handling</span><div class="dots" id="stat-handling"></div></div>
@@ -108,7 +114,7 @@
         </div>
         <button id="btn-customize" class="customize-open" type="button"><span>✦</span> Customize body & lighting <span>→</span></button>
         <button id="btn-start" class="primary">
-          <i data-lucide="play"></i> Start engine
+          <i data-lucide="play"></i> <span id="start-label">Start engine</span>
         </button>
         <div class="hint">
           <kbd>←</kbd><kbd>→</kbd> steer &nbsp; <kbd>↑</kbd> throttle &nbsp; <kbd>↓</kbd> brake &nbsp; <kbd>Space</kbd> handbrake &nbsp; <kbd>C</kbd> camera &nbsp; <kbd>P</kbd> pause
@@ -292,6 +298,7 @@
           <div><b id="final-contracts">0/3</b><span>contracts</span></div>
           <div><b id="final-best">0</b><span>best</span></div>
         </div>
+        <div id="final-progress" class="final-progress" aria-live="polite"></div>
         <button id="btn-retry" class="primary"><i data-lucide="rotate-ccw"></i> Drive again</button>
         <button id="btn-garage" class="ghost"><i data-lucide="home"></i> Change car</button>
       </div>

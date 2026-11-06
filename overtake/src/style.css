@@ -563,3 +563,26 @@ svg { stroke-width: 1.75; }
   #car-detail .paint-swatches { grid-template-columns:repeat(5, 20px); }
   #car-detail .mode-card { flex-direction:column; align-items:flex-start; }
 }
+
+/* Progress remains earned separately from the reversible development override. */
+.progression { padding: 10px 0; margin: 0 0 10px; border-bottom: 1px solid var(--border); }
+.progression-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.progression-head b { color: var(--accent); font-size: 14px; }
+#dev-toggle { border: 1px solid var(--border); border-radius: 7px; background: rgba(255,255,255,.06); color: var(--text); padding: 6px 8px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+#dev-toggle[aria-pressed="true"] { color: #10232a; background: var(--accent); border-color: var(--accent); }
+.progress-next, .car-requirement, .progress-hint { font-size: 11px; line-height: 1.4; margin: 5px 0 0; color: var(--muted); }
+.car-requirement { color: var(--text); font-weight: 600; }
+.cc-unlock { color: var(--muted); font-size: 10px; margin-top: 2px; }
+.car-card.locked .cc-unlock { color: #f4c886; }
+#btn-start:disabled { opacity: .48; cursor: not-allowed; }
+.final-progress { margin: 12px 0; color: var(--accent); font-weight: 700; font-size: 13px; }
+@media (max-width: 700px) {
+  .progression { padding: 6px 0; margin-bottom: 6px; }
+  .progression-head b { font-size: 12px; }
+  #dev-toggle { padding: 5px 7px; }
+  .progress-next, .car-requirement, .progress-hint { font-size: 10px; margin-top: 3px; }
+  .cc-unlock { font-size: 9px; white-space: nowrap; }
+}
+@media (max-width: 700px) and (max-height: 500px) and (orientation: landscape) {
+  .progression-head { align-items: flex-start; flex-direction: column; gap: 3px; }
+}
