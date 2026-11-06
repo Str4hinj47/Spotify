@@ -1685,7 +1685,8 @@ export class OvertakeGame {
       if (t.dir === 1 && !t.passed && ds < -(pHalfL + t.length / 2 + 1)) {
         t.passed = true;
         const near = Math.abs(dOff) < 2.6;
-        const { points, events } = registerPass(this.run, 'same', near, spec.bonus);
+        const signaled = this.signal === (dOff > 0 ? 'left' : 'right');
+        const { points, events } = registerPass(this.run, 'same', near, spec.bonus, signaled);
         // Cancel at the same clearance threshold that awards a completed pass.
         // Oncoming dodges are not overtakes and must not cancel a signal.
         if (this.signal) {
@@ -1693,7 +1694,7 @@ export class OvertakeGame {
           this.signalElapsed = 0;
           this.updatePlayerLights(0);
         }
-        this.cb.onEvent({ kind: near ? 'near' : 'overtake', text: near ? 'NEAR MISS' : 'OVERTAKE', points });
+        this.cb.onEvent({ kind: near ? 'near' : 'overtake', text: signaled ? (near ? 'NEAR MISS · SIGNAL +50' : 'OVERTAKE · SIGNAL +50') : (near ? 'NEAR MISS' : 'OVERTAKE'), points });
         this.handleRunEvents(events);
       }
       if (t.dir === -1 && !t.passed && ds < -(pHalfL + t.length / 2 + 1)) {

@@ -17,6 +17,7 @@ export function createRun(mode?: RunMode, seed?: number): RunState;
 export function medalFor(mode: RunMode, score: number): Medal;
 export function contractProgress(run: RunState): { contract: RunContract | null; value: number; target: number; ratio: number };
 export function tickRun(run: RunState, dt: number, speed: number): RunEvent[];
-export function registerPass(run: RunState, kind: 'same' | 'oncoming', near: boolean, carBonus?: number): { points: number; events: RunEvent[] };
+export const SIGNAL_BONUS: number;
+export function registerPass(run: RunState, kind: 'same' | 'oncoming', near: boolean, carBonus?: number, signaled?: boolean): { points: number; events: RunEvent[] };
 export function finishRun(run: RunState, reason: string): void;
 export function runSummary(run: RunState, carId: string): RunSummary;

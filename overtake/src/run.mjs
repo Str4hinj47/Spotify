@@ -110,8 +110,11 @@ export function tickRun(run, dt, speed) {
   return events;
 }
 
+/** A flat bonus for indicating the side of a completed same-direction pass. */
+export const SIGNAL_BONUS = 50;
+
 /** Register a clean pass. Returns points and any contract events. */
-export function registerPass(run, kind, near, carBonus = 1) {
+export function registerPass(run, kind, near, carBonus = 1, signaled = false) {
   const events = [];
   if (run.finished) return { points: 0, events };
   run.combo++;
@@ -120,7 +123,7 @@ export function registerPass(run, kind, near, carBonus = 1) {
   if (kind === 'same') {
     run.overtakes++;
     if (near) run.nearMisses++;
-    points = passScore(run.combo, 'same', near, carBonus);
+    points = passScore(run.combo, 'same', near, carBonus) + (signaled ? SIGNAL_BONUS : 0);
   } else if (kind === 'oncoming' && near) {
     run.oncomingDodges++;
     run.nearMisses++;

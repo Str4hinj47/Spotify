@@ -57,3 +57,11 @@ test('medals and summaries are mode-aware', () => {
   assert.equal(s.car, 'golf');
   assert.equal(s.overtakes, 1);
 });
+
+ test('signal bonus is flat and applies only to completed same-direction passes', () => {
+  const normal = createRun('endless', 3), signaled = createRun('endless', 3);
+  assert.equal(registerPass(signaled, 'same', true, 1, true).points - registerPass(normal, 'same', true, 1).points, 50);
+  assert.equal(registerPass(signaled, 'oncoming', true, 1, true).points, registerPass(normal, 'oncoming', true, 1).points);
+  signaled.finished = true;
+  assert.equal(registerPass(signaled, 'same', false, 1, true).points, 0);
+});
