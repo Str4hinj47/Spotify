@@ -314,6 +314,8 @@ export class ModelLibrary {
     // Lights must be per-car: a braking vehicle must not brighten every
     // instance that shares the same source material.
     const lightCopies = new Map<THREE.Material, THREE.MeshStandardMaterial>();
+    const headlightCopies = new Map<THREE.Material, THREE.MeshStandardMaterial>();
+    const headlightIndicators: THREE.MeshStandardMaterial[] = [];
     const indicatorCopies: THREE.MeshStandardMaterial[] = [];
     const brakeIndicatorCopies: THREE.MeshStandardMaterial[] = [];
     const signal: IndicatorUniforms = { left: { value: 0 }, right: { value: 0 }, viewZ: { value: 1 }, brake: { value: 0 } };
@@ -335,8 +337,14 @@ export class ModelLibrary {
           let lamp = rear ? indicatorMaterial(id, mat, meshToCar, signal) : mat.clone() as THREE.MeshStandardMaterial;
           if (isFrontIndicatorMaterial(id, mat)) lamp = addFrontIndicator(id, lamp, meshToCar, signal);
           if (rear && mat.name.startsWith('taillight__')) { lamp.emissiveIntensity = 0.55; brakeIndicatorCopies.push(lamp); }
+          if (mat.name.startsWith('headlight__') && !/cover/i.test(mat.name)) headlightIndicators.push(lamp);
           indicatorCopies.push(lamp);
           return lamp;
+        }
+        if (mat.name.startsWith('headlight__') && !/cover/i.test(mat.name)) {
+          let light = headlightCopies.get(mat);
+          if (!light) { light = mat.clone() as THREE.MeshStandardMaterial; headlightCopies.set(mat, light); }
+          return light;
         }
         if (mat.name.startsWith('taillight__')) {
           let light = lightCopies.get(mat);
@@ -413,6 +421,7 @@ export class ModelLibrary {
     wrapper.userData.customPaintMaterials = customPaintCopies;
     wrapper.userData.customGeometries = customGeometries;
     wrapper.userData.brakeMaterials = [...lightCopies.values(), ...brakeIndicatorCopies];
+    wrapper.userData.headlightMaterials = [...headlightCopies.values(), ...headlightIndicators];
     wrapper.userData.indicatorMaterials = indicatorCopies;
     wrapper.userData.indicatorState = signal;
     return wrapper;

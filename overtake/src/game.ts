@@ -1533,7 +1533,7 @@ export class OvertakeGame {
     for (const geometry of (group.userData.customGeometries ?? []) as THREE.BufferGeometry[]) geometry.dispose();
     const kit = group.getObjectByName('custom-body-kit');
     if (kit) disposeBodyKit(kit as THREE.Group);
-    const owned = new Set<THREE.Material>([...(group.userData.brakeMaterials ?? []), ...(group.userData.indicatorMaterials ?? [])]);
+    const owned = new Set<THREE.Material>([...(group.userData.brakeMaterials ?? []), ...(group.userData.indicatorMaterials ?? []), ...(group.userData.headlightMaterials ?? [])]);
     for (const m of owned) m.dispose();
     group.traverse(o => {
       const sprite = o as THREE.Sprite;
