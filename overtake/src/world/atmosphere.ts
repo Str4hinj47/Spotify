@@ -16,6 +16,13 @@ export class Atmosphere {
   private tmp = new THREE.Color();
 
   constructor(private scene: THREE.Scene) {
+    // A mirrored, repeatable photographic cloud layer complements the
+    // procedural atmosphere without replacing its time/weather lighting.
+    const base = (import.meta as any).env?.BASE_URL ?? '/';
+    const cloudPhoto = new THREE.TextureLoader().load(`${base}textures/landscape/clouds.jpg`);
+    cloudPhoto.colorSpace = THREE.SRGBColorSpace;
+    cloudPhoto.wrapS = THREE.MirroredRepeatWrapping;
+    cloudPhoto.wrapT = THREE.ClampToEdgeWrapping;
     this.skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
       uniforms: {
@@ -27,12 +34,15 @@ export class Atmosphere {
         cloudCover: { value: 0.25 },
         cloudLight: { value: 1 },
         cloudTime: { value: 0 },
+        cloudPhoto: { value: cloudPhoto },
+        photoDetail: { value: 1 },
       },
       vertexShader: `varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: `
         uniform vec3 topColor; uniform vec3 horizonColor; uniform vec3 sunDir;
         uniform vec3 sunColor; uniform float sunIntensity;
         uniform float cloudCover; uniform float cloudLight; uniform float cloudTime;
+        uniform sampler2D cloudPhoto; uniform float photoDetail;
         varying vec3 vDir;
         float hash21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float noise2(vec2 p) {
@@ -56,6 +66,19 @@ export class Atmosphere {
           clouds *= smoothstep(0.015, 0.16, d.y) * cloudLight;
           vec3 cloudColor = mix(horizonColor * 0.85, vec3(1.0, 0.98, 0.95), 0.65);
           col = mix(col, cloudColor, clouds * (0.38 + cloudCover * 0.38));
+          if (photoDetail > 0.01) {
+            // Two mirrored wraps meet seamlessly at the azimuth boundary.
+            float azimuth = atan(d.z, d.x) / 6.2831853 + 0.5;
+            float elevation = asin(clamp(h, 0.0, 1.0)) * 0.6366198;
+            vec3 photo = texture2D(cloudPhoto, vec2(azimuth * 2.0 + cloudTime * 0.00012, elevation)).rgb;
+            // Isolate near-neutral clouds from the photographed blue sky;
+            // the sky underneath stays fully procedural and responds to weather.
+            float mask = smoothstep(0.015, 0.20, photo.r - photo.b * 0.72);
+            mask *= smoothstep(0.012, 0.09, d.y) * photoDetail * cloudLight;
+            float shade = clamp(dot(photo, vec3(.2126, .7152, .0722)) * 1.3, 0.0, 1.0);
+            vec3 photoColor = mix(horizonColor * .72, mix(horizonColor, vec3(1.0, .98, .95), .8), shade);
+            col = mix(col, photoColor, mask * (0.65 + cloudCover * .2));
+          }
           col += sunColor * (pow(s, 420.0) * 3.0 + pow(s, 18.0) * 0.22) * sunIntensity;
           float below = 1.0 - smoothstep(-0.25, 0.0, d.y);
           col = mix(col, horizonColor * 0.35, below);

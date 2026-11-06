@@ -18,6 +18,7 @@ import { createRidgeGeometry, createBuildingGeometry, createGrassGeometry, creat
 import { createGroundMaterial } from './world/ground';
 import { terrainOffset } from './world/terrain.mjs';
 import { DetailedScenery, sanitizeSceneryQuality, type SceneryQuality } from './world/detailed-scenery';
+import { RoadsideGrass } from './world/roadside-grass';
 import { createStreetlightGeometry } from './world/streetlight';
 import { addFoliageSnow, createRoadsideSignGeometry } from './world/roadside';
 import { disposeBodyKit, updateExhaustFlames } from './body-kits';
@@ -176,6 +177,7 @@ export class OvertakeGame {
   private graphicsQuality: GraphicsQuality = 'sharp';
   private sceneryQuality: SceneryQuality = 'high';
   private detailedScenery!: DetailedScenery;
+  private roadsideGrass!: RoadsideGrass;
   private roadEnv: THREE.Texture | null = null;
   private studioEnv: THREE.Texture | null = null;
   private worldClock = createClock(9.5, 1, true);
@@ -311,6 +313,7 @@ export class OvertakeGame {
 
     this.buildEnvironments();
     this.atmosphere = new Atmosphere(this.scene);
+    this.atmosphere.skyMat.uniforms.photoDetail.value = this.sceneryQuality === 'low' ? 0 : 1;
     this.precipitation = new Precipitation(this.scene);
     this.spray = new RoadSpray(this.scene);
     this.buildRoad();
@@ -825,6 +828,7 @@ export class OvertakeGame {
     this.sceneryShadows.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.roadGroup.add(this.sceneryShadows);
 
+    this.roadsideGrass = new RoadsideGrass(this.roadGroup, this.roadSurface.snow, this.roadSurface.time, this.renderer.capabilities.getMaxAnisotropy(), { centerX, centerY, rightAt });
     this.detailedScenery = new DetailedScenery(this.roadGroup, this.roadSurface.snow, this.renderer.capabilities.getMaxAnisotropy(), () => this.updateScenery());
     if (this.sceneryQuality !== 'low') this.detailedScenery.ensureLoaded();
 
@@ -999,6 +1003,7 @@ export class OvertakeGame {
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
     this.updateDetailedScenery(base);
+    this.roadsideGrass.update(base, this.sceneryQuality, snow);
     // Recycled sign slots use absolute road distance, so they never jump as
     // the road and scenery buffers shift around a moving car.
     const signStart = Math.floor((base - BACK) / 155) - 1;
@@ -1827,6 +1832,7 @@ export class OvertakeGame {
   getSceneryQuality() { return this.sceneryQuality; }
   setSceneryQuality(value: SceneryQuality) {
     this.sceneryQuality = sanitizeSceneryQuality(value);
+    this.atmosphere.skyMat.uniforms.photoDetail.value = this.sceneryQuality === 'low' ? 0 : 1;
     if (this.sceneryQuality !== 'low') this.detailedScenery.ensureLoaded();
     try { localStorage.setItem('overtake-scenery-quality', this.sceneryQuality); } catch { /* storage unavailable */ }
     this.updateScenery();
