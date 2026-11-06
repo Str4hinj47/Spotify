@@ -151,8 +151,8 @@ export class Atmosphere {
     this.fogColor.copy(horizon);
     const fog = this.scene.fog as THREE.Fog;
     easing.dampC(fog.color, this.fogColor, 0.35, dt);
-    fog.near = 70 - cloud * 35;
-    fog.far = 640 - cloud * 320 - night * 90;
+    fog.near = 95 - cloud * 40;
+    fog.far = 1050 - cloud * 550 - night * 180;
     this.scene.environmentIntensity = 0.22 + 0.5 * day * (1 - cloud * 0.4);
     return { day, night, cloud, dusk };
   }

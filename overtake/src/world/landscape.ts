@@ -5,7 +5,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 // Geometry is fixed in the horizon's local space; unlike individual cones it
 // cannot create gaps as the camera changes direction.
 export function createRidgeGeometry(radius: number, height: number, phase: number) {
-  const segments = 256, levels = 6;
+  const segments = 384, levels = 24;
   const positions: number[] = [], colors: number[] = [], indices: number[] = [];
   for (let i = 0; i <= segments; i++) {
     const a = (i / segments) * Math.PI * 2;
@@ -19,9 +19,10 @@ export function createRidgeGeometry(radius: number, height: number, phase: numbe
       // Subtle ridgelines and eroded spurs give the slopes depth without
       // introducing separate cones or gaps between horizon segments.
       const erosion = Math.sin(a * 43 + phase + t * 4) * Math.sin(a * 19 - phase - t * 7);
-      const r = radius + 16 * Math.sin(a * 7 + phase) + erosion * 9 * (1 - t);
-      const y = -32 + (peak + 32) * t;
-      const shade = Math.max(0.55, Math.min(1, 0.68 + t * 0.23 + erosion * 0.08 * Math.sin(t * Math.PI)));
+      const spurs = Math.sin(a * 31 + phase) * 15 + Math.sin(a * 71 - phase) * 6 + Math.sin(a * 113 + t * 5) * 2;
+      const r = radius + 25 * Math.sin(a * 7 + phase) + (1 - t) * (45 + spurs * 1.6) + erosion * 12 * (1 - t);
+      const y = -32 + (peak + 32) * t + Math.sin(a * 83 + phase) * (1 - t) * t * 5;
+      const shade = Math.max(0.55, Math.min(1, 0.60 + t * 0.18 + erosion * 0.16 * Math.sin(t * Math.PI) + Math.sin(a * 71 + phase) * .07));
       positions.push(Math.cos(a) * r, y, Math.sin(a) * r);
       colors.push(shade, shade, shade);
       if (i < segments && row < levels) {
