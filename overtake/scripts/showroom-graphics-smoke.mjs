@@ -24,10 +24,14 @@ try {
    return {id, car:g.player.name, width:g.playerMeta.width, length:g.playerMeta.length,
     shadow:[g.showroomShadow.scale.x,g.showroomShadow.scale.y], floor:!!g.garageGroup.getObjectByName('showroom-floor'),
     wall:!!g.garageGroup.getObjectByName('showroom-wall'), stage:!!g.garageGroup.getObjectByName('showroom-stage'),
-    showroom:g.garageGroup.visible, road:g.roadGroup.visible};
+    showroom:g.garageGroup.visible, road:g.roadGroup.visible,
+    contacts: (() => { const m=g.garageGroup.getObjectByName('showroom-tire-contacts'); const a=m.instanceMatrix.array;
+      return { count:m.count, positions:Array.from({length:m.count},(_,i)=>[a[i*16+12],a[i*16+13],a[i*16+14]]), wheels:g.player.userData.wheels.map(w=>w.position.toArray()) }; })()};
   },id);
   assert.ok(result.width>0 && result.length>0 && result.floor && result.wall && result.stage && result.showroom && !result.road);
   assert.ok(Math.abs(result.shadow[0]-result.width*1.65)<.001 && Math.abs(result.shadow[1]-result.length*1.3)<.001);
+  assert.equal(result.contacts.count,4);
+  result.contacts.positions.forEach((p,i)=>{assert.ok(Math.abs(p[0]-result.contacts.wheels[i][0])<.001 && Math.abs(p[2]-result.contacts.wheels[i][2])<.001 && p[1]>.0 && p[1]<.02,`${id} tire contact`);});
   checks.push(result);
   if(real) await page.screenshot({path:`test-results/showroom-car-${id}.png`,timeout:120000});
  }
