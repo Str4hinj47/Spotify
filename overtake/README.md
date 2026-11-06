@@ -116,6 +116,14 @@ picker, and a **Factory** reset. Paint is saved per car in `localStorage`
 (`overtake-paints`) and is applied to the player car and, where it remains distinct from nearby traffic, to traffic instances
 of that model.
 
+## Showroom graphics
+
+The car showroom uses a circular, orbitable studio with a tiled floor, display
+platform, soft contact shadow sized to the selected car, and studio lighting and
+reflections. The compact layout leaves the car visible on phones while retaining
+the garage and customization controls. Road surfaces include subtle wear and
+reflective centre-line studs that disappear beneath deep snow.
+
 ## World, weather and day–night
 
 The scenery blends smoothly between meadow, forest, alpine, desert and
@@ -197,6 +205,7 @@ npm test                     # scoring / spawn / physics / biome / weather / clo
 node scripts/smoke.mjs       # headless browser playthrough (requires local server)
 node scripts/world-shots.mjs # day/night/rain/snow/biome screenshots
 node scripts/landscape-smoke.mjs # landscape weather, biome and slot continuity
+node scripts/showroom-graphics-smoke.mjs # showroom, vehicle and mobile checks
 node scripts/speedometer-smoke.mjs # speed, gear, RPM and responsive dashboard
 node scripts/sound-settings-smoke.mjs # saved sound controls and synchronized indicator clicks
 node scripts/customization-smoke.mjs # workshop, persistence, model fit and driving

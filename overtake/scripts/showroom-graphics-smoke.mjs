@@ -41,9 +41,16 @@ try {
  assert.ok(mobile.view && mobile.detail.top>300 && mobile.detail.bottom<=mobile.list.top && mobile.list.bottom<=844);
  assert.ok(mobile.start.top>=mobile.detail.top && mobile.start.bottom<=mobile.detail.bottom,'start button visible');
  if(real) await page.screenshot({path:'test-results/showroom-final-mobile.png',timeout:120000});
+ await page.setViewportSize({width:568,height:320});
+ const landscape=await page.evaluate(()=>{const g=window.__overtake;g.updateCamera(0);g.composer.render();const d=document.querySelector('#car-detail').getBoundingClientRect(),l=document.querySelector('.car-list').getBoundingClientRect(),b=document.querySelector('#btn-start').getBoundingClientRect();return {view:g.camera.view?.enabled||false,detail:d.toJSON(),list:l.toJSON(),start:b.toJSON(),scroll:document.querySelector('#car-detail').scrollHeight>document.querySelector('#car-detail').clientHeight};});
+ assert.equal(landscape.view,false);assert.ok(landscape.list.right<landscape.detail.left && landscape.detail.bottom<=320 && landscape.scroll);
+ assert.ok(landscape.start.top>=landscape.detail.top && landscape.start.bottom<=landscape.detail.bottom);
+ if(real) await page.screenshot({path:'test-results/showroom-final-landscape.png',timeout:120000});
+ await page.setViewportSize({width:390,height:844});
+ await page.evaluate(()=>{const g=window.__overtake;g.updateCamera(0);g.composer.render();});
  await page.click('#btn-customize');assert.ok(await page.locator('#custom-panel').isVisible());await page.click('#custom-done');
  await page.click('#btn-start');
  const road=await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf);g.playerS=900;g.weather.snowCover=0;g.updateRoad();const before=Array.from(g.roadStuds.instanceMatrix.array.slice(16,32));g.playerS+=9;g.updateRoad();const after=Array.from(g.roadStuds.instanceMatrix.array.slice(0,16));const visible=g.roadStuds.visible;g.weather.snowCover=1;g.updateRoad();const snowy=g.roadStuds.visible;g.atmosphere.update(0,{rain:0,snow:0},{fog:0xbfd4e2},g.camera.position,1);g.updateWorld(.01);return {before,after,visible,snowy,count:g.roadStuds.count,garage:g.garageGroup.visible,world:g.roadGroup.visible};});
  assert.deepEqual(road.before,road.after);assert.ok(road.visible&&!road.snowy&&road.count>70&&!road.garage&&road.world);
- assert.deepEqual(errors,[]);console.log({real,checks,mobile,road,errors});
+ assert.deepEqual(errors,[]);console.log({real,checks,mobile,landscape,road,errors});
 } finally {await browser.close();}
