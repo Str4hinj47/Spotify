@@ -89,7 +89,7 @@ try {
   // Snow and nighttime both render with the updated materials and no shader errors.
   fs.mkdirSync('test-results',{recursive:true});
   await page.evaluate(()=>{const g=window.__overtake;Object.assign(g.weather,{snow:1,snowCover:1,rain:0,wet:0});g.roadSurface.snow.value=1;g.updateRoad();g.atmosphere.update(16,g.weather,{fog:0xcfdbe6},g.camera.position,5);g.composer.render();});
-  assert.ok(await page.evaluate(()=>window.__overtake.roadsideGrass.mesh.count)<high.grass * .4, 'snow buries most grass');
+  assert.ok(await page.evaluate(()=>{const p=window.__overtake.roadsideGrass;return p.mesh.count+p.wildflowers.count+p.desertScrub.count;}) < (high.grass+high.flowers+high.scrub)*.4, 'snow buries most roadside plants');
   await page.screenshot({path:'test-results/scenery-snow.png',timeout:120000});
   await page.evaluate(()=>{const g=window.__overtake;Object.assign(g.weather,{snow:0,snowCover:0,rain:0,wet:0});g.roadSurface.snow.value=0;g.updateRoad();g.atmosphere.update(0,g.weather,{fog:0xbfd4e2},g.camera.position,5);g.composer.render();});
   await page.screenshot({path:'test-results/scenery-night.png',timeout:120000});
