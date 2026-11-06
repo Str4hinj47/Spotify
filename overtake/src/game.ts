@@ -1,4 +1,5 @@
 import { spinWheels } from './wheels';
+import { addVehicleLights, updateVehicleLights, conformTrafficBeam, disposeVehicleLights, LAMP_POSITIONS } from './vehicle-lights';
 import * as THREE from 'three';
 import { ModelLibrary } from './models';
 import { CARS, getCar, TRAFFIC_COLORS, type CarId, type TrafficId } from './catalog';
@@ -1331,6 +1332,7 @@ export class OvertakeGame {
     this.selected = id;
     if (this.player) { this.scene.remove(this.player); this.disposeCarLights(this.player); }
     this.player = this.library.create(id, { player: true });
+    addVehicleLights(this.player, id, false);
     const meta = this.library.get(id);
     this.playerMeta = { length: meta.length, width: meta.width };
     this.showroomShadow.scale.set(meta.width * 1.65, meta.length * 1.3, 1);
@@ -1526,6 +1528,7 @@ export class OvertakeGame {
   private setMode(m: Mode) { this.mode = m; this.cb.onMode(m); }
 
   private disposeCarLights(group: THREE.Group) {
+    disposeVehicleLights(group);
     for (const material of (group.userData.customPaintMaterials ?? []) as THREE.Material[]) material.dispose();
     for (const geometry of (group.userData.customGeometries ?? []) as THREE.BufferGeometry[]) geometry.dispose();
     const kit = group.getObjectByName('custom-body-kit');
@@ -1550,6 +1553,7 @@ export class OvertakeGame {
     const preferred = id === 'semi' || id === 'kraz' ? undefined : this.library.getPaint(id);
     const paint = chooseTrafficPaint(TRAFFIC_COLORS, this.traffic, s, preferred);
     const group = this.library.create(id, { paint });
+    addVehicleLights(group, id, true);
     const meta = this.library.get(id);
     this.scene.add(group);
     const brakeGlow = this.makeBrakeGlow();
@@ -1564,6 +1568,7 @@ export class OvertakeGame {
     const spec = getCar(chooseTrafficModel(ids, this.traffic, s));
     const paint = chooseTrafficPaint(TRAFFIC_COLORS, this.traffic, s, this.library.getPaint(spec.id));
     const group = this.library.create(spec.id, { paint });
+    addVehicleLights(group, spec.id, true);
     const meta = this.library.get(spec.id);
     this.scene.add(group);
     const cruise = trafficCruise(spec.id);
@@ -1760,6 +1765,7 @@ export class OvertakeGame {
       const px = centerX(t.s) + r.x * t.offset, pz = -t.s + r.z * t.offset;
       t.group.position.set(px, centerY(t.s), pz);
       t.group.rotation.y = roadYaw(t.s) + (t.dir === -1 ? Math.PI : 0);
+      conformTrafficBeam(t.group, t.s, t.dir, centerY);
       if (t.brakeGlow) (t.brakeGlow.material as THREE.SpriteMaterial).opacity = t.braking && !t.group.userData.brakeMaterials?.length ? 0.9 : 0;
       for (const m of (t.group.userData.brakeMaterials ?? []) as THREE.MeshStandardMaterial[]) m.emissiveIntensity = t.braking && !m.userData.selectiveBrake ? 2.8 : 0.55;
       if (t.group.userData.indicatorState) t.group.userData.indicatorState.brake.value = t.braking ? 1 : 0;
@@ -1896,7 +1902,9 @@ export class OvertakeGame {
     this.headlights.forEach((h, i) => {
       const side = h.userData.side as number;
       h.intensity = beam * 85;
-      h.position.set(this.pos.x + fx * 2.1 + rx * side, this.pos.y + 0.62, this.pos.z + fz * 2.1 + rz * side);
+      const [lampX, lampY, lampZ] = LAMP_POSITIONS[this.selected].front;
+      const lateral = Math.sign(side) * lampX;
+      h.position.set(this.pos.x - fx * lampZ + rx * lateral, this.pos.y + lampY, this.pos.z - fz * lampZ + rz * lateral);
       this.headlightTargets[i].position.set(this.pos.x + fx * 24 + rx * side * 1.5, this.pos.y + 0.2, this.pos.z + fz * 24 + rz * side * 1.5);
     });
   }
@@ -1971,6 +1979,8 @@ export class OvertakeGame {
       this.updateCamera(dt);
     }
     this.updateIndicatorView();
+    if (this.player) updateVehicleLights(this.player, this.camera, this.nightFactor, this.input.brake || this.input.handbrake, this.mode === 'garage');
+    for (const t of this.traffic) updateVehicleLights(t.group, this.camera, this.nightFactor, t.braking);
     updateExhaustFlames(this.player, performance.now()/1000, this.mode === 'garage' || (this.mode === 'driving' && this.input.throttle && !this.input.brake && this.speed > 6));
     this.composer.render();
   };
