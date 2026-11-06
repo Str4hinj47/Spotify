@@ -37,3 +37,18 @@ while Vite is loading it);
 its ranges leave clearance to the front and rear tires. These are measurements
 of the existing game assets, not external meshes. `scripts/body-fit-smoke.mjs`
 checks the replacement, exhaust origins and wheel clearances.
+
+## Workshop variants and effects
+
+The Touring and Sport settings are additional original procedural profiles,
+not imported or copied third-party tuning meshes. They vary dimensions and,
+where appropriate, wing supports, sill blades, fins or outlet arrangements;
+they are variations on the fitted base designs rather than standalone scanned
+body kits. The Golf lip and hatch edge, and RS6 front lip, use measurements
+from the in-game bodies. The Ferrari aftermarket exhaust retains the original
+three outlet positions rather than introducing a second set of holes.
+
+Afterfire uses a custom animated noise shader and generated geometry in
+`src/body-kits.ts`; it does not include an external flame image or model.
+These statements do not change the separate license requirements of the car
+models themselves, which are described in the third-party notices.
