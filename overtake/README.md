@@ -131,7 +131,8 @@ The source and provenance of the scenery assets are in `SCENERY_ASSETS.md`.
 The Graphics panel offers **High / Medium / Low scenery detail** independently
 of render resolution. High uses denser foliage; Medium reduces detail and
 instance counts; Low switches to lightweight procedural trees, ridges and sky.
-Roadside grass reacts to wind and snow and thins out in drier biomes.
+Roadside vegetation reacts to wind and snow, with wildflowers in meadows,
+desert scrub and a separate arid soil texture blending with the biomes.
 Detailed models are not loaded at startup when Low is saved. Preferences are
 saved locally, and changes take effect without restarting the run.
 

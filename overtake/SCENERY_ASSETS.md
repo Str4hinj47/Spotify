@@ -20,7 +20,10 @@ The meadow texture `public/textures/landscape/grass.jpg` and pine foliage cutout
 `public/textures/landscape/desert-panorama.png`, and
 `public/textures/landscape/facade.jpg`, the roadside grass cutout
 `public/textures/landscape/roadside-grass.png` and cloud layer
-`public/textures/landscape/clouds.jpg` were AI-generated specifically for this game; they are not Poly Haven assets. Existing vehicle
+`public/textures/landscape/clouds.jpg`,
+`public/textures/landscape/wildflower.png`,
+`public/textures/landscape/desert-scrub.png`, and
+`public/textures/landscape/desert-ground.jpg` were AI-generated specifically for this game; they are not Poly Haven assets. Existing vehicle
 assets have separate provenance; their licenses are not implied by the
 vegetation's CC0 status.
 

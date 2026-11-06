@@ -29,7 +29,7 @@ try {
       species[name]=o?.visible ? o.count : 0;
     }
     r.info.autoReset=false;r.info.reset();g.composer.render();const triangles=r.info.render.triangles;r.info.autoReset=true;
-    return {quality:g.getSceneryQuality(),species,triangles,oldTrees:g.cheapBroadleaf.visible,panorama:g.mountainBackdrop.visible, grass:g.roadsideGrass.mesh.count, photoDetail:g.atmosphere.skyMat.uniforms.photoDetail.value};
+    return {quality:g.getSceneryQuality(),species,triangles,oldTrees:g.cheapBroadleaf.visible,panorama:g.mountainBackdrop.visible, grass:g.roadsideGrass.mesh.count, flowers:g.roadsideGrass.wildflowers.count, scrub:g.roadsideGrass.desertScrub.count, photoDetail:g.atmosphere.skyMat.uniforms.photoDetail.value};
   });
   const high=await snapshot();assert.ok(high.species.conifer>30);assert.ok(high.species.broadleaf>10);assert.ok(high.species.fern>10);assert.equal(high.oldTrees,false);assert.equal(high.panorama,true);assert.ok(high.grass>50);assert.equal(high.photoDetail,1);
   const biomes=await page.evaluate(()=>{
@@ -38,14 +38,29 @@ try {
       g.playerS=distance;g.updateRoad();
       const pos=g.terrain.geometry.getAttribute('position').array;
       out.push({distance,desert:g.desertPanoramaBlend.value,buildings:g.detailedBuildings.count,
-        finite:Array.from(pos).every(Number.isFinite),visible:g.mountainBackdrop.visible});
+        finite:Array.from(pos).every(Number.isFinite),visible:g.mountainBackdrop.visible, grass:g.roadsideGrass.mesh.count, flowers:g.roadsideGrass.wildflowers.count, scrub:g.roadsideGrass.desertScrub.count, dry:g.groundMat.userData.groundDetail.dry.value});
     }
     g.playerS=1500;g.updateRoad();return out;
   });
   assert.ok(biomes[0].desert > .9 && biomes[1].desert < .1);
   assert.equal(biomes[0].buildings,0);
+  assert.ok(biomes[0].scrub > 40 && biomes[0].grass === 0 && biomes[0].flowers === 0 && biomes[0].dry > .9);
+  assert.ok(biomes[2].flowers > 10 && biomes[2].scrub === 0 && biomes[2].dry < .1);
   assert.ok(biomes[3].buildings > 0);
   assert.ok(biomes.every(b=>b.finite&&b.visible));
+  const offRoad=await page.evaluate(()=>{
+    const g=window.__overtake; let min=Infinity;
+    const centerX=s=>16*Math.sin(s*.004)+8*Math.sin(s*.009+1.7)+4*Math.sin(s*.017+.4);
+    for(const distance of [500,1750,5250,8250,14750]) {
+      g.playerS=distance;g.updateScenery();
+      for(const o of [g.roadsideGrass.mesh,g.roadsideGrass.wildflowers,g.roadsideGrass.desertScrub]) {
+        const a=o.instanceMatrix.array;
+        for(let i=0;i<o.count;i++) min=Math.min(min, Math.abs(a[i*16+12]-centerX(-a[i*16+14])));
+      }
+    }
+    g.playerS=1500;g.updateScenery();return min;
+  });
+  assert.ok(offRoad > 7.5, `plants should remain beyond the shoulder: ${offRoad}`);
   // Absolute slots don't jitter when the car crosses a recycling boundary.
   const stability=await page.evaluate(()=>{
     const g=window.__overtake;
@@ -63,7 +78,7 @@ try {
   await page.click('[data-scenery=medium]');assert.equal(await page.locator('[data-scenery=medium]').getAttribute('aria-pressed'),'true');
   const medium=await snapshot();assert.equal(medium.quality,'medium');assert.ok(medium.species.conifer<high.species.conifer);assert.ok(medium.species.broadleaf<high.species.broadleaf);assert.ok(medium.grass<high.grass && medium.grass>0);
   await page.click('[data-scenery=low]');
-  const low=await snapshot();assert.equal(low.quality,'low');assert.equal(low.species.conifer,0);assert.equal(low.oldTrees,true);assert.equal(low.panorama,false);assert.equal(low.grass,0);assert.equal(low.photoDetail,0);
+  const low=await snapshot();assert.equal(low.quality,'low');assert.equal(low.species.conifer,0);assert.equal(low.oldTrees,true);assert.equal(low.panorama,false);assert.equal(low.grass,0);assert.equal(low.flowers,0);assert.equal(low.scrub,0);assert.equal(low.photoDetail,0);
   assert.ok(low.triangles < high.triangles * .7, `low ${low.triangles}, high ${high.triangles}`);
   assert.equal(await page.evaluate(()=>localStorage.getItem('overtake-scenery-quality')),'low');
   await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>document.activeElement.id),'btn-graphics');
@@ -89,5 +104,5 @@ try {
   await page.click('#btn-graphics');await page.click('[data-scenery=high]');
   await page.waitForFunction(()=>window.__overtake.detailedScenery.ready,null,{timeout:180000});
   assert.equal(await page.evaluate(()=>window.__overtake.cheapBroadleaf.visible),false);
-  assert.deepEqual(errors,[]);console.log({realRender,high,medium,low,biomes,stability,grassStability,mobile,errors});
+  assert.deepEqual(errors,[]);console.log({realRender,high,medium,low,biomes,offRoad,stability,grassStability,mobile,errors});
 } finally {await browser.close();}
