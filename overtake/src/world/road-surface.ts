@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CLOUD_SHADOW_GLSL } from './cloud-shadows';
+import { STREETLIGHT_SPACING, STREETLIGHT_POLE_OFFSET, STREETLIGHT_LENS_REACH } from './streetlight';
 
 /** Shared, continuously varying weather uniforms for the road shaders. */
 export interface RoadSurfaceUniforms {
@@ -8,6 +9,7 @@ export interface RoadSurfaceUniforms {
   rain: { value: number };
   time: { value: number };
   cloud: { value: number };
+  streetlight: { value: number };
 }
 
 // Road UVs are across-width 0..1 and longitudinal distance in metres. Keeping
@@ -39,8 +41,25 @@ function uniforms(shader: THREE.WebGLProgramParametersWithUniforms, values: Road
   shader.uniforms.roadSnow = values.snow;
   shader.uniforms.roadRain = values.rain;
   shader.uniforms.roadTime = values.time;
+  shader.uniforms.roadStreetlight = values.streetlight;
   shader.uniforms.cloudShadowTime = values.time;
   shader.uniforms.cloudShadowStrength = values.cloud;
+}
+
+// Evaluate in road coordinates, so pools follow the same curves, elevations,
+// snow geometry, and 32m recycling as the actual alternating lamp posts. This
+// costs no shadow maps or extra draw calls and is disabled at low detail.
+function streetlightShader(roadWidth: number) {
+  return `uniform float roadStreetlight;
+    float streetlightPool(vec2 p) {
+      if (roadStreetlight < 0.001) return 0.0;
+      float slot = floor((p.y + ${STREETLIGHT_SPACING / 2}.0) / ${STREETLIGHT_SPACING}.0);
+      float side = mod(slot, 2.0) < 1.0 ? -1.0 : 1.0;
+      float x = (p.x - side * ${(roadWidth / 2 + STREETLIGHT_POLE_OFFSET - STREETLIGHT_LENS_REACH).toFixed(3)}) / 4.6;
+      float z = (p.y - slot * ${STREETLIGHT_SPACING}.0) / 8.0;
+      float falloff = max(0.0, 1.0 - x*x - z*z);
+      return falloff * falloff * roadStreetlight;
+    }`;
 }
 
 /** Photographed asphalt + normal map, with wet film and irregular puddles. */
@@ -62,6 +81,7 @@ export function createAsphaltMaterial(roadWidth: number, aniso: number, values: 
       uniform float roadWet, roadRain, roadTime, roadSnow;
       ${CLOUD_SHADOW_GLSL}
       ${ROAD_NOISE}
+      ${streetlightShader(roadWidth)}
       vec2 roadMetres() { return vec2((roadUV.x - 0.5) * ${roadWidth.toFixed(3)}, roadUV.y); }
       float puddleAt(vec2 p) {
         // Large, connected shallow depressions with irregular shorelines.
@@ -103,6 +123,8 @@ export function createAsphaltMaterial(roadWidth: number, aniso: number, values: 
       float ring = (1.0 - smoothstep(0.018, 0.045, abs(radius - phase * 0.42))) * (1.0 - phase);
       float ring2 = (1.0 - smoothstep(0.012, 0.035, abs(radius - max(0.0, phase - 0.16) * 0.42))) * (1.0 - phase);
       diffuseColor.rgb += vec3(0.10, 0.13, 0.15) * (ring + ring2 * 0.55) * puddle * roadRain;
+    `).replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      totalEmissiveRadiance += vec3(0.18, 0.115, 0.055) * streetlightPool(roadPos) * (1.0 + roadWet * 0.22);
     `).replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
       roughnessFactor = mix(roughnessFactor, 0.20, film * 0.55);
       roughnessFactor = mix(roughnessFactor, 0.075, puddle);
@@ -110,7 +132,7 @@ export function createAsphaltMaterial(roadWidth: number, aniso: number, values: 
       metalnessFactor = mix(metalnessFactor, 0.35, puddle);
     `);
   };
-  material.customProgramCacheKey = () => 'road-asphalt-pbr-v5';
+  material.customProgramCacheKey = () => 'road-asphalt-pbr-v6';
   return material;
 }
 
@@ -134,6 +156,7 @@ export function createSnowMaterial(snowWidth: number, aniso: number, values: Roa
       uniform float roadSnow;
       ${CLOUD_SHADOW_GLSL}
       ${ROAD_NOISE}
+      ${streetlightShader(snowWidth - 1.4)}
     `).replace('#include <color_fragment>', `#include <color_fragment>
       vec2 p = vec2((roadUV.x - 0.5) * ${snowWidth.toFixed(3)}, roadUV.y);
       // Warped, multi-scale snow deposits: finer, broken edges instead of
@@ -159,10 +182,11 @@ export function createSnowMaterial(snowWidth: number, aniso: number, values: Roa
       diffuseColor.rgb *= mix(0.88, 1.05, grain) * (1.0 - packed * 0.16) * cloudShadowAt(roadWorld);
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.48, 0.51, 0.52), packed * 0.16);
       diffuseColor.a *= snowPatch;
-
+    `).replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      totalEmissiveRadiance += vec3(0.22, 0.15, 0.08) * streetlightPool(p);
     `);
   };
-  material.customProgramCacheKey = () => 'road-snow-depth-v5';
+  material.customProgramCacheKey = () => 'road-snow-depth-v6';
   return material;
 }
 

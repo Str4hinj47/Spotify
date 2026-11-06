@@ -23,7 +23,7 @@ import { DetailedScenery, sanitizeSceneryQuality, type SceneryQuality } from './
 import { RoadsideGrass } from './world/roadside-grass';
 import { MidgroundTreeline } from './world/midground-treeline';
 import { createShowroom } from './world/showroom';
-import { createStreetlightGeometry } from './world/streetlight';
+import { createStreetlightGeometry, STREETLIGHT_SPACING, STREETLIGHT_COUNT, STREETLIGHT_POLE_OFFSET } from './world/streetlight';
 import { addFoliageSnow, createRoadsideSignGeometry } from './world/roadside';
 import { disposeBodyKit, updateExhaustFlames } from './body-kits';
 import { createAsphaltMaterial, createSnowMaterial, createShoulderMaterial, createRoadMarkingMaterial } from './world/road-surface';
@@ -199,7 +199,7 @@ export class OvertakeGame {
   private ground!: THREE.Mesh;
   private asphalt!: THREE.Mesh;
   private asphaltMat!: THREE.MeshStandardMaterial;
-  private roadSurface = { wet: { value: 0 }, snow: { value: 0 }, rain: { value: 0 }, time: { value: 0 }, cloud: { value: 0 }, wind: { value: 1 } };
+  private roadSurface = { wet: { value: 0 }, snow: { value: 0 }, rain: { value: 0 }, time: { value: 0 }, cloud: { value: 0 }, streetlight: { value: 0 }, wind: { value: 1 } };
   private snowLayer!: THREE.Mesh;
   private shoulderMat!: THREE.MeshStandardMaterial;
   private groundMat!: THREE.MeshStandardMaterial;
@@ -897,7 +897,7 @@ export class OvertakeGame {
     const rimMat = new THREE.MeshStandardMaterial({ color: 0x252d34, metalness: 0.45, roughness: 0.5 });
     this.lampMat = new THREE.MeshStandardMaterial({ color: 0xfff2d2, emissive: 0xffdf9e, emissiveIntensity: 0.4, roughness: 0.5 });
     const streetlight = createStreetlightGeometry();
-    for (let i = 0; i < 24; i++) {
+    for (let i = 0; i < STREETLIGHT_COUNT; i++) {
       const g = new THREE.Group();
       const side = i % 2 ? 1 : -1;
       g.name = 'streetlight';
@@ -907,7 +907,7 @@ export class OvertakeGame {
       const rim = new THREE.Mesh(streetlight.rim, rimMat); rim.name = 'streetlight-rim';
       const lens = new THREE.Mesh(streetlight.lens, this.lampMat); lens.name = 'streetlight-lens';
       g.add(pole, housing, rim, lens);
-      this.lamps.push({ g, s: i * 32, side });
+      this.lamps.push({ g, s: i * STREETLIGHT_SPACING, side });
       this.roadGroup.add(g);
     }
 
@@ -1067,11 +1067,11 @@ export class OvertakeGame {
     for (const mesh of this.roadsideSigns) mesh.instanceMatrix.needsUpdate = true;
     for (const l of this.lamps) {
       let s = l.s;
-      while (s < base - 80) s += 768;
-      while (s > base + 688) s -= 768;
+      while (s < base - 80) s += STREETLIGHT_COUNT * STREETLIGHT_SPACING;
+      while (s > base + 688) s -= STREETLIGHT_COUNT * STREETLIGHT_SPACING;
       l.s = s;
       const r = rightAt(s, this.tmpA);
-      const off = l.side * (ROAD_HALF + 2.0);
+      const off = l.side * (ROAD_HALF + STREETLIGHT_POLE_OFFSET);
       l.g.position.set(centerX(s) + r.x * off, centerY(s), -s + r.z * off);
       l.g.rotation.y = roadYaw(s);
     }
@@ -1804,6 +1804,7 @@ export class OvertakeGame {
     this.asphaltMat.metalness = 0.02 + wet * 0.04;
     this.asphaltMat.color.set(0xb2b5ba);
     this.lampMat.emissiveIntensity = 0.25 + atm.night * 2.4 + atm.cloud * 0.8;
+    this.roadSurface.streetlight.value = this.sceneryQuality === 'low' ? 0 : THREE.MathUtils.smoothstep(atm.night, .25, .8);
     (this.roadStuds.material as THREE.MeshStandardMaterial).emissiveIntensity = .1 + atm.night * .45;
 
     // Player headlights follow the car and fade in at night / in precipitation.
@@ -1910,6 +1911,7 @@ export class OvertakeGame {
     this.atmosphere.skyMat.uniforms.photoDetail.value = this.sceneryQuality === 'low' ? 0 : 1;
     const cloud = Math.min(1, this.weather.rain * .85 + this.weather.snow * .75);
     this.roadSurface.cloud.value = this.sceneryQuality === 'low' ? 0 : .20 * dayFactor(this.worldClock.hour) * (1 - cloud * .8);
+    this.roadSurface.streetlight.value = this.sceneryQuality === 'low' ? 0 : THREE.MathUtils.smoothstep(1 - dayFactor(this.worldClock.hour), .25, .8);
     if (this.sceneryQuality !== 'low') this.detailedScenery.ensureLoaded();
     try { localStorage.setItem('overtake-scenery-quality', this.sceneryQuality); } catch { /* storage unavailable */ }
     this.updateScenery();

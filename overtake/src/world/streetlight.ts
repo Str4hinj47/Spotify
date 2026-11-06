@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
+// Used for both recycled poles and their projected road illumination.
+export const STREETLIGHT_SPACING = 32;
+export const STREETLIGHT_COUNT = 24;
+export const STREETLIGHT_POLE_OFFSET = 2.0;
+export const STREETLIGHT_LENS_REACH = 2.47;
+
 // Shared geometries for both sides of the road. Each light uses only a few
 // draw calls: the pole, footplate, access panel and curved arm are merged.
 export function createStreetlightGeometry() {
@@ -34,8 +40,8 @@ export function createStreetlightGeometry() {
   housing.scale(0.58, 0.10, 0.24);
   housing.translate(-2.42, 8.16, 0);
   const lens = new THREE.BoxGeometry(0.83, 0.025, 0.30);
-  lens.translate(-2.47, 8.015, 0);
+  lens.translate(-STREETLIGHT_LENS_REACH, 8.015, 0);
   const rim = new THREE.BoxGeometry(0.94, 0.035, 0.38);
-  rim.translate(-2.47, 8.045, 0);
+  rim.translate(-STREETLIGHT_LENS_REACH, 8.045, 0);
   return { pole, housing, rim, lens };
 }
