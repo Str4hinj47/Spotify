@@ -14,7 +14,7 @@
   "mercedes": {
     "id": "mercedes",
     "file": "models/mercedes.glb",
-    "bytes": 1077944,
+    "bytes": 4296804,
     "triangles": 27110,
     "dimensions": [
       2.108,
@@ -50,7 +50,7 @@
   "ferrari": {
     "id": "ferrari",
     "file": "models/ferrari.glb",
-    "bytes": 1892572,
+    "bytes": 2780832,
     "triangles": 142205,
     "dimensions": [
       2.5,

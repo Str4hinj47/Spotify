@@ -78,7 +78,7 @@ for (const id of ids) {
     const tex = root.listTextures().find(t=>t.getName()==='MB_W222_Photo_Textures.1001');
     if (tex) {
       const dir=fs.mkdtempSync(path.join(os.tmpdir(),'car-atlas-')), src=path.join(dir,'in.png'), out=path.join(dir,'out.png');
-      try { fs.writeFileSync(src,tex.getImage()); execFileSync(python,['tools/redact_mercedes_atlas.py',src,out]); tex.setImage(new Uint8Array(fs.readFileSync(out))); }
+      try { fs.writeFileSync(src,tex.getImage()); execFileSync(python,['tools/redact_mercedes_atlas.py',src,out]); tex.setImage(new Uint8Array(fs.readFileSync(out))); tex.setMimeType('image/png'); }
       finally { fs.rmSync(dir,{recursive:true,force:true}); }
     }
   }
