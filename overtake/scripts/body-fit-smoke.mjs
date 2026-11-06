@@ -31,13 +31,14 @@ try {
     const plateMeshes=[];g.library.create('ferrari').traverse(o=>{if(o.isMesh && o.material.name?.startsWith('plate__'))plateMeshes.push(o.visible)});
     const challengerStock=make('challenger',{spoiler:'stock'}),challengerCustom=make('challenger',{spoiler:'track'}),challengerTraffic=g.library.create('challenger');
     const challenger={stock:challengerStock.getObjectByName('Cube001_Cube003').visible,custom:challengerCustom.getObjectByName('Cube001_Cube003').visible,traffic:challengerTraffic.getObjectByName('Cube001_Cube003').visible};
-    const ferrari=make('ferrari',{exhaust:'flame',exhaustFinish:'carbon'}),factory=ferrari.getObjectByName('ferrari_mesh_23');
+    const ferrari=make('ferrari',{exhaust:'flame',exhaustFinish:'carbon',rear:'track'}),factory=ferrari.getObjectByName('ferrari_mesh_23');
     const kit=ferrari.getObjectByName('custom-exhaust'),markers=[],jets=[];
     kit.traverse(o=>{if(o.name==='exhaust-mouth')markers.push(o.getWorldPosition(new T.Vector3()).toArray());});
     for(const o of ferrari.getObjectByName('exhaust-flames').children)jets.push(o.getWorldPosition(new T.Vector3()).toArray());
     const verts=factory.geometry.getAttribute('position'),v=new T.Vector3(),nearest=[];
     for(const m of markers){let best=Infinity;for(let i=0;i<verts.count;i++){v.fromBufferAttribute(verts,i).applyMatrix4(factory.matrixWorld);best=Math.min(best,Math.hypot(v.x-m[0],v.y-m[1],v.z-m[2]));}nearest.push(best);}
-    const ferrariResult={visible:factory.visible,material:factory.material.name,markers,jets,nearest,pipes:kit.children.filter(o=>o.name==='exhaust-pipe').length};
+    const rear=ferrari.getObjectByName('custom-rear');let addedFins=0;rear.traverse(o=>{if(o.name==='diffuser-fin')addedFins++});
+    const ferrariResult={visible:factory.visible,material:factory.material.name,markers,jets,nearest,pipes:kit.children.filter(o=>o.name==='exhaust-pipe').length,addedFins,factoryDiffuser:ferrari.getObjectByName('ferrari_mesh_56').visible};
     const skirts=[];
     for(const id of ['golf','mercedes','audi','mustang','ferrari','r8','challenger']) {
       const c=make(id,{skirts:'track'});let front=-Infinity,rear=Infinity,meshCount=0,extensions=[];
@@ -56,6 +57,7 @@ try {
   assert.deepEqual(challenger,{stock:true,custom:false,traffic:true});
   for(let i=0;i<2;i++){assert.ok(mustang.street[i]<mustang.stock[i]);assert.equal(mustang.track[i],mustang.street[i]);assert.equal(mustang.traffic[i],mustang.stock[i]);assert.ok(mustang.street[i]>0);}
   assert.equal(mustang.owned,2);assert.equal(mustang.louvers,true);assert.equal(mustang.customStreet,true);assert.equal(mustang.customTrack,true);
+  assert.equal(ferrari.addedFins,0);assert.equal(ferrari.factoryDiffuser,true);
   assert.equal(ferrari.visible,true);assert.equal(ferrari.material,'custom-carbon');assert.equal(ferrari.pipes,0);assert.equal(ferrari.markers.length,3);
   for(let i=0;i<3;i++){assert.ok(ferrari.nearest[i]<.045,`Ferrari outlet ${i} is not on stock exhaust`);assert.ok(ferrari.markers[i].every((v,j)=>Math.abs(v-ferrari.jets[i][j])<1e-6));}
   for(const s of skirts){assert.equal(s.meshCount,2);for(const [min,max] of s.extensions){assert.ok(min>s.front,`${s.id} skirt overlaps front tire`);assert.ok(max<s.rear,`${s.id} skirt overlaps rear tire`);}}
