@@ -254,7 +254,7 @@ export class OvertakeGame {
   private freePitch = 0;
   private freeIdle = 0;
   private freeDragging = false;
-  private garageZoom = 6.2;
+  private garageZoom = 7.7;
   private garageDragging = false;
   private garageWorkshop = false;
   private garageAuto = true;

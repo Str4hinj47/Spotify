@@ -38,7 +38,7 @@ export function createShowroom(group: THREE.Group) {
   wallMap.colorSpace = THREE.SRGBColorSpace;
   wallMap.wrapS = THREE.RepeatWrapping; wallMap.repeat.x = 3;
   const wall = new THREE.Mesh(new THREE.CylinderGeometry(15, 15, 9, 96, 1, true),
-    new THREE.MeshStandardMaterial({ map: wallMap, color: 0xbac7cf, roughness: .85, metalness: .15, side: THREE.BackSide }));
+    new THREE.MeshStandardMaterial({ map: wallMap, color: 0xbac7cf, emissive: 0x18232c, emissiveIntensity: .8, roughness: .85, metalness: .15, side: THREE.BackSide }));
   wall.name = 'showroom-wall'; wall.position.y = 4.35;
   group.add(wall);
 
@@ -46,7 +46,7 @@ export function createShowroom(group: THREE.Group) {
   // entire room instead of a flat backdrop that breaks on orbit.
   const ribGeometry = new THREE.BoxGeometry(.12, 8.6, .24);
   const ribMat = new THREE.MeshStandardMaterial({ color: 0x26343c, metalness: .55, roughness: .5 });
-  const glowMat = new THREE.MeshBasicMaterial({ color: 0xb9eaf2, toneMapped: false });
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0x9ac5ca, toneMapped: false });
   const lightGeometry = new THREE.BoxGeometry(.045, 2.4, .07);
   for (let i = 0; i < 24; i++) {
     const angle = i * Math.PI * 2 / 24;
@@ -56,7 +56,7 @@ export function createShowroom(group: THREE.Group) {
     group.add(rib);
     if (i % 3 === 0) {
       const strip = new THREE.Mesh(lightGeometry, glowMat);
-      strip.position.set(x * 14.68, 3.4, z * 14.68); strip.rotation.y = angle;
+      strip.position.set(x * 14.68, 1.5, z * 14.68); strip.rotation.y = angle;
       group.add(strip);
     }
   }
