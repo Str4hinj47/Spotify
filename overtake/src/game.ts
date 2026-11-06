@@ -216,6 +216,8 @@ export class OvertakeGame {
   private pineTrunks!: THREE.InstancedMesh;
   private rocks!: THREE.InstancedMesh;
   private buildings!: THREE.InstancedMesh;
+  private detailedBuildings!: THREE.InstancedMesh;
+  private buildingRoofs!: THREE.InstancedMesh;
   private grass!: THREE.InstancedMesh;
   private cheapBroadleaf!: THREE.InstancedMesh;
   private cheapBroadTrunks!: THREE.InstancedMesh;
@@ -779,6 +781,14 @@ export class OvertakeGame {
     this.pineTrunks = new THREE.InstancedMesh(trees.pineWood, bark, 150);
     this.rocks = new THREE.InstancedMesh(createRockGeometry(), this.rockMat, 100);
     this.buildings = new THREE.InstancedMesh(createBuildingGeometry(), this.buildingMat, 70);
+    const facade = new THREE.TextureLoader().load('./textures/landscape/facade.jpg');
+    facade.colorSpace = THREE.SRGBColorSpace;
+    facade.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+    const buildingGeometry = new THREE.BoxGeometry(8, 12, 8); buildingGeometry.translate(0, 6, 0);
+    const roofGeometry = new THREE.BoxGeometry(8.3, .35, 8.3); roofGeometry.translate(0, 12.1, 0);
+    this.detailedBuildings = new THREE.InstancedMesh(buildingGeometry, new THREE.MeshStandardMaterial({ map: facade, roughness: .85 }), 70);
+    this.detailedBuildings.name = 'textured-buildings';
+    this.buildingRoofs = new THREE.InstancedMesh(roofGeometry, new THREE.MeshStandardMaterial({ color: 0x777f7e, roughness: .85 }), 70);
     this.grass = new THREE.InstancedMesh(createGrassGeometry(), new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 1, side: THREE.DoubleSide }), 420);
     const distant = createDistantTreeGeometries();
     this.cheapBroadleaf = new THREE.InstancedMesh(distant.crown, this.treeMat, 150);
@@ -789,7 +799,7 @@ export class OvertakeGame {
     this.distantTrunks = new THREE.InstancedMesh(distant.wood, bark, 180);
     this.distantPines = new THREE.InstancedMesh(distant.pine, this.coniferMat, 180);
     this.distantPineTrunks = new THREE.InstancedMesh(distant.wood, bark, 180);
-    for (const m of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks, this.rocks, this.buildings, this.grass, this.cheapBroadleaf, this.cheapBroadTrunks, this.cheapPines, this.cheapPineTrunks, this.distantTrees, this.distantTrunks, this.distantPines, this.distantPineTrunks]) {
+    for (const m of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks, this.rocks, this.buildings, this.detailedBuildings, this.buildingRoofs, this.grass, this.cheapBroadleaf, this.cheapBroadTrunks, this.cheapPines, this.cheapPineTrunks, this.distantTrees, this.distantTrunks, this.distantPines, this.distantPineTrunks]) {
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       m.frustumCulled = false;
       this.roadGroup.add(m);
@@ -984,7 +994,7 @@ export class OvertakeGame {
       place(this.distantPines, i, s, side, dist, scale * pine, 0, p.conifer);
       place(this.distantPineTrunks, i, s, side, dist, scale * pine, 0, 0x4c392c);
     }
-    for (const m of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks, this.rocks, this.buildings, this.grass, this.cheapBroadleaf, this.cheapBroadTrunks, this.cheapPines, this.cheapPineTrunks, this.distantTrees, this.distantTrunks, this.distantPines, this.distantPineTrunks]) {
+    for (const m of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks, this.rocks, this.buildings, this.detailedBuildings, this.buildingRoofs, this.grass, this.cheapBroadleaf, this.cheapBroadTrunks, this.cheapPines, this.cheapPineTrunks, this.distantTrees, this.distantTrunks, this.distantPines, this.distantPineTrunks]) {
       m.instanceMatrix.needsUpdate = true;
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
@@ -1041,10 +1051,30 @@ export class OvertakeGame {
     const enabled = detailed.ready && this.sceneryQuality !== 'low';
     this.grass.visible = !enabled;
     this.rocks.visible = !enabled;
+    this.buildings.visible = !enabled;
+    this.detailedBuildings.visible = enabled;
+    this.buildingRoofs.visible = enabled;
     for (const mesh of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks]) mesh.visible = false;
     for (const mesh of [this.cheapBroadleaf, this.cheapBroadTrunks, this.cheapPines, this.cheapPineTrunks, this.distantTrees, this.distantTrunks, this.distantPines, this.distantPineTrunks]) mesh.visible = !enabled;
     detailed.begin();
     if (enabled) {
+      let buildingCount = 0;
+      const buildingStart = Math.floor((base - 55) / 19);
+      for (let i = 0; i < 37; i++) for (const side of [-1, 1]) {
+        const k = buildingStart + i, seed = k * 277 + side * 83;
+        const s = k * 19 + hash01(seed) * 19, urban = biomeWeights(s).urban;
+        if (hash01(seed + 2) > urban * .65 || buildingCount >= 70) continue;
+        const off = side * (58 + hash01(seed + 3) * 48), r = rightAt(s, this.tmpA);
+        this.dummy.position.set(centerX(s) + r.x * off, centerY(s) - .6 + terrainOffset(s, off) - .15, -s + r.z * off);
+        this.dummy.rotation.set(0, roadYaw(s) + (hash01(seed + 4) - .5) * .25, 0);
+        this.dummy.scale.set(.9 + hash01(seed + 5) * .8, .65 + hash01(seed + 6) * .9, .9 + hash01(seed + 7) * .75);
+        this.dummy.updateMatrix();
+        this.detailedBuildings.setMatrixAt(buildingCount, this.dummy.matrix);
+        this.buildingRoofs.setMatrixAt(buildingCount, this.dummy.matrix);
+        buildingCount++;
+      }
+      this.detailedBuildings.count = this.buildingRoofs.count = buildingCount;
+      this.detailedBuildings.instanceMatrix.needsUpdate = this.buildingRoofs.instanceMatrix.needsUpdate = true;
       const high = this.sceneryQuality === 'high';
       const spacing = high ? 10 : 20;
       const begin = Math.floor((base - 55) / spacing);
@@ -1059,7 +1089,8 @@ export class OvertakeGame {
         const seed = k * 211 + side * 113 + band * 307;
         const s = k * spacing + hash01(seed + 2) * spacing;
         const p = biomeParams(s);
-        if (hash01(seed + 3) > p.treeDensity * (band ? .8 : 1)) continue;
+        const urban = biomeWeights(s).urban;
+        if ((band && urban > .5) || hash01(seed + 3) > p.treeDensity * (1 - urban * .55) * (band ? .8 : 1)) continue;
         const kind = hash01(seed + 11) < p.coniferRatio ? 'conifer' : 'broadleaf';
         if (kind === 'broadleaf' ? broadCount >= broadLimit : pineCount >= pineLimit) continue;
         const dist = band ? 50 + hash01(seed + 5) * 75 : 12 + hash01(seed + 5) * 42;
