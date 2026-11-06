@@ -19,6 +19,7 @@ import { createGroundMaterial } from './world/ground';
 import { terrainOffset } from './world/terrain.mjs';
 import { DetailedScenery, sanitizeSceneryQuality, type SceneryQuality } from './world/detailed-scenery';
 import { RoadsideGrass } from './world/roadside-grass';
+import { MidgroundTreeline } from './world/midground-treeline';
 import { createStreetlightGeometry } from './world/streetlight';
 import { addFoliageSnow, createRoadsideSignGeometry } from './world/roadside';
 import { disposeBodyKit, updateExhaustFlames } from './body-kits';
@@ -178,6 +179,7 @@ export class OvertakeGame {
   private sceneryQuality: SceneryQuality = 'high';
   private detailedScenery!: DetailedScenery;
   private roadsideGrass!: RoadsideGrass;
+  private midgroundTreeline!: MidgroundTreeline;
   private roadEnv: THREE.Texture | null = null;
   private studioEnv: THREE.Texture | null = null;
   private worldClock = createClock(9.5, 1, true);
@@ -828,6 +830,7 @@ export class OvertakeGame {
     this.sceneryShadows.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.roadGroup.add(this.sceneryShadows);
 
+    this.midgroundTreeline = new MidgroundTreeline(this.roadGroup, this.roadSurface.snow, this.renderer.capabilities.getMaxAnisotropy(), { centerX, centerY, rightAt, roadYaw });
     this.roadsideGrass = new RoadsideGrass(this.roadGroup, this.roadSurface.snow, this.roadSurface.time, this.renderer.capabilities.getMaxAnisotropy(), { centerX, centerY, rightAt });
     this.detailedScenery = new DetailedScenery(this.roadGroup, this.roadSurface.snow, this.renderer.capabilities.getMaxAnisotropy(), () => this.updateScenery());
     if (this.sceneryQuality !== 'low') this.detailedScenery.ensureLoaded();
@@ -1004,6 +1007,7 @@ export class OvertakeGame {
     }
     this.updateDetailedScenery(base);
     this.roadsideGrass.update(base, this.sceneryQuality, snow);
+    this.midgroundTreeline.update(base, this.sceneryQuality);
     // Recycled sign slots use absolute road distance, so they never jump as
     // the road and scenery buffers shift around a moving car.
     const signStart = Math.floor((base - BACK) / 155) - 1;
