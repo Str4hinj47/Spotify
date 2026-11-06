@@ -35,7 +35,7 @@ import { createRun, tickRun, registerPass, finishRun, runSummary, contractProgre
 import { createTrafficAI, findLeader, stepTraffic, hazardAhead, trafficCruise, chooseTruck, canOvertakeTruck, startOvertake, stepOvertake, type TrafficAI, type Hazard } from './traffic-ai.mjs';
 import { chooseTrafficModel, chooseTrafficPaint } from './traffic-appearance.mjs';
 import { emptyRecords, sanitizeRecords, recordRun, bestFor, type Records } from './records.mjs';
-import { emptyProgression, sanitizeProgression, migrateProgression, canDriveCar, awardProgress, type Progression } from './progression.mjs';
+import { emptyProgression, sanitizeProgression, canDriveCar, awardProgress, buyCar, buyUpgrade, buyTune, effectiveUpgrades, type Progression, type Upgrade } from './progression.mjs';
 
 export type Mode = 'garage' | 'driving' | 'paused' | 'gameover';
 export type CameraPreset = 'close' | 'chase' | 'far' | 'hood' | 'bumper' | 'free';
@@ -99,7 +99,7 @@ export interface RunStats {
   elapsed: number;
   medal: Medal;
   reason: string | null;
-  xpGained: number; unlocked: CarId[];
+  moneyGained: number;
 }
 
 export interface GameCallbacks {
@@ -1463,7 +1463,7 @@ export class OvertakeGame {
   getRunMode() { return this.runMode; }
   getRecords() { return this.records; }
 
-  getProgression(): Progression { return { ...this.progression }; }
+  getProgression(): Progression { return sanitizeProgression(this.progression); }
   canDrive(id: CarId): boolean { return canDriveCar(this.progression, id); }
   setDeveloperMode(enabled: boolean) {
     // The garage toggle cannot change rules in the middle of a run.
@@ -1471,23 +1471,39 @@ export class OvertakeGame {
     this.progression = sanitizeProgression({ ...this.progression, dev: enabled });
     this.saveProgression();
   }
+  purchaseCar(id: CarId): boolean {
+    if (this.mode !== 'garage') return false;
+    const result = buyCar(this.progression, id); this.progression = result.progress;
+    if (result.ok) this.saveProgression(); return result.ok;
+  }
+  purchaseUpgrade(id: CarId, key: Upgrade): boolean {
+    if (this.mode !== 'garage') return false;
+    const result = buyUpgrade(this.progression, id, key); this.progression = result.progress;
+    if (result.ok) this.saveProgression(); return result.ok;
+  }
+  purchaseTune(id: CarId, key: string, value: string): boolean {
+    if (this.mode !== 'garage') return false;
+    const result = buyTune(this.progression, id, key, value); this.progression = result.progress;
+    if (result.ok) this.saveProgression(); return result.ok;
+  }
+  getMaxSpeed(): number { return getCar(this.selected).maxSpeed * (1 + effectiveUpgrades(this.progression, this.selected).engine * .04); }
   private loadProgression() {
     try {
-      const raw = localStorage.getItem('overtake-progression-v1');
-      this.progression = raw ? sanitizeProgression(JSON.parse(raw)) : migrateProgression(this.records, localStorage.getItem('overtake-car'));
+      const raw = localStorage.getItem('overtake-progression-v2');
+      this.progression = raw ? sanitizeProgression(JSON.parse(raw)) : emptyProgression();
       if (!raw) this.saveProgression();
     } catch { this.progression = emptyProgression(); }
   }
   private saveProgression() {
-    try { localStorage.setItem('overtake-progression-v1', JSON.stringify(this.progression)); } catch { /* in-memory progress still works */ }
+    try { localStorage.setItem('overtake-progression-v2', JSON.stringify(this.progression)); } catch { /* in-memory progress still works */ }
   }
-  private settleProgression(): { gain: number; unlocked: CarId[] } {
-    if (this.progressionSettled) return { gain: 0, unlocked: [] };
+  private settleProgression(): { gain: number } {
+    if (this.progressionSettled) return { gain: 0 };
     this.progressionSettled = true;
     const result = awardProgress(this.progression, this.run);
     this.progression = result.progress;
     this.saveProgression();
-    return { gain: result.gain, unlocked: result.unlocked };
+    return { gain: result.gain };
   }
 
   private loadRecords() {
@@ -1669,9 +1685,10 @@ export class OvertakeGame {
   private updateDriving(dt: number) {
     this.updatePlayerLights(dt);
     const spec = getCar(this.selected);
-    const grip = spec.physics.grip * weatherGrip(this.weather);
+    const upgrades = effectiveUpgrades(this.progression, this.selected);
+    const grip = spec.physics.grip * (1 + upgrades.tires * .06) * weatherGrip(this.weather);
     const params = {
-      ...spec.physics, accel: spec.accel, maxSpeed: spec.maxSpeed, grip, surfaceGrip: weatherGrip(this.weather),
+      ...spec.physics, brake: spec.physics.brake * (1 + upgrades.brakes * .10), accel: spec.accel * (1 + upgrades.engine * .08), maxSpeed: this.getMaxSpeed(), grip, surfaceGrip: weatherGrip(this.weather),
     };
     const previousS = this.vehicle.s, previousOffset = this.vehicle.offset;
     const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
@@ -1822,7 +1839,7 @@ export class OvertakeGame {
       score: this.score, distance: this.distance, overtakes: this.overtakes, nearMisses: this.nearMisses,
       best: this.best, newBest: result.newBest, mode: this.run.mode, car: this.selected,
       topSpeed: this.run.topSpeed, contractsDone: this.run.contractsDone, elapsed: this.run.elapsed,
-      medal: result.medal, reason, xpGained: progress.gain, unlocked: progress.unlocked,
+      medal: result.medal, reason, moneyGained: progress.gain,
     });
   }
 
