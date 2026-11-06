@@ -558,7 +558,8 @@ svg { stroke-width: 1.75; }
   #car-detail .stat { min-width:0; font-size:8px; }
   #car-detail .dots { gap:2px; }
   #car-detail .dots i { width:4px; }
-  #car-detail .primary { position:sticky; bottom:0; box-shadow:0 -5px 12px rgba(12,18,24,.65); }
+  #car-detail .primary { position:sticky; bottom:0; padding:8px 6px; gap:4px; font-size:11px; white-space:nowrap; box-shadow:0 -5px 12px rgba(12,18,24,.65); }
+  #car-detail .primary svg { width:13px; height:13px; }
   #car-detail .paint-swatches { grid-template-columns:repeat(5, 20px); }
   #car-detail .mode-card { flex-direction:column; align-items:flex-start; }
 }
