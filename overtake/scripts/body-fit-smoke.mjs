@@ -21,6 +21,14 @@ try {
     const mustang={stock:counts(stock),street:counts(street),track:counts(track),traffic:counts(traffic),
       owned:track.userData.customGeometries.length,louvers:track.getObjectByName('mustang_mesh_1').visible,
       customStreet:!!street.getObjectByName('deck-lip'),customTrack:!!track.getObjectByName('wing-blade')};
+    const mustangFlame=make('mustang',{exhaust:'flame'}), mustangReplacement=make('mustang',{exhaust:'track'});
+    const mustangOutlet=mustangFlame.getObjectByName('mustang_mesh_9'), mustangMarkers=[], mustangJets=[];
+    mustangFlame.getObjectByName('custom-exhaust').traverse(o=>{if(o.name==='exhaust-mouth')mustangMarkers.push(o.getWorldPosition(new T.Vector3()).toArray());});
+    mustangFlame.getObjectByName('exhaust-flames').children.forEach(o=>mustangJets.push(o.getWorldPosition(new T.Vector3()).toArray()));
+    const mustangVertices=mustangOutlet.geometry.attributes.position, mv=new T.Vector3(), mustangNearest=[];
+    for(const marker of mustangMarkers){let best=Infinity;for(let i=0;i<mustangVertices.count;i++){mv.fromBufferAttribute(mustangVertices,i).applyMatrix4(mustangOutlet.matrixWorld);best=Math.min(best,Math.hypot(mv.x-marker[0],mv.y-marker[1],mv.z-marker[2]));}mustangNearest.push(best);}
+    const mustangExhaust={visible:mustangOutlet.visible,replacement:mustangReplacement.getObjectByName('mustang_mesh_9').visible,traffic:traffic.getObjectByName('mustang_mesh_9').visible,markers:mustangMarkers,jets:mustangJets,nearest:mustangNearest};
+    const plateMeshes=[];g.library.create('ferrari').traverse(o=>{if(o.isMesh && o.material.name?.startsWith('plate__'))plateMeshes.push(o.visible)});
     const challengerStock=make('challenger',{spoiler:'stock'}),challengerCustom=make('challenger',{spoiler:'track'}),challengerTraffic=g.library.create('challenger');
     const challenger={stock:challengerStock.getObjectByName('Cube001_Cube003').visible,custom:challengerCustom.getObjectByName('Cube001_Cube003').visible,traffic:challengerTraffic.getObjectByName('Cube001_Cube003').visible};
     const ferrari=make('ferrari',{exhaust:'flame',exhaustFinish:'carbon'}),factory=ferrari.getObjectByName('ferrari_mesh_23');
@@ -39,9 +47,12 @@ try {
       });
       skirts.push({id,front,rear,meshCount,extensions});
     }
-    return {mustang,challenger,ferrari:ferrariResult,skirts};
+    return {mustang,mustangExhaust,plateMeshes,challenger,ferrari:ferrariResult,skirts};
   });
-  const {mustang,challenger,ferrari,skirts}=result;
+  const {mustang,mustangExhaust,plateMeshes,challenger,ferrari,skirts}=result;
+  assert.deepEqual(plateMeshes,[false,false]);
+  assert.equal(mustangExhaust.visible,true);assert.equal(mustangExhaust.replacement,false);assert.equal(mustangExhaust.traffic,true);assert.equal(mustangExhaust.markers.length,4);
+  for(let i=0;i<4;i++){assert.ok(mustangExhaust.nearest[i]<.05,`Mustang outlet ${i} is not on stock exhaust: ${mustangExhaust.nearest[i]}`);assert.ok(mustangExhaust.markers[i].every((v,j)=>Math.abs(v-mustangExhaust.jets[i][j])<1e-6));}
   assert.deepEqual(challenger,{stock:true,custom:false,traffic:true});
   for(let i=0;i<2;i++){assert.ok(mustang.street[i]<mustang.stock[i]);assert.equal(mustang.track[i],mustang.street[i]);assert.equal(mustang.traffic[i],mustang.stock[i]);assert.ok(mustang.street[i]>0);}
   assert.equal(mustang.owned,2);assert.equal(mustang.louvers,true);assert.equal(mustang.customStreet,true);assert.equal(mustang.customTrack,true);

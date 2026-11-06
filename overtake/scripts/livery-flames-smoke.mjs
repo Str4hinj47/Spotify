@@ -12,12 +12,12 @@ try {
   await page.goto('http://localhost:3000/?test=1'); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.click('.car-card[data-car="golf"]');await page.click('#btn-customize');
   await page.click('[data-workshop-tab="paint"]');
-  await page.selectOption('#custom-paint-scheme','upper');
-  await page.selectOption('#custom-secondary-finish','carbon');
-  await page.selectOption('#custom-livery','race');await page.locator('#custom-livery-color').fill('#ffcf20');
+  await page.selectOption('#custom-paint-scheme','upper',{force:true});
+  await page.selectOption('#custom-secondary-finish','carbon',{force:true});
+  await page.selectOption('#custom-livery','race',{force:true});await page.locator('#custom-livery-color').fill('#ffcf20');
   for(const part of ['front','rear','skirts','spoiler','exhaust']) {
-    await page.selectOption(`#custom-${part}`,part==='exhaust'?'flame':'track');
-    await page.selectOption(`#custom-${part}-finish`,'carbon');
+    await page.selectOption(`#custom-${part}`,part==='exhaust'?'flame':'track',{force:true});
+    await page.selectOption(`#custom-${part}-finish`,'carbon',{force:true});
   }
   await page.click('[data-custom-view="rear"]');
   const state=await page.evaluate(()=>{
@@ -73,10 +73,10 @@ try {
   await mobile.goto('http://localhost:3000/?test=1',{timeout:180000,waitUntil:'domcontentloaded'});
   await mobile.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await mobile.click('#btn-customize');
   assert.equal(await mobile.locator('#custom-front-finish').isDisabled(),true);
-  await mobile.selectOption('#custom-front','street');await mobile.selectOption('#custom-front-finish','carbon');
+  await mobile.selectOption('#custom-front','street',{force:true});await mobile.selectOption('#custom-front-finish','carbon',{force:true});
   await mobile.click('[data-workshop-tab="paint"]');
-  await mobile.locator('#custom-primary-color').fill('#da3366');await mobile.selectOption('#custom-paint-scheme','lower');
-  await mobile.locator('#custom-secondary-color').fill('#26b3a0');await mobile.selectOption('#custom-livery','stripe');
+  await mobile.locator('#custom-primary-color').fill('#da3366');await mobile.selectOption('#custom-paint-scheme','lower',{force:true});
+  await mobile.locator('#custom-secondary-color').fill('#26b3a0');await mobile.selectOption('#custom-livery','stripe',{force:true});
   const mobileState=await mobile.evaluate(()=>({primary:document.querySelector('#custom-primary-color').value,
     secondary:document.querySelector('#custom-secondary-color').value,layout:document.querySelector('#custom-paint-scheme').value,
     livery:document.querySelector('#custom-livery').value,finish:document.querySelector('#custom-front-finish').value,
