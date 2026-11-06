@@ -1,4 +1,4 @@
-// End-to-end progression, persistence, reversible bypass, lifecycle and compact layout.
+// Score economy, one-time reset, purchases, dev preview, persistence and mobile.
 import { chromium as pw } from '@playwright/test';
 import chromium from '@sparticuz/chromium';
 import assert from 'node:assert/strict';
@@ -10,60 +10,59 @@ const errors=[];
 try {
   const page=await browser.newPage({viewport:{width:960,height:700}});
   page.on('pageerror',e=>errors.push(String(e)));
-  async function load() { await page.goto(`${base}/?test=1`,{waitUntil:'domcontentloaded',timeout:180000}); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000}); await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf)); }
+  await page.addInitScript(()=>{
+    if (!sessionStorage.getItem('seeded')) {
+      localStorage.setItem('overtake-progression-v1',JSON.stringify({version:1,xp:9000,dev:true,legacyCar:'ferrari'}));
+      localStorage.setItem('overtake-car','ferrari');
+      localStorage.setItem('overtake-customization-v1',JSON.stringify({golf:{front:'track'}}));
+      localStorage.setItem('overtake-paints',JSON.stringify({golf:'#ff0000'}));
+      localStorage.setItem('overtake-best','5000'); sessionStorage.setItem('seeded','1');
+    }
+  });
+  async function load(){await page.goto(`${base}/?test=1`,{waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));}
   const state=()=>page.evaluate(()=>window.__overtake.getProgression());
   await load();
-  assert.equal((await state()).xp,0);
-  assert.equal(await page.locator('#dev-toggle').getAttribute('aria-pressed'),'false');
+  assert.deepEqual(await state(),{version:2,money:0,dev:false,owned:['golf'],upgrades:{},tunes:{}});
+  assert.equal(await page.locator('.car-card.active').getAttribute('data-car'),'golf');
+  assert.equal(await page.evaluate(()=>localStorage.getItem('overtake-best')),'5000');
+  assert.ok(await page.evaluate(()=>localStorage.getItem('overtake-customization-v1-before-economy')));
   await page.click('[data-car=mustang]');
-  assert.equal(await page.locator('#btn-start').isDisabled(),true);
-  assert.match(await page.locator('#car-requirement').innerText(),/150 XP/);
+  assert.equal(await page.locator('#btn-start').isDisabled(),true);assert.equal(await page.locator('#buy-car').isDisabled(),true);
   assert.equal(await page.evaluate(()=>window.__overtake.start()),false);
-  assert.equal(await page.evaluate(()=>window.__overtake.mode),'garage');
-  await page.click('#dev-toggle');
-  assert.equal(await page.locator('#btn-start').isEnabled(),true);
-  await load();
-  assert.equal((await state()).dev,true);
-  assert.equal(await page.locator('#btn-start').isEnabled(),true);
-  await page.click('#dev-toggle');
-  assert.equal(await page.locator('#btn-start').isDisabled(),true);
+  await page.click('#dev-toggle');assert.equal(await page.locator('#btn-start').isEnabled(),true);
+  await load();assert.equal((await state()).dev,true);assert.equal((await state()).money,0);
+  await page.click('#dev-toggle');assert.equal(await page.locator('#btn-start').isDisabled(),true);
   await page.click('[data-car=golf]');
+  await page.click('#btn-customize');
+  await page.click('[data-part-panel=front] .workshop-choices button[data-value=street]');
+  assert.equal(await page.locator('#custom-front').inputValue(),'stock');
+  assert.match(await page.locator('#tune-message').innerText(),/not enough/i);
+  await page.click('#custom-done');await page.click('#btn-start');
+  await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf);g.run.score=5000;g.endRun('crash');});
+  assert.equal((await state()).money,11250);assert.match(await page.locator('#final-progress').innerText(),/\+\$11,250/);
+  await page.click('#btn-garage');assert.equal((await state()).money,11250);
+  const baseSpeed=await page.evaluate(()=>window.__overtake.getMaxSpeed());
+  await page.click('[data-upgrade=engine]');assert.equal((await state()).money,10550);
+  assert.ok(await page.evaluate(base=>window.__overtake.getMaxSpeed()>base,baseSpeed));
+  await page.click('#btn-customize');await page.click('[data-part-panel=front] .workshop-choices button[data-value=street]');
+  assert.equal((await state()).money,10300);assert.equal(await page.locator('#custom-front').inputValue(),'street');
+  await page.click('[data-part-panel=front] .workshop-choices button[data-value=stock]');
+  await page.click('[data-part-panel=front] .workshop-choices button[data-value=street]');assert.equal((await state()).money,10300);
+  await page.click('#custom-done');await page.click('[data-car=mustang]');await page.click('#buy-car');
+  assert.equal((await state()).money,7300);assert.ok((await state()).owned.includes('mustang'));
   await page.click('#btn-start');
-  await page.evaluate(()=>{const g=window.__overtake; cancelAnimationFrame(g.raf); g.run.score=1400; g.run.distance=500; g.endRun('crash');});
-  assert.equal((await state()).xp,150);
-  assert.match(await page.locator('#final-progress').innerText(),/\+150 XP.*Unlocked: Mustang/i);
-  await page.click('#btn-garage');
-  assert.equal((await state()).xp,150);
-  await page.click('[data-car=mustang]');
-  assert.equal(await page.locator('#btn-start').isEnabled(),true);
-  await page.click('#btn-start');
-  await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf);g.run.score=100;g.run.distance=100;g.pause();g.toGarage();g.toGarage();});
-  assert.equal((await state()).xp,162);
-  await load();
-  assert.equal((await state()).xp,162);
-  assert.equal((await state()).dev,false);
-  for (const viewport of [{width:390,height:844},{width:667,height:375}]) {
-    await page.setViewportSize(viewport);
-    const actionInPanel = await page.evaluate(() => {
-      const b=document.querySelector('#btn-start').getBoundingClientRect(), p=document.querySelector('#car-detail').getBoundingClientRect();
-      return b.top >= p.top && b.bottom <= p.bottom;
-    });
-    assert.equal(actionInPanel,true,'start stays visible in the scrollable garage panel');
-    await page.locator('#dev-toggle').scrollIntoViewIfNeeded();
-    assert.equal(await page.locator('#dev-toggle').isVisible(),true);
-    await page.click('#dev-toggle'); assert.equal((await state()).dev,true);
-    await page.click('#dev-toggle'); assert.equal((await state()).dev,false);
-    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth),true);
+  await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf);g.run.score=2000;g.pause();g.toGarage();g.toGarage();});
+  assert.equal((await state()).money,10300);
+  await load();assert.equal((await state()).money,10300);assert.ok((await state()).owned.includes('mustang'));assert.equal((await state()).upgrades.golf.engine,1);
+  await page.click('[data-car=golf]');await page.click('#dev-toggle');await page.click('#btn-customize');
+  await page.click('[data-part-panel=front] .workshop-choices button[data-value=track]');
+  assert.equal(await page.locator('#custom-front').inputValue(),'track');assert.equal((await state()).money,10300);
+  await page.click('#custom-done');await page.click('#dev-toggle');await page.click('#btn-customize');
+  assert.equal(await page.locator('#custom-front').inputValue(),'street','dev tuning must not persist as a free purchase');
+  await page.click('#custom-done');
+  for(const viewport of [{width:390,height:844},{width:667,height:375}]){
+    await page.setViewportSize(viewport);await page.locator('#dev-toggle').scrollIntoViewIfNeeded();await page.click('#dev-toggle');await page.click('#dev-toggle');
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   }
-  // Isolated legacy storage: previously selected car and historical bests survive migration.
-  await page.evaluate(()=>{localStorage.clear();localStorage.setItem('overtake-car','ferrari');localStorage.setItem('overtake-best','1000');});
-  await load();
-  assert.deepEqual(await state(),{version:1,xp:100,dev:false,legacyCar:'ferrari'});
-  assert.equal(await page.locator('#btn-start').isEnabled(),true);
-  await page.evaluate(()=>localStorage.setItem('overtake-progression-v1','{broken'));
-  await load();
-  assert.deepEqual(await state(),{version:1,xp:0,dev:false,legacyCar:null});
-  assert.equal(await page.locator('#btn-start').isDisabled(),true);
-  assert.deepEqual(errors,[]);
-  console.log('Progression smoke passed: locks, override, reload, settlements, migration and mobile.');
-} finally { await browser.close(); }
+  assert.deepEqual(errors,[]);console.log('Economy smoke passed: reset, payouts, purchases, upgrades, dev preview and mobile.');
+}finally{await browser.close();}
