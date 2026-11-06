@@ -15,6 +15,8 @@ try {
   await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
   const inspect=()=>page.evaluate(()=>{const g=window.__overtake,r=g.renderer;return {quality:g.getGraphicsQuality(),ratio:r.getPixelRatio(),canvas:[r.domElement.width,r.domElement.height],buffer:[g.composer.inputBuffer.width,g.composer.inputBuffer.height]};});
   assert.deepEqual(await inspect(),{quality:'sharp',ratio:1.25,canvas:[1200,800],buffer:[1200,800]});
+  assert.equal(await page.locator('#btn-graphics svg').count(),1, 'graphics button has a visible icon');
+  assert.equal(await page.locator('#btn-pause-graphics svg').count(),1);
   await page.click('#btn-graphics');
   assert.equal(await page.locator('#btn-graphics').getAttribute('aria-expanded'),'true');
   assert.equal(await page.locator('[data-quality=sharp]').getAttribute('aria-pressed'),'true');
