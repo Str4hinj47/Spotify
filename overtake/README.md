@@ -123,7 +123,9 @@ outskirts using `simplex-noise` and distance-based weights
 (`src/world/biomes.mjs`). Rolling road-aligned terrain, world-space ground
 detail, instanced vegetation, scan-based rocks, textured buildings and
 biome-matched panoramic mountain backdrops give the roadside more depth.
-Distant panoramas, evergreen foliage and roadside grass use image-based cutouts;
+The outskirts mix modern and brick building facades.
+Distant panoramas, midground treelines, evergreen foliage and roadside plants
+use image-based cutouts;
 a photographic cloud layer complements the procedural sky. Weather,
 illumination, near ground and deciduous trees remain dynamic.
 The source and provenance of the scenery assets are in `SCENERY_ASSETS.md`.

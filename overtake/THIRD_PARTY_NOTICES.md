@@ -61,7 +61,7 @@ James Ray Cock, Jenelle van Heerden and Dario Barresi are from
 [Poly Haven](https://polyhaven.com/) under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
 See `SCENERY_ASSETS.md` in the source repository for asset links, derivative
 sources and optimization details. The meadow, pine, roadside grass, wildflowers, desert scrub and soil, cloud,
-facade and panoramic textures were AI-generated for this game and are not Poly Haven assets.
+treeline, facades and panoramic textures were AI-generated for this game and are not Poly Haven assets.
 
 ## Vehicle models
 
