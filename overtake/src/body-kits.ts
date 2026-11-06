@@ -79,6 +79,35 @@ function audiRoofExtension(track:boolean) {
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
 }
 
+// Surveyed Golf hatch roof; the ends follow its rapidly falling shoulders.
+function golfRoofExtension(track:boolean) {
+  const vertices:number[]=[], indices:number[]=[], n=32, width=.51;
+  for(let i=0;i<=n;i++) {
+    const t=2*i/n-1, edge=t*t, x=t*width;
+    const front=1.40+.015*edge, back=1.65-.07*edge;
+    const frontY=1.401-.045*edge, rearY=1.375-.045*edge;
+    const rise=track?.050:.022;
+    for(const [y,z] of [[frontY-.012,front],[frontY+.004,front],[rearY+rise,back],[rearY+rise-.016,back]] as const) vertices.push(x,y,z);
+    if(i<n) for(let j=0;j<4;j++){const a=i*4+j,b=i*4+(j+1)%4,c=(i+1)*4+j,d=(i+1)*4+(j+1)%4;indices.push(a,b,c,b,d,c);}
+  }
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
+}
+
+// Follow the measured lower contours instead of placing an apron across the
+// bumper's intake or a wide panel beyond the wheel arches.
+function golfLowerBumper(rear:boolean,track:boolean) {
+  const xs=[0,.2,.4,.55,.65,.75], zs=rear?[1.984,1.980,1.968,1.940,1.894,1.762]:[-1.966,-1.951,-1.900,-1.836,-1.780,-1.617];
+  const vertices:number[]=[],indices:number[]=[],n=32,sign=rear?1:-1;
+  for(let i=0;i<=n;i++) {
+    const x=(2*i/n-1)*.73,abs=Math.abs(x);let j=0;while(j<xs.length-2&&abs>xs[j+1])j++;
+    const z=THREE.MathUtils.lerp(zs[j],zs[j+1],(abs-xs[j])/(xs[j+1]-xs[j]));
+    const edge=Math.pow(abs/.73,3),y=rear?.28:.24,drop=track?.055:.035;
+    for(const [yy,zz] of [[y+.018,z-sign*.02],[y-drop+.015*edge,z+sign*.012],[y-drop-.008+.015*edge,z-sign*.075],[y+.008,z-sign*.12]] as const) vertices.push(x,yy,zz);
+    if(i<n)for(let k=0;k<4;k++){const a=i*4+k,b=i*4+(k+1)%4,c=(i+1)*4+k,d=(i+1)*4+(k+1)%4;indices.push(a,b,c,b,d,c);}
+  }
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
+}
+
 // Mustang's chin is a shallow extension of its measured lower nose contour,
 // not a generic wide apron underneath the chrome factory bumper.
 function mustangChin(track:boolean) {
@@ -184,7 +213,9 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   if(config.front!=='stock') {
     const a=reg('front'), track=isTrack('front'), panel=config.frontFinish==='carbon'?woven:body;
     const nose=f.frontZ-.015;
-    if(id==='mustang') {
+    if(id==='golf') {
+      const fascia=new THREE.Mesh(golfLowerBumper(false,track),panel);fascia.name='front-fascia';a.add(fascia);
+    } else if(id==='mustang') {
       const chin=new THREE.Mesh(mustangChin(track),panel);chin.name='front-fascia';a.add(chin);
       if(track) {
         const blade=new THREE.Mesh(taperedBand(.73,-2.335,.239,.16,.012,.26),carbon);
@@ -201,7 +232,9 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   }
   if(config.rear!=='stock') {
     const a=reg('rear'),track=isTrack('rear'), tail=f.rearZ-.035, panel=config.rearFinish==='carbon'?woven:body;
-    if(id==='ferrari') {
+    if(id==='golf') {
+      const valance=new THREE.Mesh(golfLowerBumper(true,track),panel);valance.name='rear-valance';a.add(valance);
+    } else if(id==='ferrari') {
       // Retain the factory diffuser and its fins. A shallow edge extension
       // is tucked into it rather than adding a second, hanging set of fins.
       const blade=new THREE.Mesh(taperedBand(track?.53:.47,1.74,.19,track?.15:.10,.012,0),config.rearFinish==='carbon'?woven:carbon);
@@ -216,10 +249,10 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       const valance=new THREE.Mesh(apron(f.rearW*.98,tail,f.bumperY+.005,track?.16:.11,.20,.16,true),panel);
       valance.name='rear-valance';a.add(valance);
       // Keep the diffuser between the exhaust outlets rather than covering them.
-      const diffuserWidth=id==='golf'?.39:.48;
+      const diffuserWidth=.48;
       const diffuser=new THREE.Mesh(apron(f.rearW*diffuserWidth,tail+.05,f.bumperY-.005,track?.13:.08,.25,.04,true),carbon);
       diffuser.name='rear-diffuser';a.add(diffuser);
-      const finCount=id==='golf'?3:5;
+      const finCount=5;
       if(track) for(let i=0;i<finCount;i++) {
         const x=(i-(finCount-1)/2)*f.rearW*diffuserWidth*1.6/Math.max(1,finCount-1);
         const fin=box(.016,.09,.24,x,f.bumperY-.015,tail-.025,carbon,a,'diffuser-fin');fin.rotation.x=-.13;
@@ -239,7 +272,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     const a=reg('spoiler'),track=isTrack('spoiler'),panel=config.spoilerFinish==='carbon'?woven:body;
     const roof=f.character==='compact'||f.character==='wagon';
     if(roof) {
-      const lip=new THREE.Mesh(id==='audi'?audiRoofExtension(track):roofExtension(f.spoilerW,f.spoilerZ,f.spoilerY,track),panel);
+      const lip=new THREE.Mesh(id==='audi'?audiRoofExtension(track):id==='golf'?golfRoofExtension(track):roofExtension(f.spoilerW,f.spoilerZ,f.spoilerY,track),panel);
       lip.name='roof-extension';a.add(lip);
     } else if(track) {
       const h=f.character==='luxury'?.13:f.character==='classic'?.19:.23;
