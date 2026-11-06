@@ -178,8 +178,16 @@ export class ModelLibrary {
               std.roughness = 0.12;
               std.envMapIntensity = 1.1;
             } else if (m.name.startsWith('headlight__')) {
-              std.emissive = new THREE.Color(0xf6f9ff);
-              std.emissiveIntensity = 0.85;
+              if (spec.id === 'golf' && m.name === 'headlight__Glass-light-cover') {
+                // This primitive is the outer lens, not a bulb. Let the
+                // reflector underneath show through instead of glowing white.
+                std.color.set(0xb9cbd2);std.transparent=true;std.opacity=.20;
+                std.depthWrite=false;std.depthTest=true;std.side=THREE.DoubleSide;
+                std.emissive.set(0x000000);std.emissiveIntensity=0;
+              } else {
+                std.emissive = new THREE.Color(0xf6f9ff);
+                std.emissiveIntensity = spec.id === 'golf' ? 0.28 : 0.85;
+              }
             } else if (m.name.startsWith('taillight__')) {
               std.emissive = new THREE.Color(0xff2020);
               std.emissiveIntensity = 0.9;
