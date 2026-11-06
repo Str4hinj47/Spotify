@@ -31,15 +31,20 @@ try {
       const shared = wheels.every((w,i) => w.children.length > 0 && w.children[0].geometry === other.userData.wheels[i].children[0].geometry);
       const radii = wheels.map(w => w.userData.wheelRadius);
       const parts = wheels.map(w => w.children.length);
+      const mixedName = { audi: 'audi_mesh', semi: 'Cube007_4', kraz: 'body001_7' }[id];
+      const mixed = mixedName ? car.getObjectByName(mixedName) : null;
+      const mixedParts = mixedName ? wheels.flatMap(w => w.children).filter(c => c.name.startsWith(`${mixedName}_rotating_`)) : [];
+      const attributesPreserved = !mixed || (mixed.geometry.index.count > 0 && mixedParts.length > 0 &&
+        Object.keys(mixedParts[0].geometry.attributes).every(key => mixed.geometry.getAttribute(key) === mixedParts[0].geometry.getAttribute(key)));
       spinWheels(car, 0);
-      return { id, before, after, unchanged, shared, brakeStill, radii, parts, stopped: wheels.every((w,i) => w.rotation.x === after[i]) };
+      return { id, before, after, unchanged, shared, brakeStill, attributesPreserved, radii, parts, stopped: wheels.every((w,i) => w.rotation.x === after[i]) };
     });
   });
   for (const r of rigs) {
     assert.equal(r.before.length, r.id === 'semi' ? 10 : r.id === 'kraz' ? 6 : 4, r.id);
     assert.ok(r.after.every((a,i) => a < r.before[i] && Math.abs(a + .2 / r.radii[i]) < 1e-6), r.id);
     assert.ok(r.radii.every(a => a > .2 && a < .8) && r.parts.every(n => n > 0), r.id);
-    assert.ok(r.shared && r.unchanged && r.brakeStill && r.stopped, r.id);
+    assert.ok(r.shared && r.unchanged && r.brakeStill && r.attributesPreserved && r.stopped, r.id);
   }
   await page.click('#btn-start');
   const gameplay = await page.evaluate(async () => {
