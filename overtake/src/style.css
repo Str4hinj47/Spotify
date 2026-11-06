@@ -503,3 +503,15 @@ svg { stroke-width: 1.75; }
 }
 
 .camera-panel { max-height:calc(100vh - 85px); overflow-y:auto; }
+
+/* Resolution presets change the rendering cost without changing the cars. */
+.graphics-intro { color: var(--muted); font-size: 12px; margin: 3px 0 10px; }
+.graphics-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.graphics-options button { min-height: 58px; padding: 7px 3px; border-radius: 8px; background: rgba(255,255,255,.05); border: 1px solid var(--border); color: var(--text); }
+.graphics-options button:hover { border-color: var(--accent); }
+.graphics-options button.active { color: #06121a; background: var(--accent); border-color: var(--accent); }
+.graphics-options b, .graphics-options small { display: block; }
+.graphics-options b { font-size: 11px; }
+.graphics-options small { font-size: 9px; margin-top: 4px; opacity: .8; }
+.graphics-panel .sound-hint { line-height: 1.5; margin-top: 10px; }
+@media (max-width: 360px) { #topbar .brand { display: none; } #topbar { justify-content: flex-end; } }

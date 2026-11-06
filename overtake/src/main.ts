@@ -201,6 +201,7 @@ function setMode(m: Mode) {
   $('btn-camera').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
   $('btn-world').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
   closeSoundPanel();
+  closeGraphicsPanel();
   if (m !== 'driving' && m !== 'paused') {
     $('camera-panel').classList.add('hidden');
     $('world-panel').classList.add('hidden');
@@ -232,6 +233,7 @@ function toggleCameraPanel() {
   panel.classList.toggle('hidden');
   $('world-panel').classList.add('hidden');
   closeSoundPanel();
+  closeGraphicsPanel();
   if (!panel.classList.contains('hidden')) syncCameraUI();
 }
 
@@ -255,6 +257,7 @@ function toggleWorldPanel() {
   panel.classList.toggle('hidden');
   $('camera-panel').classList.add('hidden');
   closeSoundPanel();
+  closeGraphicsPanel();
   if (!panel.classList.contains('hidden')) syncWorldUI();
 }
 
@@ -418,6 +421,7 @@ function onGameOver(s: RunStats) {
 
 function startRun() {
   closeSoundPanel();
+  closeGraphicsPanel();
   audio.setCar(selected);
   void audio.unlock();
   game.start();
@@ -451,10 +455,39 @@ function toggleSoundPanel() {
     $('camera-panel').classList.add('hidden');
     $('world-panel').classList.add('hidden');
     syncSoundUI();
+    closeGraphicsPanel();
   }
   panel.classList.toggle('hidden', !opening);
   $('btn-sound-settings').setAttribute('aria-expanded', String(opening));
   $('btn-pause-sound').setAttribute('aria-expanded', String(opening));
+}
+
+function closeGraphicsPanel() {
+  $('graphics-panel').classList.add('hidden');
+  $('btn-graphics').setAttribute('aria-expanded', 'false');
+  $('btn-pause-graphics').setAttribute('aria-expanded', 'false');
+}
+
+function syncGraphicsUI() {
+  document.querySelectorAll<HTMLButtonElement>('[data-quality]').forEach((button) => {
+    const selected = button.dataset.quality === game.getGraphicsQuality();
+    button.classList.toggle('active', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  });
+}
+
+function toggleGraphicsPanel() {
+  const panel = $('graphics-panel');
+  const opening = panel.classList.contains('hidden');
+  if (opening) {
+    closeSoundPanel();
+    $('camera-panel').classList.add('hidden');
+    $('world-panel').classList.add('hidden');
+    syncGraphicsUI();
+  }
+  panel.classList.toggle('hidden', !opening);
+  $('btn-graphics').setAttribute('aria-expanded', String(opening));
+  $('btn-pause-graphics').setAttribute('aria-expanded', String(opening));
 }
 
 function toggleMute() {
@@ -464,6 +497,7 @@ function toggleMute() {
 
 function openHelp() {
   closeSoundPanel();
+  closeGraphicsPanel();
   helpPaused = game.mode === 'driving';
   if (helpPaused) game.pause();
   $('help').classList.remove('hidden');
@@ -536,6 +570,16 @@ function bindUI() {
   $('btn-sound').addEventListener('click', toggleMute);
   $('btn-sound-settings').addEventListener('click', toggleSoundPanel);
   $('btn-pause-sound').addEventListener('click', toggleSoundPanel);
+  $('btn-graphics').addEventListener('click', toggleGraphicsPanel);
+  $('btn-pause-graphics').addEventListener('click', toggleGraphicsPanel);
+  $('graphics-close').addEventListener('click', () => { closeGraphicsPanel(); $(game.mode === 'paused' ? 'btn-pause-graphics' : 'btn-graphics').focus(); });
+  document.querySelectorAll<HTMLButtonElement>('[data-quality]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const value = button.dataset.quality;
+      if (value === 'performance' || value === 'balanced' || value === 'sharp') game.setGraphicsQuality(value);
+      syncGraphicsUI();
+    });
+  });
   $('sound-close').addEventListener('click', () => { closeSoundPanel(); $(game.mode === 'paused' ? 'btn-pause-sound' : 'btn-sound-settings').focus(); });
   $('sound-master').addEventListener('change', e => { audio.setMuted(!(e.target as HTMLInputElement).checked); syncSoundUI(); });
   $('sound-score').addEventListener('change', e => audio.setScoreSounds((e.target as HTMLInputElement).checked));
@@ -610,6 +654,9 @@ function bindUI() {
   };
   window.addEventListener('keydown', (e) => {
     const target = e.target as HTMLElement | null;
+    if (e.key === 'Escape' && !$('graphics-panel').classList.contains('hidden')) {
+      e.preventDefault(); closeGraphicsPanel(); $(game.mode === 'paused' ? 'btn-pause-graphics' : 'btn-graphics').focus(); return;
+    }
     if (e.key === 'Escape' && !$('sound-panel').classList.contains('hidden')) {
       e.preventDefault(); closeSoundPanel(); $(game.mode === 'paused' ? 'btn-pause-sound' : 'btn-sound-settings').focus(); return;
     }
