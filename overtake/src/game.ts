@@ -25,7 +25,7 @@ import { createAsphaltMaterial, createSnowMaterial, createShoulderMaterial, crea
 import { biomeParams, biomeWeights, dominantBiome } from './world/biomes.mjs';
 import { snowDriftHeight } from './world/road-snow.mjs';
 import { createWeatherState, stepWeather, weatherGrip, weatherLabel, type WeatherState } from './world/weather.mjs';
-import { createClock, stepClock, formatHour } from './world/clock.mjs';
+import { createClock, stepClock, formatHour, dayFactor } from './world/clock.mjs';
 import { createRun, tickRun, registerPass, finishRun, runSummary, contractProgress, medalFor, RUN_MODES, type RunMode, type RunState, type RunEvent, type Medal } from './run.mjs';
 import { createTrafficAI, findLeader, stepTraffic, hazardAhead, trafficCruise, chooseTruck, canOvertakeTruck, startOvertake, stepOvertake, type TrafficAI, type Hazard } from './traffic-ai.mjs';
 import { chooseTrafficModel, chooseTrafficPaint } from './traffic-appearance.mjs';
@@ -233,6 +233,7 @@ export class OvertakeGame {
   private mountains = new THREE.Group();
   private dummy = new THREE.Object3D();
   private contactShadow!: THREE.Mesh;
+  private sceneryShadows!: THREE.InstancedMesh;
 
   private player: THREE.Group | null = null;
   private playerMeta = { length: 4.5, width: 1.9 };
@@ -794,6 +795,26 @@ export class OvertakeGame {
       this.roadGroup.add(m);
     }
 
+    // Small soft contact shadows ground the distant vegetation without a
+    // long-range directional shadow map (which caused road streaks).
+    const shadowCanvas = document.createElement('canvas');
+    shadowCanvas.width = shadowCanvas.height = 64;
+    const ctx = shadowCanvas.getContext('2d')!;
+    const gradient = ctx.createRadialGradient(32, 32, 2, 32, 32, 31);
+    gradient.addColorStop(0, 'rgba(0,0,0,0.65)');
+    gradient.addColorStop(.45, 'rgba(0,0,0,0.3)');
+    gradient.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gradient; ctx.fillRect(0, 0, 64, 64);
+    const shadowGeo = new THREE.PlaneGeometry(1, 1);
+    shadowGeo.rotateX(-Math.PI / 2);
+    this.sceneryShadows = new THREE.InstancedMesh(shadowGeo,
+      new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(shadowCanvas), transparent: true, depthWrite: false, opacity: .5, polygonOffset: true, polygonOffsetFactor: -1 }), 144);
+    this.sceneryShadows.name = 'vegetation-contact-shadows';
+    this.sceneryShadows.count = 0;
+    this.sceneryShadows.frustumCulled = false;
+    this.sceneryShadows.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.roadGroup.add(this.sceneryShadows);
+
     this.detailedScenery = new DetailedScenery(this.roadGroup, this.roadSurface.snow, this.renderer.capabilities.getMaxAnisotropy(), () => this.updateScenery());
     if (this.sceneryQuality !== 'low') this.detailedScenery.ensureLoaded();
 
@@ -1030,7 +1051,7 @@ export class OvertakeGame {
       const rows = high ? 44 : 20;
       const broadLimit = high ? 42 : 18;
       const pineLimit = high ? 90 : 24;
-      let broadCount = 0, pineCount = 0;
+      let broadCount = 0, pineCount = 0, shadowCount = 0;
       // Two offset rows per side fill the middle distance without drawing
       // expensive deciduous meshes for the whole horizon.
       for (let i = 0; i < rows; i++) for (const side of [-1, 1]) for (let band = 0; band < (high ? 2 : 1); band++) {
@@ -1050,7 +1071,16 @@ export class OvertakeGame {
         this.dummy.scale.set(scale, scale * (.93 + hash01(seed + 19) * .14), scale);
         this.dummy.updateMatrix(); detailed.place(kind, this.dummy.matrix);
         if (kind === 'broadleaf') broadCount++; else pineCount++;
+        this.dummy.position.y += .18;
+        this.dummy.rotation.set(0, 0, 0);
+        const shadowSize = desiredHeight * .43;
+        this.dummy.scale.set(shadowSize, 1, shadowSize);
+        this.dummy.updateMatrix();
+        this.sceneryShadows.setMatrixAt(shadowCount++, this.dummy.matrix);
       }
+      this.sceneryShadows.count = shadowCount;
+      this.sceneryShadows.instanceMatrix.needsUpdate = true;
+      (this.sceneryShadows.material as THREE.MeshBasicMaterial).opacity = .44 * dayFactor(this.worldClock.hour) * (1 - Math.max(this.weather.rain, this.weather.snow) * .65);
       // CC0 scan-based rocks follow biome density and sit on the terrain.
       const rockRows = high ? 36 : 18;
       for (let i = 0; i < rockRows; i++) for (const side of [-1, 1]) {
@@ -1078,6 +1108,7 @@ export class OvertakeGame {
         this.dummy.scale.setScalar(scale); this.dummy.updateMatrix(); detailed.place('fern', this.dummy.matrix);
       }
     }
+    this.sceneryShadows.visible = enabled;
     detailed.end(enabled);
   }
 
