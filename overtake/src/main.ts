@@ -679,7 +679,7 @@ function bindUI() {
   $('btn-quit').addEventListener('click', () => game.toGarage());
   document.querySelectorAll<HTMLButtonElement>('[data-garage-tab]').forEach(button => button.addEventListener('click', () => {
     const tab = button.dataset.garageTab!;
-    document.querySelectorAll<HTMLButtonElement>('[data-garage-tab]').forEach(b => b.setAttribute('aria-selected', String(b === button)));
+    document.querySelectorAll<HTMLButtonElement>('[data-garage-tab]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
     for (const section of ['drive', 'upgrades', 'style']) $('garage-' + section).classList.toggle('hidden', section !== tab);
   }));
   $('btn-share-result').addEventListener('click', async () => {

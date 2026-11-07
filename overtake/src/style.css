@@ -603,8 +603,8 @@ svg { stroke-width: 1.75; }
 .garage-tabs { display: grid; grid-template-columns: repeat(3,1fr); gap: 0; border-bottom: 1px solid #ffffff26; margin: 16px 0 12px; }
 .garage-tabs button { padding: 10px 2px; color: #788a90; background: transparent; border-bottom: 2px solid transparent; font-size: 10px; letter-spacing:.08em; text-align:left; }
 .garage-tabs button span { display:block; margin-top:5px; font-size:12px; font-weight:700; letter-spacing:0; color:#a7b6b9; }
-.garage-tabs button[aria-selected=true] { color:#b5f54b; border-color:#b5f54b; }
-.garage-tabs button[aria-selected=true] span { color:#f4f8f5; }
+.garage-tabs button[aria-pressed=true] { color:#b5f54b; border-color:#b5f54b; }
+.garage-tabs button[aria-pressed=true] span { color:#f4f8f5; }
 .section-kicker { display:flex; justify-content:space-between; color:#eaf1ed; letter-spacing:.14em; font-size:10px; font-weight:800; margin: 12px 0; }
 .section-kicker span { color:#91a19d; font-weight:500; }
 .mode-card { border-radius:3px; background:#ffffff08; padding:10px; }

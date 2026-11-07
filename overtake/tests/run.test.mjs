@@ -107,3 +107,8 @@ test('daily bests reset by UTC period while history survives', async()=>{
   const next=createRun('daily',1,now+86400000);next.score=100;
   const result=recordRun(records,runSummary(next,'golf'));assert.equal(result.newBest,true);assert.equal(result.records.modes.daily.bestScore,100);assert.equal(result.records.modes.daily.recent.length,2);
 });
+
+test('near miss mode keeps the signal bonus flat',()=>{
+  const a=createRun('near',1),b=createRun('near',1);
+  assert.equal(registerPass(a,'same',true,1,true).points-registerPass(b,'same',true,1,false).points,50);
+});

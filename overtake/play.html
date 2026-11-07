@@ -24,7 +24,7 @@
     <header id="topbar" class="hidden">
       <div class="brand">
         <div class="logo">OVER<span>TAKE</span></div>
-        <div class="tag">Rush update</div>
+        <div class="tag">HIGHWAY RUN</div><a class="site-link" href="/">← Website</a>
       </div>
       <div class="top-actions">
         <div class="best-pill"><i data-lucide="trophy"></i><span id="best-top">0</span></div>
@@ -77,10 +77,10 @@
         <h1 id="d-name">Golf MK4 GTI</h1>
         <div class="class-pill" id="d-class">Hot hatch</div>
         <p id="d-tagline" class="tagline"></p>
-        <div class="garage-tabs" role="tablist" aria-label="Garage sections">
-          <button type="button" role="tab" aria-selected="true" data-garage-tab="drive">01 <span>Drive</span></button>
-          <button type="button" role="tab" aria-selected="false" data-garage-tab="upgrades">02 <span>Performance</span></button>
-          <button type="button" role="tab" aria-selected="false" data-garage-tab="style">03 <span>Style</span></button>
+        <div class="garage-tabs" role="group" aria-label="Garage sections">
+          <button type="button" aria-pressed="true" data-garage-tab="drive">01 <span>Drive</span></button>
+          <button type="button" aria-pressed="false" data-garage-tab="upgrades">02 <span>Performance</span></button>
+          <button type="button" aria-pressed="false" data-garage-tab="style">03 <span>Style</span></button>
         </div>
         <section class="progression" aria-label="Car progression">
           <div class="progression-head"><b id="progress-xp">$0</b><button id="dev-toggle" type="button" aria-pressed="false">Dev options: OFF</button></div>
@@ -89,7 +89,7 @@
           <div id="car-requirement" class="car-requirement" aria-live="polite"></div>
           <p class="progress-hint">Money is paid when a run ends or you return to the garage. Each 1,000 points increases your payout per point by 25%, up to 3×. Dev options grant temporary access.</p>
         </section>
-        <div id="garage-upgrades" class="garage-section hidden" role="tabpanel">
+        <div id="garage-upgrades" class="garage-section hidden">
         <div class="stats">
           <div class="stat"><span>Top speed</span><div class="dots" id="stat-speed"></div></div>
           <div class="stat"><span>Handling</span><div class="dots" id="stat-handling"></div></div>
@@ -101,7 +101,7 @@
           <div id="upgrade-list"></div>
         </div>
         </div>
-        <div id="garage-drive" class="garage-section" role="tabpanel">
+        <div id="garage-drive" class="garage-section">
         <div class="section-kicker">SELECT YOUR DRIVE <span>LOCAL PLAY</span></div>
         <div class="mode-select" role="group" aria-label="Run mode">
           <button class="mode-card active" data-mode="endless" type="button">
@@ -125,7 +125,7 @@
           <div id="recent-list"></div>
         </div>
         </div>
-        <div id="garage-style" class="garage-section hidden" role="tabpanel">
+        <div id="garage-style" class="garage-section hidden">
         <div class="paint">
           <div class="paint-head">
             <span>Paint</span>

@@ -153,13 +153,14 @@ export function registerPass(run, kind, near, carBonus = 1, signaled = false) {
   if (kind === 'same') {
     run.overtakes++;
     if (near) run.nearMisses++;
-    points = passScore(run.combo, 'same', near, carBonus) + (signaled ? SIGNAL_BONUS : 0);
+    points = passScore(run.combo, 'same', near, carBonus);
   } else if (kind === 'oncoming' && near) {
     run.oncomingDodges++;
     run.nearMisses++;
     points = passScore(run.combo, 'oncoming', true, carBonus);
   }
   if (run.mode === 'near') points = Math.round(points * (near ? 1.75 : 0.5));
+  if (kind === 'same' && signaled) points += SIGNAL_BONUS;
   run.score += points;
   if (run.combo % 5 === 0) events.push({ type: 'combo', mult: multiplierFor(run.combo) });
   completeContracts(run, events);
