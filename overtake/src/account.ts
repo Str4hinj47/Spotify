@@ -17,6 +17,7 @@ const cloudButtons = ['cloud-upload', 'cloud-restore', 'cloud-delete'].map(id =>
 function refreshUndo() { try { cloudUndo.hidden = !localStorage.getItem(CLOUD_BACKUP_KEY); } catch { cloudUndo.hidden = true; } }
 refreshUndo();
 $('account-open').addEventListener('click', () => { refreshUndo(); dialog.showModal(); });
+if (location.hash === '#account') dialog.showModal();
 cloudUndo.addEventListener('click', () => {
   if (!confirm('Close all Overtake game tabs first. Swap this device’s current garage and personal records with its last pre-restore backup?')) return;
   try { undoRestore(localStorage); refreshUndo(); cloudStatus.textContent = 'Local restore undone. Reopen the game to use the restored data.'; status.textContent = cloudStatus.textContent; }

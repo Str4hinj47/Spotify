@@ -56,5 +56,6 @@ try {
   await mobile.click('[data-mode=weekly]'); assert.equal(await mobile.locator('[data-mode=weekly]').getAttribute('aria-pressed'),'true');
   assert.match(await mobile.locator('#active-mode-info').innerText(),/Weekly Event/);
   assert.equal(await mobile.locator('#btn-start').count(),1);
+  assert.equal(await mobile.locator('#btn-account').getAttribute('href'),'/#account');
   console.log('Release flows passed');
 } finally {await browser.close();}

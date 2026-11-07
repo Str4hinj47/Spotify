@@ -1,5 +1,5 @@
 import '@fontsource-variable/inter';
-import { createIcons, Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor } from 'lucide';
+import { createIcons, Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, Cloud, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor } from 'lucide';
 import { ModelLibrary } from './models';
 import { OvertakeGame, CAMERA_ORDER, type Mode, type HudState, type RunStats, type CameraPreset } from './game';
 import { RUN_MODES, eventFor, type RunMode } from './run.mjs';
@@ -12,7 +12,7 @@ import { BODY_FITS } from './body-kits';
 import { LIVERIES } from './livery';
 import { BODY_PARTS, DEFAULT_CUSTOMIZATION, sanitizeCustomization, sanitizeCustomizations, type Customization } from './customization.mjs';
 
-createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor } });
+createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, Cloud, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor } });
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
@@ -281,6 +281,7 @@ function setMode(m: Mode) {
   $('hud').classList.toggle('hidden', m === 'garage');
   $('pause').classList.toggle('hidden', m !== 'paused');
   $('gameover').classList.toggle('hidden', m !== 'gameover');
+  $('btn-account').classList.toggle('hidden', m !== 'garage');
   $('btn-pause').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
   $('btn-camera').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
   $('btn-world').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
