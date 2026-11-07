@@ -707,3 +707,17 @@ button.season-card{ cursor:pointer; } button.season-card:hover{ border-color:var
 .event-banner{ margin:0 0 10px; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,176,46,.5);
   background:rgba(255,176,46,.10); font-size:11.5px; line-height:1.5; color:var(--text); }
 .event-banner.challenge{ border-color:rgba(215,255,63,.55); background:rgba(215,255,63,.09); }
+
+/* Lite preview (Arena *.e2b.app / ?lite=1): built for phones that must use
+   Chrome desktop-site mode — compact panels, touch controls always visible. */
+body.lite-preview .menu-hero { display: none; }
+body.lite-preview .tagline, body.lite-preview .progress-hint,
+body.lite-preview .upgrade-hint, body.lite-preview .hint { display: none; }
+body.lite-preview .touch-controls { display: flex; }
+body.lite-preview .car-detail { width: 300px; max-height: 62vh; padding: 14px; }
+body.lite-preview .car-list { width: 218px; }
+body.lite-preview .car-card { grid-template-columns: 64px 1fr; }
+body.lite-preview .car-card img { width: 64px; height: 34px; }
+body.lite-preview .hud-value { font-size: 30px; }
+body.lite-preview .contract-card { width: 168px; padding: 9px 11px; }
+body.lite-preview .season-hub, body.lite-preview .event-banner { margin-bottom: 8px; }

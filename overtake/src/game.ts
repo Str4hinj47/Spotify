@@ -183,6 +183,11 @@ export class OvertakeGame {
   private trafficShadows!: TrafficShadows;
   private composer!: EffectComposer;
   private testMode = false;
+  /** Lite mode: ONLY the Arena live preview (*.e2b.app) or ?lite=1. Phones
+   * opening the preview (often in Chrome desktop-site mode) get no background
+   * props, no post-processing, no shadows and a capped pixel ratio. The
+   * normal desktop/local game is completely unaffected. */
+  private liteMode = false;
   private graphicsQuality: GraphicsQuality = 'sharp';
   private sceneryQuality: SceneryQuality = 'high';
   private detailedScenery!: DetailedScenery;
@@ -309,18 +314,21 @@ export class OvertakeGame {
   constructor(canvas: HTMLCanvasElement, library: ModelLibrary, cb: GameCallbacks) {
     this.library = library;
     this.cb = cb;
+    const params = new URLSearchParams(location.search);
+    this.liteMode = params.has('lite') || /(^|\.)e2b\.app$/i.test(location.hostname);
     try {
       this.graphicsQuality = sanitizeGraphicsQuality(localStorage.getItem('overtake-graphics-quality'));
       this.sceneryQuality = sanitizeSceneryQuality(localStorage.getItem('overtake-scenery-quality'));
     } catch { /* storage unavailable */ }
-    const testMode = this.testMode = new URLSearchParams(location.search).has('test');
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !testMode, powerPreference: 'high-performance' });
+    if (this.liteMode) { this.graphicsQuality = 'performance'; this.sceneryQuality = 'low'; }
+    const testMode = this.testMode = params.has('test');
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !testMode && !this.liteMode, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(1);
-    this.library.setTextureAnisotropy(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
+    this.library.setTextureAnisotropy(this.liteMode ? 1 : Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.95;
-    this.renderer.shadowMap.enabled = !testMode;
+    this.renderer.shadowMap.enabled = !testMode && !this.liteMode;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1200);
 
@@ -342,14 +350,16 @@ export class OvertakeGame {
     this.scene.add(this.roadGroup, this.garageGroup, this.mountains);
     // Canvas antialiasing does not affect the composer's offscreen buffers.
     // Multisample those buffers so car silhouettes remain smooth in motion.
-    const samples = testMode ? 0 : Math.min(4, this.renderer.capabilities.maxSamples);
+    const samples = testMode || this.liteMode ? 0 : Math.min(4, this.renderer.capabilities.maxSamples);
     this.composer = new EffectComposer(this.renderer, { multisampling: samples });
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    const bloom = new BloomEffect({ intensity: 0.55, luminanceThreshold: 0.72, luminanceSmoothing: 0.25, mipmapBlur: true });
-    const vignette = new VignetteEffect({ offset: 0.42, darkness: 0.24 });
-    this.composer.addPass(new EffectPass(this.camera, bloom, vignette));
-    // Shader AA is a low-cost fallback on devices without multisample support.
-    if (!testMode && samples === 0) this.composer.addPass(new EffectPass(this.camera, new FXAAEffect()));
+    if (!this.liteMode) {
+      const bloom = new BloomEffect({ intensity: 0.55, luminanceThreshold: 0.72, luminanceSmoothing: 0.25, mipmapBlur: true });
+      const vignette = new VignetteEffect({ offset: 0.42, darkness: 0.24 });
+      this.composer.addPass(new EffectPass(this.camera, bloom, vignette));
+      // Shader AA is a low-cost fallback on devices without multisample support.
+      if (!testMode && samples === 0) this.composer.addPass(new EffectPass(this.camera, new FXAAEffect()));
+    }
     this.setEnvironment('garage');
 
     window.addEventListener('resize', () => this.resize());
@@ -884,7 +894,7 @@ export class OvertakeGame {
     this.midgroundTreeline = new MidgroundTreeline(this.roadGroup, this.roadSurface.snow, this.renderer.capabilities.getMaxAnisotropy(), { centerX, centerY, rightAt, roadYaw });
     this.roadsideGrass = new RoadsideGrass(this.roadGroup, this.roadSurface.snow, this.roadSurface.time, this.renderer.capabilities.getMaxAnisotropy(), { centerX, centerY, rightAt });
     this.detailedScenery = new DetailedScenery(this.roadGroup, this.roadSurface.snow, this.roadSurface.time, this.roadSurface.wind, this.renderer.capabilities.getMaxAnisotropy(), () => this.updateScenery());
-    if (this.sceneryQuality !== 'low') this.detailedScenery.ensureLoaded();
+    if (!this.liteMode && this.sceneryQuality !== 'low') this.detailedScenery.ensureLoaded();
 
     const sign = createRoadsideSignGeometry();
     const signMaterials = [
@@ -993,6 +1003,22 @@ export class OvertakeGame {
 
   private updateScenery() {
     const base = this.playerS;
+    if (this.liteMode) {
+      // Preview-only: no trees, buildings, rocks, grass, signs, streetlights,
+      // panorama or vegetation shadows — just road, ground plane and sky.
+      for (const m of [this.broadleaf, this.conifers, this.broadTrunks, this.pineTrunks, this.rocks, this.buildings, this.detailedBuildings, this.brickBuildings, this.buildingRoofs, this.grass, this.cheapBroadleaf, this.cheapBroadTrunks, this.cheapPines, this.cheapPineTrunks, this.distantTrees, this.distantTrunks, this.distantPines, this.distantPineTrunks]) m.visible = false;
+      for (const mesh of this.roadsideSigns) mesh.visible = false;
+      for (const l of this.lamps) l.g.visible = false;
+      this.sceneryShadows.visible = false; this.sceneryShadows.count = 0;
+      this.mountains.visible = false;
+      this.roadsideGrass.update(base, 'low', 0);
+      this.midgroundTreeline.update(base, 'low');
+      this.detailedScenery.begin(); this.detailedScenery.end(false);
+      const p = biomeParams(base);
+      this.groundMat.color.set(p.ground);
+      this.ground.position.set(centerX(base), centerY(base) - 8, -base);
+      return;
+    }
     const spacing = 14;
     const start = Math.floor((base - 80) / spacing);
     const snow = this.weather.snowCover;
@@ -1875,8 +1901,8 @@ export class OvertakeGame {
     stepWeather(this.weather, dt, biome.temperature);
     const atm = this.atmosphere.update(this.worldClock.hour, this.weather, biome, this.camera.position, dt);
     this.nightFactor = atm.night;
-    this.precipitation.update(dt, this.camera.position, this.speed, this.weather, this.worldElapsed);
-    this.spray.update(dt, this.pos, this.yaw, this.playerMeta.width, this.playerMeta.length, this.speed,
+    if (!this.liteMode) this.precipitation.update(dt, this.camera.position, this.speed, this.weather, this.worldElapsed);
+    if (!this.liteMode) this.spray.update(dt, this.pos, this.yaw, this.playerMeta.width, this.playerMeta.length, this.speed,
       this.weather.wet, this.weather.snowCover, snowDriftHeight(this.offset, this.playerS, this.weather.snowCover, ROAD_HALF));
 
     // Wet asphalt / snow cover.
@@ -1986,14 +2012,14 @@ export class OvertakeGame {
     if (this.player) updateVehicleLights(this.player, this.camera, this.nightFactor, this.input.brake || this.input.handbrake, this.mode === 'garage');
     for (const t of this.traffic) updateVehicleLights(t.group, this.camera, this.nightFactor, t.braking);
     updateExhaustFlames(this.player, performance.now()/1000, this.mode === 'garage' || (this.mode === 'driving' && this.input.throttle && !this.input.brake && this.speed > 6));
-    this.composer.render();
+    if (this.liteMode) this.renderer.render(this.scene, this.camera); else this.composer.render();
   };
 
   private resize() {
     const w = window.innerWidth, h = window.innerHeight;
     const gl = this.renderer.getContext();
     const maxSize = Math.min(this.renderer.capabilities.maxTextureSize, gl.getParameter(gl.MAX_RENDERBUFFER_SIZE));
-    const ratio = this.testMode ? 1 : vehiclePixelRatio(window.devicePixelRatio, w, h, window.matchMedia('(pointer: coarse)').matches, maxSize, this.graphicsQuality);
+    const ratio = this.testMode ? 1 : this.liteMode ? Math.min(window.devicePixelRatio || 1, 1) : vehiclePixelRatio(window.devicePixelRatio, w, h, window.matchMedia('(pointer: coarse)').matches, maxSize, this.graphicsQuality);
     this.renderer.setPixelRatio(ratio);
     this.renderer.setSize(w, h, false);
     this.composer.setSize(w, h);
@@ -2002,13 +2028,14 @@ export class OvertakeGame {
   }
 
   getSceneryQuality() { return this.sceneryQuality; }
+  isLiteMode() { return this.liteMode; }
   setSceneryQuality(value: SceneryQuality) {
     this.sceneryQuality = sanitizeSceneryQuality(value);
     this.atmosphere.skyMat.uniforms.photoDetail.value = this.sceneryQuality === 'low' ? 0 : 1;
     const cloud = Math.min(1, this.weather.rain * .85 + this.weather.snow * .75);
     this.roadSurface.cloud.value = this.sceneryQuality === 'low' ? 0 : .20 * dayFactor(this.worldClock.hour) * (1 - cloud * .8);
     this.roadSurface.streetlight.value = this.sceneryQuality === 'low' ? 0 : THREE.MathUtils.smoothstep(1 - dayFactor(this.worldClock.hour), .25, .8);
-    if (this.sceneryQuality !== 'low') this.detailedScenery.ensureLoaded();
+    if (!this.liteMode && this.sceneryQuality !== 'low') this.detailedScenery.ensureLoaded();
     try { localStorage.setItem('overtake-scenery-quality', this.sceneryQuality); } catch { /* storage unavailable */ }
     this.updateScenery();
   }

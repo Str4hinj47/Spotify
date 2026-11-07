@@ -969,6 +969,9 @@ async function boot() {
   game = new OvertakeGame($('game') as HTMLCanvasElement, library, {
     onHud, onEvent, onGameOver, onMode: setMode,
   });
+  // Arena live preview (phones often in Chrome desktop-site mode): Lite UI —
+  // smaller panels, always-on touch controls, no decorative hero text.
+  if (game.isLiteMode()) document.body.classList.add('lite-preview');
   (window as any).__overtake = game; // test/debug hook
   game.setSelectedCar(selected);
   updateDetail(selected);
