@@ -1,6 +1,16 @@
 # OVERTAKE → Worldwide Hit Plan
 *Audit & roadmap — 2026-11-07. Game audited: `overtake/` (Three.js + Vite + TS, ~8k lines). Legacy Spotify clone in `frontend/` + template FastAPI in `backend/` is unrelated scaffolding — archive it, don't build on it.*
 
+## Decisions (2026-11-07)
+- **Backend: Supabase** (chosen over Nakama — fastest to live leaderboards; Nakama remains the Phase 4 multiplayer option).
+- **First build: UI redesign** ✅ done — see below.
+
+### UI Redesign v1 — "Season 01: Every Pass Counts" (shipped)
+- New design tokens in `src/style.css` (`--volt #d7ff3f` on near-black, italic 900 arcade type, 8–10px radii, panel top-accent) — layered as an override block so every existing ID/class and smoke-test selector is preserved.
+- Garage hero ("EVERY PASS COUNTS"), Season hub (Daily Overtake + World Rankings cards), top-bar **World rankings** button, broadcast-style HUD score/combo, volt mode/contract/results accents.
+- **World rankings dialog**: Global/Weekly/Daily/Friends tabs (latter three disabled until accounts), honest empty state + device best. Wired in `src/main.ts` (open/close/backdrop, focus return). No fake data.
+- Next UI steps: extract tokens to `src/ui/tokens.css`, componentise modals/panels, motion pass, then Supabase auth + `scores` table + signed run submission (Phase 1).
+
 ## 1. Honest audit: what you already have (better than you think)
 | Asset | Status |
 |---|---|
