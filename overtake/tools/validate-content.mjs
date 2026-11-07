@@ -51,7 +51,7 @@ export function validateContent({ cars = CAR_CONTENT, liveries = LIVERY_OPTIONS,
     if (typeof item?.id !== 'string' || item.id.length > 64 || !idPattern.test(item.id)) errors.push(`${tag}: invalid ID.`);
     if (liveryIds.has(item?.id)) errors.push(`${tag}: duplicate ID.`); liveryIds.add(item?.id);
     if (!text(item?.label) || !text(item?.collection)) errors.push(`${tag}: label and collection are required.`);
-    if (!['none','stripe','race'].includes(item?.pattern)) errors.push(`${tag}: unsupported renderer pattern.`);
+    if (!['none','stripe','race','center'].includes(item?.pattern)) errors.push(`${tag}: unsupported renderer pattern.`);
     if (![null,0,1].includes(item?.fittedLabel)) errors.push(`${tag}: fittedLabel must be null, 0 or 1.`);
     if (!Number.isSafeInteger(item?.price) || !finite(item.price,0,1_000_000_000)) errors.push(`${tag}: invalid price.`);
     if (item?.defaultColor !== null && !hexPattern.test(item?.defaultColor ?? '')) errors.push(`${tag}: invalid default color.`);

@@ -39,12 +39,11 @@ Add an entry to `LIVERY_OPTIONS`, for example:
 ```
 
 Use a unique stable lowercase ID with letters, digits and hyphens. The existing
-patterns are `stripe` and `race`; variants reuse the same per-car fitted
+patterns are `stripe`, `race` and `center`; variants reuse the same per-car fitted
 geometry but can have different suggested colors and prices. A player can
 change the color afterward. `fittedLabel: null` displays the supplied label;
 `0` or `1` uses that car's existing custom label. `defaultColor: null` preserves
-the player's current color when selecting it. The built-in **Sunset stripe**
-is an example. These variants are not entirely new artwork; a genuinely new
+the player's current color when selecting it. The built-in **Sunset stripe** uses the single-center-stripe pattern. These variants are not entirely new artwork; a genuinely new
 pattern needs renderer/shader work in `src/livery.ts`, a corresponding validator
 update and visual tests on every car. New body parts, finishes, lighting types,
 or texture-based decals also require code and migration work; adding a line to

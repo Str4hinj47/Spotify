@@ -5,7 +5,7 @@ export const LIVERY_OPTIONS = /** @type {const} */ ([
   { id:'none', label:'None', fittedLabel:null, pattern:'none', price:0, defaultColor:null, collection:'Launch' },
   { id:'stripe', label:'Stripes', fittedLabel:0, pattern:'stripe', price:350, defaultColor:null, collection:'Launch' },
   { id:'race', label:'Race graphics', fittedLabel:1, pattern:'race', price:700, defaultColor:null, collection:'Launch' },
-  { id:'sunset-stripe', label:'Sunset stripe', fittedLabel:null, pattern:'stripe', price:500, defaultColor:'#ff7a1a', collection:'Color series' },
+  { id:'sunset-stripe', label:'Sunset stripe', fittedLabel:null, pattern:'center', price:500, defaultColor:'#ff7a1a', collection:'Color series' },
 ]);
 
 // Swatches are color shortcuts, not exclusive items; custom paint has the same

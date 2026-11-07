@@ -22,7 +22,7 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
   const d = LIVERIES[id];
   const upper = config.paintScheme === 'upper' ? 1 : config.paintScheme === 'lower' ? 2 : 0;
   const style = LIVERY_OPTIONS.find(option => option.id === config.livery)?.pattern;
-  const pattern = style === 'stripe' ? 1 : style === 'race' ? 2 : 0;
+  const pattern = style === 'stripe' ? 1 : style === 'race' ? 2 : style === 'center' ? 3 : 0;
   const secondary = new THREE.Color(config.secondaryColor);
   const livery = new THREE.Color(config.liveryColor);
   mat.onBeforeCompile = shader => {
@@ -53,7 +53,8 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
       float stripe=kitBand(ax-kitOffset,kitStripe*.5)*upperSurface*(1.0-sideSurface);
       float belt=kitBand(vKitPos.y-kitBelt,.035)*sideSurface;
       float roundel=(1.0-smoothstep(.20,.22,length(vec2(vKitPos.z-kitDoor,vKitPos.y-(kitBelt+.28)))))*sideSurface;
-      float graphics=kitPattern < .5 ? 0.0 : (kitPattern < 1.5 ? stripe : max(stripe,max(belt,roundel)));
+      float centerStripe=kitBand(vKitPos.x,kitStripe)*upperSurface*(1.0-sideSurface);
+      float graphics=kitPattern < .5 ? 0.0 : (kitPattern < 1.5 ? stripe : (kitPattern < 2.5 ? max(stripe,max(belt,roundel)) : centerStripe));
       diffuseColor.rgb=mix(diffuseColor.rgb,kitAccent,graphics*.96);`);
   };
   mat.customProgramCacheKey = () => 'overtake-custom-paint-v2';
