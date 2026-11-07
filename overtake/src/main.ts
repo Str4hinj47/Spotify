@@ -282,6 +282,7 @@ function setMode(m: Mode) {
   $('garage').classList.toggle('hidden', m !== 'garage');
   $('hud').classList.toggle('hidden', m === 'garage');
   $('pause').classList.toggle('hidden', m !== 'paused');
+  $('quit-label').textContent = game.getRunMode() === 'ranked' && !game.getProgression().dev ? 'Quit ranked run · −12 RP' : 'Back to garage';
   $('gameover').classList.toggle('hidden', m !== 'gameover');
   $('btn-account').classList.toggle('hidden', m !== 'garage');
   $('btn-pause').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
@@ -352,6 +353,8 @@ function formatClock(seconds: number) {
   const s = Math.max(0, Math.ceil(seconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
+
+function formatRankCountdown(seconds: number) { const t = Math.floor(Math.max(0, seconds) * 10) / 10; return `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`; }
 
 function formatTime(seconds: number) { return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, '0')}`; }
 
@@ -459,7 +462,7 @@ function onHud(h: HudState) {
     warn.classList.add('hidden');
   }
   $('run-mode-label').textContent = h.runLabel;
-  $('run-time').textContent = h.timeLeft !== null ? formatClock(h.timeLeft) : formatClock(h.elapsed);
+  $('run-time').textContent = h.timeLeft !== null ? (h.runMode === 'ranked' ? formatRankCountdown(h.timeLeft) : formatClock(h.timeLeft)) : formatClock(h.elapsed);
   $('run-clock').classList.toggle('rush', h.runMode === 'rush');
   $('run-clock').classList.toggle('urgent', h.timeLeft !== null && h.timeLeft <= 15);
   const card = $('contract-card');
