@@ -109,6 +109,8 @@ export interface GameCallbacks {
   onEvent: (e: { kind: 'overtake' | 'near' | 'combo' | 'crash' | 'oncoming' | 'contract' | 'finish'; text: string; points?: number }) => void;
   onGameOver: (s: RunStats) => void;
   onMode: (m: Mode) => void;
+  /** Optional boot checkpoints so a hang/crash names its exact stage. */
+  onBootStage?: (stage: string) => void;
 }
 
 interface Traffic {
@@ -341,14 +343,18 @@ export class OvertakeGame {
     this.loadProgression();
     this.best = bestFor(this.records, this.runMode);
 
+    this.cb.onBootStage?.('environment');
     this.buildEnvironments();
     this.atmosphere = new Atmosphere(this.scene);
     this.atmosphere.skyMat.uniforms.photoDetail.value = this.sceneryQuality === 'low' ? 0 : 1;
     this.precipitation = new Precipitation(this.scene);
     this.spray = new RoadSpray(this.scene);
+    this.cb.onBootStage?.('road');
     this.buildRoad();
     this.trafficShadows = new TrafficShadows(this.roadGroup, { centerX, centerY, rightAt, roadYaw, step: STEP, back: BACK, snowHeight: (offset, s, cover) => snowDriftHeight(offset, s, cover, ROAD_HALF) });
+    this.cb.onBootStage?.('scenery');
     this.buildScenery();
+    this.cb.onBootStage?.('garage');
     this.buildGarage();
     this.buildContactShadow();
     this.buildHeadlights();
@@ -365,14 +371,18 @@ export class OvertakeGame {
       // Shader AA is a low-cost fallback on devices without multisample support.
       if (!testMode && samples === 0) this.composer.addPass(new EffectPass(this.camera, new FXAAEffect()));
     }
+    this.cb.onBootStage?.('lights');
     this.setEnvironment('garage');
 
     window.addEventListener('resize', () => this.resize());
     this.resize();
     this.loadCameraSettings();
     this.bindGarageOrbit(canvas);
+    this.cb.onBootStage?.('car');
     this.setSelectedCar('golf');
-    this.loop();
+    this.cb.onBootStage?.('first frame');
+    // First frame is deferred: a slow shader compile must never block boot.
+    requestAnimationFrame(this.loop);
   }
 
   private loadCameraSettings() {
@@ -1467,6 +1477,7 @@ export class OvertakeGame {
   toGarage() {
     if (this.mode === 'driving' || this.mode === 'paused') this.settleProgression();
     this.clearTraffic();
+    this.cb.onBootStage?.('lights');
     this.setEnvironment('garage');
     this.signal = null; this.clearDrivingInput();
     this.updatePlayerLights(0);

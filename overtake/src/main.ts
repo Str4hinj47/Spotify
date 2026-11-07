@@ -975,9 +975,16 @@ async function boot() {
     if (saved && CARS.some((c) => c.id === saved)) selected = saved;
   } catch { /* ignore */ }
 
-  game = new OvertakeGame($('game') as HTMLCanvasElement, library, {
-    onHud, onEvent, onGameOver, onMode: setMode,
-  });
+  try {
+    game = new OvertakeGame($('game') as HTMLCanvasElement, library, {
+      onHud, onEvent, onGameOver, onMode: setMode,
+      onBootStage: (stage) => { if (LITE_PREVIEW) $('load-label').textContent = `Lite preview · ${stage}…`; },
+    });
+  } catch (err) {
+    console.error(err);
+    $('load-label').textContent = `Start failed: ${err instanceof Error ? err.message : String(err)}`;
+    return;
+  }
   // Arena live preview (phones often in Chrome desktop-site mode): Lite UI —
   // smaller panels, always-on touch controls, no decorative hero text.
   if (game.isLiteMode()) document.body.classList.add('lite-preview');
