@@ -1,0 +1,14 @@
+{
+  "name": "OVERTAKE — Every Pass Counts",
+  "short_name": "OVERTAKE",
+  "description": "The 60-second browser overtake game. Thread the traffic, beat the world today.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#07090c",
+  "theme_color": "#07090c",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

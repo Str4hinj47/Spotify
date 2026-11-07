@@ -1,0 +1,24 @@
+import { chromium as pw } from '@playwright/test';
+import chromium from '@sparticuz/chromium';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const base=process.env.BASE_URL||'http://localhost:3000';
+const browser=await pw.launch({executablePath:await chromium.executablePath(),headless:true,args:chromium.args.filter(a=>a!=='--single-process').concat(['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox']),env:{...process.env,LD_LIBRARY_PATH:`/home/user/.local/lib/chromium-deps:${process.env.LD_LIBRARY_PATH||''}`}});
+const errors=[];
+try {
+ const page=await browser.newPage({viewport:{width:1280,height:800}});page.on('pageerror',e=>errors.push(String(e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+ await page.goto(`${base}/?test=1`,{waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
+ await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf)});
+ const wheelAngles=await page.evaluate(async()=>{const T=await import('/node_modules/three/build/three.module.js'),g=window.__overtake;g.setSelectedCar('golf');g.player.updateMatrixWorld(true);return g.player.userData.wheels.map(w=>{const pts=[];w.traverse(o=>{if(!o.isMesh||!o.material.name.startsWith('tire__'))return;const a=o.geometry.attributes.position,idx=o.geometry.index;for(let i=0;i<idx.count;i++){const v=new T.Vector3().fromBufferAttribute(a,idx.getX(i)).applyMatrix4(o.matrixWorld);pts.push([v.x,v.z]);}});const mx=pts.reduce((s,p)=>s+p[0],0)/pts.length,mz=pts.reduce((s,p)=>s+p[1],0)/pts.length;let xx=0,zz=0,xz=0;for(const [x,z] of pts){xx+=(x-mx)**2;zz+=(z-mz)**2;xz+=(x-mx)*(z-mz)}return .5*Math.atan2(2*xz,zz-xx)*180/Math.PI;});});
+ assert.ok(wheelAngles.every(a=>Math.abs(a)<1),`Golf wheel toe ${wheelAngles}`);
+ const checks=await page.evaluate(async()=>{const g=window.__overtake,{addVehicleLights,updateVehicleLights,conformTrafficBeam,LAMP_POSITIONS}=await import('/src/vehicle-lights.ts'),T=await import('/node_modules/three/build/three.module.js');return Object.keys(LAMP_POSITIONS).map(id=>{const c=g.library.create(id);addVehicleLights(c,id,true);g.scene.add(c);c.position.set(0,0,0);g.camera.position.set(0,2,10);updateVehicleLights(c,g.camera,1,false);const rear=c.userData.vehicleLights.rear.map(s=>s.material.opacity),frontBehind=c.userData.vehicleLights.front.map(s=>s.material.opacity);g.camera.position.set(0,2,-10);updateVehicleLights(c,g.camera,1,true);const front=c.userData.vehicleLights.front.map(s=>s.material.opacity),rearAhead=c.userData.vehicleLights.rear.map(s=>s.material.opacity);const beam=c.getObjectByName('npc-headlight-beams');conformTrafficBeam(c,0,1,s=>s*.01);const y=Array.from(beam.geometry.attributes.position.array).filter((_,i)=>i%3===1);g.scene.remove(c);return {id,rear,frontBehind,front,rearAhead,beam:!!beam,beamY:[Math.min(...y),Math.max(...y)]};});});
+ for(const c of checks){assert.ok(c.rear.every(x=>x>0),c.id);assert.ok(c.front.every(x=>x>0),c.id);assert.ok(c.frontBehind.every(x=>x===0));assert.ok(c.rearAhead.every(x=>x===0));assert.ok(c.beam && c.beamY[1]>c.beamY[0]);}
+ fs.mkdirSync('test-results',{recursive:true});
+ await page.evaluate(()=>{const g=window.__overtake;g.setSelectedCar('golf');g.start();g.clearTraffic();g.trySpawn=()=>{};g.setCycleRunning(false);g.setTimeOfDay(0);g.spawnSame(32,0);g.spawnOncoming(45,0);g.updateDriving(0);g.updateWorld(.01);g.loop();cancelAnimationFrame(g.raf);});
+ await page.screenshot({path:'test-results/economy-night-traffic.png',timeout:120000});
+ await page.evaluate(async()=>{const g=window.__overtake,{updateExhaustFlames}=await import('/src/body-kits.ts');g.toGarage();g.library.setCustomization('ferrari',{exhaust:'flame'});g.setSelectedCar('ferrari');g.garageAuto=false;g.garageAngle=0;g.garagePitch=.15;g.garageZoom=5;g.updateCamera(0);updateExhaustFlames(g.player,2,true);g.loop();cancelAnimationFrame(g.raf);});
+ await page.screenshot({path:'test-results/economy-flame-ferrari.png',timeout:120000});
+ const outlets=await page.evaluate(()=>{const g=window.__overtake,flames=g.player.getObjectByName('exhaust-flames'),mouths=[];g.player.updateMatrixWorld(true);g.player.traverse(o=>{if(o.name==='exhaust-mouth')mouths.push(o.getWorldPosition(o.position.clone()).toArray())});return {mouths,jets:flames.children.map(j=>j.getWorldPosition(j.position.clone()).toArray()),sheets:flames.children.map(j=>j.children.length)}});
+ assert.equal(outlets.mouths.length,3);assert.deepEqual(outlets.sheets,[3,3,3]);for(let i=0;i<3;i++)assert.ok(outlets.mouths[i].every((x,j)=>Math.abs(x-outlets.jets[i][j])<1e-6));
+ assert.deepEqual(errors,[]);console.log({wheelAngles,checks,outlets,errors});
+} finally {await browser.close();}

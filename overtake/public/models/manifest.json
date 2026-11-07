@@ -1,0 +1,90 @@
+{
+  "golf": {
+    "id": "golf",
+    "file": "models/golf.glb",
+    "bytes": 472824,
+    "triangles": 148143,
+    "dimensions": [
+      1.828,
+      4.15,
+      1.674
+    ],
+    "source": "GolfMK4-Cycles-Jay-Hardy-2011.blend"
+  },
+  "mercedes": {
+    "id": "mercedes",
+    "file": "models/mercedes.glb",
+    "bytes": 4296804,
+    "triangles": 27110,
+    "dimensions": [
+      2.108,
+      5.25,
+      1.481
+    ],
+    "source": "MB.W222.AMG.blend"
+  },
+  "audi": {
+    "id": "audi",
+    "file": "models/audi.glb",
+    "bytes": 1081560,
+    "triangles": 433071,
+    "dimensions": [
+      2.114,
+      4.99,
+      1.491
+    ],
+    "source": "Audi_RS_6_Avant_Not+Applied.blend"
+  },
+  "mustang": {
+    "id": "mustang",
+    "file": "models/mustang.glb",
+    "bytes": 479916,
+    "triangles": 149991,
+    "dimensions": [
+      1.88,
+      4.78,
+      1.335
+    ],
+    "source": "Mustang.blend"
+  },
+  "ferrari": {
+    "id": "ferrari",
+    "file": "models/ferrari.glb",
+    "bytes": 2780832,
+    "triangles": 142205,
+    "dimensions": [
+      2.5,
+      4.57,
+      1.117
+    ],
+    "source": "ferrari_studio.blend"
+  },
+  "r8": {
+    "id": "r8",
+    "file": "models/r8.glb",
+    "source": "r8.obj",
+    "bytes": 380100,
+    "triangles": 65785
+  },
+  "challenger": {
+    "id": "challenger",
+    "file": "models/challenger.glb",
+    "source": "Challenger.obj",
+    "bytes": 1121092,
+    "triangles": 381745
+  },
+  "semi": {
+    "id": "semi",
+    "file": "models/semi.glb",
+    "bytes": 915408,
+    "triangles": 443362,
+    "source": "semi.blend"
+  },
+  "kraz": {
+    "id": "kraz",
+    "file": "models/kraz.glb",
+    "bytes": 1270948,
+    "triangles": 205488,
+    "source": "kraz.blend"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "season": "Season 01 · World Tour",
+  "events": [
+    { "id": "launch-weekend", "title": "Launch Weekend Rush", "desc": "Rush board counts double bragging rights. Set your Rush best.", "mode": "rush", "start": "2026-11-06T00:00:00Z", "end": "2026-11-09T23:59:59Z" },
+    { "id": "daily-streak", "title": "Daily Overtake Week", "desc": "One seed every day. Play the Daily all week and climb the Daily board.", "mode": "daily", "start": "2026-11-09T00:00:00Z", "end": "2026-11-15T23:59:59Z" },
+    { "id": "endless-nights", "title": "Endless Nights", "desc": "Endless board spotlight — your longest survival runs headline this week.", "mode": "endless", "start": "2026-11-16T00:00:00Z", "end": "2026-11-22T23:59:59Z" }
+  ]
+}

@@ -64,6 +64,12 @@ chainlit.md
 # Data and databases
 agenthub/agents/youtube/db
 
+# Original Drive downloads and local conversion inputs (browser-ready GLBs are kept)
+google_drive/
+overtake/source-assets/
+overtake/test-results/
+overtake/playwright-report/
+
 # Archive files and large assets
 **/*.zip
 **/*.tar.gz
