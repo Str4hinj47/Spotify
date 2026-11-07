@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CarId } from './catalog';
-import type { Customization } from './customization.mjs';
+import type { Customization, BodyPart } from './customization.mjs';
 import { createCarbonMaterial } from './livery';
 import sillProfiles from './sill-profiles.json';
 
@@ -13,16 +13,16 @@ interface Fit {
   spoilerZ:number; spoilerY:number; spoilerW:number;
   tipX:number; tipY:number; tipRadius:number; tipSpacing:number;
   character:'compact'|'luxury'|'wagon'|'classic'|'supercar'|'midengine'|'muscle';
-  labels: Record<'front'|'rear'|'skirts'|'spoiler'|'exhaust', [string,string]>;
+  labels: Record<BodyPart, [string,string]>;
 }
 export const BODY_FITS: Record<CarId, Fit> = {
-  golf: { frontZ:-2.02,rearZ:2.04,frontW:.77,rearW:.80,sideX:.82,sillFront:-.84,sillRear:.90,sillY:.22,bumperY:.21,spoilerZ:1.61,spoilerY:1.38,spoilerW:.61,tipX:.52,tipY:.21,tipRadius:.055,tipSpacing:.10,character:'compact', labels:{front:['GT lip','Cup splitter'],rear:['Clean valance','Cup diffuser'],skirts:['GT sills','Cup blades'],spoiler:['Roof lip','Cup roof wing'],exhaust:['Twin round','Cup twin']} },
-  mercedes: { frontZ:-2.58,rearZ:2.58,frontW:.91,rearW:.88,sideX:.94,sillFront:-1.17,sillRear:1.18,sillY:.19,bumperY:.20,spoilerZ:2.23,spoilerY:1.07,spoilerW:.67,tipX:.62,tipY:.22,tipRadius:.072,tipSpacing:.13,character:'luxury', labels:{front:['Executive lip','Aero splitter'],rear:['Sport valance','Aero diffuser'],skirts:['Executive sills','Aero blades'],spoiler:['Deck lip','Touring wing'],exhaust:['Polished oval','Quad sport']} },
-  audi: { frontZ:-2.43,rearZ:2.46,frontW:.93,rearW:.92,sideX:.95,sillFront:-1.10,sillRear:1.08,sillY:.19,bumperY:.20,spoilerZ:1.81,spoilerY:1.39,spoilerW:.70,tipX:.62,tipY:.22,tipRadius:.075,tipSpacing:.13,character:'wagon', labels:{front:['Touring lip','Performance splitter'],rear:['Touring valance','Sport diffuser'],skirts:['Touring sills','Extended blades'],spoiler:['Tailgate lip','Touring roof wing'],exhaust:['Oval outlets','Quad outlets']} },
-  mustang: { frontZ:-2.27,rearZ:2.31,frontW:.83,rearW:.82,sideX:.86,sillFront:-.95,sillRear:1.08,sillY:.20,bumperY:.21,spoilerZ:2.12,spoilerY:.958,spoilerW:.69,tipX:.58,tipY:.23,tipRadius:.065,tipSpacing:.12,character:'classic', labels:{front:['Heritage chin','Race chin'],rear:['Heritage valance','Race diffuser'],skirts:['Rocker trim','Race rockers'],spoiler:['Ducktail','Pedestal wing'],exhaust:['Dual round','Side-by-side quad']} },
-  ferrari: { frontZ:-2.03,rearZ:2.00,frontW:.74,rearW:.86,sideX:.91,sillFront:-.90,sillRear:.86,sillY:.16,bumperY:.17,spoilerZ:1.80,spoilerY:.84,spoilerW:.53,tipX:.54,tipY:.24,tipRadius:.055,tipSpacing:.10,character:'supercar', labels:{front:['Road blade','Circuit splitter'],rear:['Road diffuser','Circuit diffuser'],skirts:['Road blades','Circuit skirts'],spoiler:['Low deck lip','Circuit wing'],exhaust:['Center round','Center race']} },
-  r8: { frontZ:-2.17,rearZ:2.18,frontW:.86,rearW:.91,sideX:.94,sillFront:-.88,sillRear:.93,sillY:.17,bumperY:.19,spoilerZ:1.90,spoilerY:.84,spoilerW:.62,tipX:.65,tipY:.22,tipRadius:.07,tipSpacing:.12,character:'midengine', labels:{front:['Road splitter','GT splitter'],rear:['Road diffuser','GT diffuser'],skirts:['Road blades','GT skirts'],spoiler:['Deck lip','GT wing'],exhaust:['Twin oval','Quad titanium']} },
-  challenger: { frontZ:-2.47,rearZ:2.47,frontW:.91,rearW:.89,sideX:.96,sillFront:-1.02,sillRear:1.07,sillY:.22,bumperY:.22,spoilerZ:2.22,spoilerY:1.065,spoilerW:.72,tipX:.61,tipY:.23,tipRadius:.07,tipSpacing:.13,character:'muscle', labels:{front:['Street chin','Wide splitter'],rear:['Street valance','Wide diffuser'],skirts:['Street rockers','Wide rockers'],spoiler:['Ducktail','Drag wing'],exhaust:['Dual round','Quad muscle']} },
+  golf: { frontZ:-2.02,rearZ:2.04,frontW:.77,rearW:.80,sideX:.82,sillFront:-.84,sillRear:.90,sillY:.22,bumperY:.21,spoilerZ:1.61,spoilerY:1.38,spoilerW:.61,tipX:.52,tipY:.21,tipRadius:.055,tipSpacing:.10,character:'compact', labels:{hood:['Hood vents','Vented power dome'],front:['GT lip','Cup splitter'],rear:['Clean valance','Cup diffuser'],skirts:['GT sills','Cup blades'],spoiler:['Roof lip','Cup roof wing'],exhaust:['Twin round','Cup twin']} },
+  mercedes: { frontZ:-2.58,rearZ:2.58,frontW:.91,rearW:.88,sideX:.94,sillFront:-1.17,sillRear:1.18,sillY:.19,bumperY:.20,spoilerZ:2.23,spoilerY:1.07,spoilerW:.67,tipX:.62,tipY:.22,tipRadius:.072,tipSpacing:.13,character:'luxury', labels:{hood:['Hood vents','Vented power dome'],front:['Executive lip','Aero splitter'],rear:['Sport valance','Aero diffuser'],skirts:['Executive sills','Aero blades'],spoiler:['Deck lip','Touring wing'],exhaust:['Polished oval','Quad sport']} },
+  audi: { frontZ:-2.43,rearZ:2.46,frontW:.93,rearW:.92,sideX:.95,sillFront:-1.10,sillRear:1.08,sillY:.19,bumperY:.20,spoilerZ:1.81,spoilerY:1.39,spoilerW:.70,tipX:.62,tipY:.22,tipRadius:.075,tipSpacing:.13,character:'wagon', labels:{hood:['Hood vents','Vented power dome'],front:['Touring lip','Performance splitter'],rear:['Touring valance','Sport diffuser'],skirts:['Touring sills','Extended blades'],spoiler:['Tailgate lip','Touring roof wing'],exhaust:['Oval outlets','Quad outlets']} },
+  mustang: { frontZ:-2.27,rearZ:2.31,frontW:.83,rearW:.82,sideX:.86,sillFront:-.95,sillRear:1.08,sillY:.20,bumperY:.21,spoilerZ:2.12,spoilerY:.958,spoilerW:.69,tipX:.58,tipY:.23,tipRadius:.065,tipSpacing:.12,character:'classic', labels:{hood:['Hood vents','Vented power dome'],front:['Heritage chin','Race chin'],rear:['Heritage valance','Race diffuser'],skirts:['Rocker trim','Race rockers'],spoiler:['Ducktail','Pedestal wing'],exhaust:['Dual round','Side-by-side quad']} },
+  ferrari: { frontZ:-2.03,rearZ:2.00,frontW:.74,rearW:.86,sideX:.91,sillFront:-.90,sillRear:.86,sillY:.16,bumperY:.17,spoilerZ:1.80,spoilerY:.84,spoilerW:.53,tipX:.54,tipY:.24,tipRadius:.055,tipSpacing:.10,character:'supercar', labels:{hood:['Hood vents','Vented power dome'],front:['Road blade','Circuit splitter'],rear:['Road diffuser','Circuit diffuser'],skirts:['Road blades','Circuit skirts'],spoiler:['Low deck lip','Circuit wing'],exhaust:['Center round','Center race']} },
+  r8: { frontZ:-2.17,rearZ:2.18,frontW:.86,rearW:.91,sideX:.94,sillFront:-.88,sillRear:.93,sillY:.17,bumperY:.19,spoilerZ:1.90,spoilerY:.84,spoilerW:.62,tipX:.65,tipY:.22,tipRadius:.07,tipSpacing:.12,character:'midengine', labels:{hood:['Hood vents','Vented power dome'],front:['Road splitter','GT splitter'],rear:['Road diffuser','GT diffuser'],skirts:['Road blades','GT skirts'],spoiler:['Deck lip','GT wing'],exhaust:['Twin oval','Quad titanium']} },
+  challenger: { frontZ:-2.47,rearZ:2.47,frontW:.91,rearW:.89,sideX:.96,sillFront:-1.02,sillRear:1.07,sillY:.22,bumperY:.22,spoilerZ:2.22,spoilerY:1.065,spoilerW:.72,tipX:.61,tipY:.23,tipRadius:.07,tipSpacing:.13,character:'muscle', labels:{hood:['Hood vents','Vented power dome'],front:['Street chin','Wide splitter'],rear:['Street valance','Wide diffuser'],skirts:['Street rockers','Wide rockers'],spoiler:['Ducktail','Drag wing'],exhaust:['Dual round','Quad muscle']} },
 };
 
 function taperedBand(width:number, frontZ:number, y:number, depth:number, height:number, sweep:number) {
@@ -207,6 +207,7 @@ function wingSupport(x:number,y:number,z:number,height:number) {
 /** Measured wheel arch: centre, tyre radius, and the paint surface
  * half-width sampled every 10 degrees (key = degrees, atan2(dy, dz)). */
 export interface WheelArch { x:number; y:number; z:number; r:number; profile: Map<number, number> }
+export interface TopLine { z:number; y:number }
 
 /** Lofted overfender: a closed 5-point section swept around the measured
  * arch. Inner edge tucks under the stock lip, crown stands proud of the
@@ -220,7 +221,7 @@ function archFlareGeometry(side:number, arch:WheelArch, fallbackX:number, protru
     return best;
   };
   for(let i=0;i<=steps;i++) {
-    const t=i/steps, angle=-.38+t*(Math.PI+.76); // just below front lip, over the top, down the back
+    const t=i/steps, angle=.14+t*(Math.PI-.28); // arch skirt: ends taper at sill height, never under the car
     const taper=Math.pow(Math.sin(Math.PI*t),.55);
     const out=protrusion*(.25+.75*taper);
     const bx=bodyX(Math.round(angle*180/Math.PI));
@@ -261,7 +262,7 @@ function tip(group:THREE.Group, x:number, y:number, z:number, radius:number, met
 }
 
 /** A player-only kit. All geometries/materials are owned by the returned group. */
-export function createBodyKit(id:CarId, config:Customization, paint:number, arches: WheelArch[] = []) {
+export function createBodyKit(id:CarId, config:Customization, paint:number, arches: WheelArch[] = [], topLine: TopLine[] = []) {
   const f=BODY_FITS[id], g=new THREE.Group(); g.name='custom-body-kit';
   const body=new THREE.MeshPhysicalMaterial({ color:paint, metalness:.35,roughness:.38,clearcoat:.5,clearcoatRoughness:.22, envMapIntensity:1.1 });
   const carbon=new THREE.MeshStandardMaterial({ color:0x141a20,metalness:.35,roughness:.38, envMapIntensity:.9 });
@@ -269,8 +270,8 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
   const metal=new THREE.MeshStandardMaterial({ color:0xb6c7cf,metalness:.9,roughness:.22 });
   const dark=new THREE.MeshBasicMaterial({ color:0x090d10, side:THREE.DoubleSide });
   const reg=(part:string)=>{const partGroup=new THREE.Group();partGroup.name=`custom-${part}`;g.add(partGroup);return partGroup;};
-  const level=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>({stock:0,street:0,touring:.34,sport:.67,rally:.5,gt:.82,track:1,wide:1,titanium:1,flame:1}[config[part]]);
-  const isTrack=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>config[part]==='track'||config[part]==='wide'||config[part]==='gt'||config[part]==='titanium'||(part==='exhaust' && config.exhaust==='flame');
+  const level=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust'|'hood')=>({stock:0,street:0,touring:.34,sport:.67,rally:.5,gt:.82,track:1,wide:1,titanium:1,flame:1,quadflame:1}[config[part]]);
+  const isTrack=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>config[part]==='track'||config[part]==='wide'||config[part]==='gt'||config[part]==='titanium'||(part==='exhaust' && (config.exhaust==='flame'||config.exhaust==='quadflame'));
   const burnt=new THREE.MeshStandardMaterial({ color:0x8a7cff, metalness:.95, roughness:.18 }); // heat-blued titanium
   g.userData.titaniumMaterial=burnt;
   const lampMat=new THREE.MeshStandardMaterial({ color:0xfff6d8, emissive:0xffedb8, emissiveIntensity:2.4, roughness:.3 });
@@ -296,6 +297,57 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
     flap.position.set(side*(f.sideX-.01),(arch?arch.y:.36)-.10,wheelZ+(arch?arch.r:.35)+.06);
     flap.rotation.x=.05; flap.castShadow=true; group.add(flap);
   };
+  // Centreline surface height, interpolated from the measured top line.
+  const surfaceY=(z:number)=>{ if(!topLine.length) return f.spoilerY;
+    let lo=topLine[0], hi=topLine[topLine.length-1];
+    for(const pt of topLine) { if(pt.z<=z) lo=pt; if(pt.z>=z) { hi=pt; break; } }
+    return hi.z===lo.z ? lo.y : lo.y+(hi.y-lo.y)*((z-lo.z)/(hi.z-lo.z)); };
+  // A sheet hugging the measured hood/roof surface (cx/hw in metres, lift off it).
+  const surfaceSheet=(group:THREE.Group, name:string, z0:number, z1:number, cx:number, hw:number, lift:number, bump:number, mat:THREE.Material)=>{
+    const positions:number[]=[], indices:number[]=[], rows=10, cols=4;
+    for(let i=0;i<=rows;i++) { const z=z0+(z1-z0)*(i/rows), base=surfaceY(z)+lift;
+      for(let j=0;j<=cols;j++) { const t=j/cols*2-1, x=cx+t*hw;
+        positions.push(x, base+bump*(1-t*t)-Math.abs(t)*.004, z); }
+      if(i<rows) for(let j=0;j<cols;j++){const a=i*(cols+1)+j,b=a+1,c=a+cols+1,d=c+1;indices.push(a,c,b,b,c,d);} }
+    const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+    geo.setIndex(indices); geo.computeVertexNormals();
+    const mesh=new THREE.Mesh(geo,mat); mesh.name=name; mesh.castShadow=true; group.add(mesh); return mesh; };
+
+  if(config.hood!=='stock') {
+    const a=reg('hood'), panel=config.hoodFinish==='carbon'?woven:body, len=f.rearZ-f.frontZ;
+    const hz0=f.frontZ+len*.07, hz1=f.frontZ+len*.35, rz0=f.frontZ+len*.45, rz1=f.frontZ+len*.68;
+    const darkSheet=new THREE.MeshStandardMaterial({ color:0x0b0e11, roughness:.6, metalness:.3 });
+    (g.userData.extraMaterials ??= []).push(darkSheet);
+    if(config.hood==='street') { // twin bonnet vent slits
+      surfaceSheet(a,'hood-vent',hz0+.18,hz1-.05,-f.frontW*.34,.13,.004,0,darkSheet);
+      surfaceSheet(a,'hood-vent',hz0+.18,hz1-.05, f.frontW*.34,.13,.004,0,darkSheet);
+    } else if(config.hood==='touring') { // chrome centre spear
+      surfaceSheet(a,'hood-spear',hz0+.05,hz1,0,.030,.006,0,metal);
+    } else if(config.hood==='sport') { // power dome with a dark scoop mouth
+      surfaceSheet(a,'power-dome',hz0+.02,hz1,0,f.frontW*.40,.004,.038,panel);
+      surfaceSheet(a,'scoop-mouth',hz0+.10,hz0+.30,0,f.frontW*.22,.030,0,darkSheet);
+    } else if(config.hood==='rally') { // vents + roof scoop with intake mouth
+      surfaceSheet(a,'hood-vent',hz0+.15,hz1-.05,-f.frontW*.36,.14,.004,0,darkSheet);
+      surfaceSheet(a,'hood-vent',hz0+.15,hz1-.05, f.frontW*.36,.14,.004,0,darkSheet);
+      const scoop=new THREE.Mesh(plateGeometry([[-.24,0],[.24,0],[.17,.10],[-.15,.085]],.40),panel);
+      scoop.name='roof-scoop'; scoop.rotation.y=Math.PI/2; scoop.position.set(0,surfaceY((rz0+rz1)/2)-.01,(rz0+rz1)/2); a.add(scoop);
+      const mouth=new THREE.Mesh(plateGeometry([[-.15,0],[.15,0],[.13,.055],[-.13,.055]],.30),darkSheet);
+      mouth.name='scoop-mouth'; // upright intake face at the scoop's front
+      mouth.position.set(0,surfaceY((rz0+rz1)/2)+.015,(rz0+rz1)/2-.245); a.add(mouth);
+    } else if(config.hood==='gt') { // full carbon bonnet + carbon roof panel
+      surfaceSheet(a,'carbon-hood',hz0,hz1,0,f.frontW*.78,.005,0,woven);
+      surfaceSheet(a,'carbon-roof',rz0,rz1,0,f.frontW*.62,.005,0,woven);
+    } else if(config.hood==='track') { // louvred bonnet + tall roof scoop
+      for(let i=0;i<5;i++) { const z=hz0+.16+i*.13, slat=new THREE.Mesh(new THREE.BoxGeometry(f.frontW*.95,.012,.07),darkSheet);
+        slat.name='hood-louvre'; slat.position.set(0,surfaceY(z)+.012,z); slat.rotation.x=-.5; a.add(slat); }
+      const scoop=new THREE.Mesh(plateGeometry([[-.26,0],[.26,0],[.18,.14],[-.16,.11]],.44),panel);
+      scoop.name='roof-scoop'; scoop.rotation.y=Math.PI/2; scoop.position.set(0,surfaceY((rz0+rz1)/2)-.01,(rz0+rz1)/2); a.add(scoop);
+    } else if(config.hood==='wide') { // broad show-car power dome
+      surfaceSheet(a,'power-dome',hz0,hz1,0,f.frontW*.55,.004,.05,panel);
+      surfaceSheet(a,'hood-vent',hz0+.20,hz1-.04,-f.frontW*.52,.10,.006,0,darkSheet);
+      surfaceSheet(a,'hood-vent',hz0+.20,hz1-.04, f.frontW*.52,.10,.006,0,darkSheet);
+    }
+  }
   if(config.front!=='stock') {
     const a=reg('front'), track=isTrack('front'), amount=level('front'), panel=config.frontFinish==='carbon'?woven:body;
     const nose=f.frontZ-.015;
@@ -339,6 +391,16 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
       const canard=new THREE.Mesh(plateGeometry([[0,0],[.17,.01],[.13,.06],[.015,.045]],.009),carbon);
       canard.name='front-canard'; canard.position.set(side*(f.frontW*.90),f.bumperY+.11,nose+(id==='golf'||id==='audi'||id==='mustang'?.10:.02));
       canard.rotation.set(-.06,side*-.42,-side*.20); canard.castShadow=true; a.add(canard);
+    }
+  }
+  if(config.front!=='stock' && level('front')>=.67) {
+    const a=g.getObjectByName('custom-front') as THREE.Group;
+    if(a) { const nose=f.frontZ-.015;
+      const intake=box(f.frontW*1.02,.12,.025,0,f.bumperY+.09,nose-.035,dark,a,'front-intake'); intake.rotation.x=.06;
+      for(const side of [-1,1]) { const corner=new THREE.Mesh(plateGeometry([[-.10,-.055],[.11,-.045],[.09,.055],[-.08,.06]],.02),dark);
+        corner.name='front-corner-intake'; corner.position.set(side*f.frontW*.70,f.bumperY+.11,nose+.005); corner.rotation.y=side*-.28; a.add(corner); }
+      if(config.front==='wide') for(const side of [-1,1]) { const blade=new THREE.Mesh(plateGeometry([[0,-.02],[.22,-.03],[.20,.035],[0,.03]],.012),carbon);
+        blade.name='bumper-blade'; blade.position.set(side*f.frontW*.92,f.bumperY+.03,nose+.06); blade.rotation.y=side*-.5; a.add(blade); }
     }
   }
   if(config.rear!=='stock') {
@@ -389,6 +451,14 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
     const a=g.getObjectByName('custom-rear') as THREE.Group;
     if(a) for(const side of [-1,1]) flare(a,side,false,config.rearFinish==='carbon'?woven:body);
   }
+  if(config.rear!=='stock' && level('rear')>=.67) {
+    const a=g.getObjectByName('custom-rear') as THREE.Group;
+    if(a) { const tail=f.rearZ-.035;
+      const surround=box(f.rearW*.86,.17,.02,0,f.tipY+.08,tail+.035,carbon,a,'exhaust-surround'); surround.rotation.x=-.05;
+      for(const side of [-1,1]) { const vent=new THREE.Mesh(plateGeometry([[-.09,-.05],[.10,-.04],[.08,.055],[-.07,.055]],.018),dark);
+        vent.name='rear-corner-vent'; vent.position.set(side*f.rearW*.76,f.bumperY+.15,tail+.015); vent.rotation.y=side*.30; a.add(vent); }
+    }
+  }
   if(config.skirts!=='stock') {
     const a=reg('skirts'),amount=level('skirts'),panel=config.skirtsFinish==='carbon'?woven:body;
     for(const side of [-1,1]) {
@@ -402,9 +472,18 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
   if(config.spoiler!=='stock') {
     const a=reg('spoiler'),track=isTrack('spoiler'),amount=level('spoiler'),panel=config.spoilerFinish==='carbon'?woven:body;
     const roof=f.character==='compact'||f.character==='wagon';
-    if(roof) {
+    if(roof && (config.spoiler==='gt'||config.spoiler==='track')) { // hatch GT wing on pedestals
+      const h=config.spoiler==='track'?.26:.20, chord=config.spoiler==='track'?.34:.28, w=f.spoilerW*1.30;
+      for(const side of [-1,1]) { const support=new THREE.Mesh(wingSupport(side*f.spoilerW*.55,f.spoilerY,f.spoilerZ-.02,h),panel);
+        support.name='wing-pedestal'; a.add(support); }
+      const blade=new THREE.Mesh(wingProfile(w,f.spoilerZ,f.spoilerY+h,chord),panel); blade.name='roof-gt-wing'; a.add(blade);
+      for(const side of [-1,1]) { const end=new THREE.Mesh(plateGeometry([[-chord*.48,-.05],[chord*.46,-.06],[chord*.40,.055],[-chord*.42,.06]],.013),carbon);
+        end.name='wing-endplate'; end.rotation.y=Math.PI/2; end.position.set(side*(w-.012),f.spoilerY+h+.008,f.spoilerZ-.05); a.add(end); }
+    } else if(roof) {
       const lip=new THREE.Mesh(id==='audi'?audiRoofExtension(amount):id==='golf'?golfRoofExtension(amount):roofExtension(f.spoilerW,f.spoilerZ,f.spoilerY,track),panel);
       lip.name='roof-extension';a.add(lip);
+      if(amount>=.5) for(const side of [-1,1]) { const fin=new THREE.Mesh(plateGeometry([[-.10,-.01],[.10,-.015],[.085,.055],[-.085,.04]],.011),panel);
+        fin.name='roof-spoiler-fin'; fin.rotation.y=Math.PI/2; fin.position.set(side*f.spoilerW*.94,f.spoilerY+.015,f.spoilerZ+.02); a.add(fin); }
     } else if(config.spoiler==='wide') { // Liberty Walk ducktail, not a wing
       const lip=new THREE.Mesh(deckLip(f,id,1),panel); lip.name='ducktail'; a.add(lip);
     } else if(amount>=.67 || config.spoiler==='rally') {
@@ -434,7 +513,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
     // The exact same outlet descriptions drive rims and flame origins.
     const ferrariFactoryFlame=id==='ferrari' && config.exhaust==='flame';
     const mustangFactoryFlame=id==='mustang' && config.exhaust==='flame';
-    const centers=mustangFactoryFlame ? [-.598,-.515,.526,.609] : id==='ferrari' ? [-.061,.048,.150] : id==='golf'
+    const centers=config.exhaust==='quadflame' ? [-f.tipX-f.tipSpacing*.55,-f.tipX+f.tipSpacing*.55,f.tipX-f.tipSpacing*.55,f.tipX+f.tipSpacing*.55] : mustangFactoryFlame ? [-.598,-.515,.526,.609] : id==='ferrari' ? [-.061,.048,.150] : id==='golf'
       ? config.exhaust==='sport' ? [-f.tipX] : [-f.tipX-f.tipSpacing*(config.exhaust==='touring'?.38:.5),-f.tipX+f.tipSpacing*(config.exhaust==='touring'?.38:.5)]
       : (track||config.exhaust==='sport') ? [-f.tipX-f.tipSpacing*(track?.5:.4),-f.tipX+f.tipSpacing*(track?.5:.4),f.tipX-f.tipSpacing*(track?.5:.4),f.tipX+f.tipSpacing*(track?.5:.4)]
       : [-f.tipX,f.tipX];
@@ -448,7 +527,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
       // measured after its yaw correction; do not layer fake pipes over them.
       for(const x of centers) {const mouth=new THREE.Object3D();mouth.name='exhaust-mouth';mouth.position.set(x,.334,2.002);a.add(mouth);}
     } else for(const x of centers) tip(a,x,y,z,radius,tipMetal,dark,!track && (config.exhaust==='touring'||oval) && id!=='golf' && config.exhaust!=='sport');
-    if (config.exhaust==='flame') {
+    if (config.exhaust==='flame'||config.exhaust==='quadflame') {
       const flames=new THREE.Group(); flames.name='exhaust-flames';
       const flameMaterials:THREE.ShaderMaterial[]=[];
       for (const [i,x] of centers.entries()) {
@@ -504,7 +583,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
     plane.name='underglow-pool';plane.rotation.x=-Math.PI/2;plane.position.set(0,.035,0);plane.renderOrder=2;a.add(plane);
   }
   // Dispose also the unreferenced materials created for the chosen combination.
-  g.userData.ownedMaterials=[body,carbon,woven,metal,dark,burnt];
+  g.userData.ownedMaterials=[body,carbon,woven,metal,dark,burnt,lampMat,rubber,...(g.userData.extraMaterials||[])];
   return g;
 }
 export function disposeBodyKit(group:THREE.Group) {

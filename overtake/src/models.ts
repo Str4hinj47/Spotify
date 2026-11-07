@@ -3,7 +3,7 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { CARS, TRUCKS, type CarId, type TrafficId } from './catalog';
 import { indicatorMaterial, isIndicatorMaterial, addFrontIndicator, isFrontIndicatorMaterial, type IndicatorUniforms } from './indicators';
-import { createBodyKit, type WheelArch } from './body-kits';
+import { createBodyKit, type WheelArch, type TopLine } from './body-kits';
 import { rigWheels } from './wheels';
 import { createCarbonMaterial, customPaintMaterial } from './livery';
 import { sanitizeCustomization, type Customization } from './customization.mjs';
@@ -145,6 +145,7 @@ export class ModelLibrary {
   private thumbs = new Map<CarId, string>();
   private customization = new Map<CarId, Customization>();
   private archCache = new Map<CarId, WheelArch[]>();
+  private topCache = new Map<CarId, TopLine[]>();
 
   constructor() {
     const draco = new DRACOLoader();
@@ -324,6 +325,34 @@ export class ModelLibrary {
     return arches;
   }
 
+  /** Centreline surface height every 0.1 m nose-to-tail (max paint y at
+   * |x| < 0.22), so hood/roof parts sit exactly on the body. */
+  measureTopLine(id: CarId): TopLine[] {
+    const cached = this.topCache.get(id);
+    if (cached) return cached;
+    const root = this.get(id).scene;
+    root.updateMatrixWorld(true);
+    const bins = new Map<number, number>();
+    const point = new THREE.Vector3();
+    root.traverse(o => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      if (!mats.some(m => m?.name.startsWith('paint__'))) return;
+      const pos = mesh.geometry.getAttribute('position');
+      if (!pos) return;
+      for (let i = 0; i < pos.count; i++) {
+        point.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+        if (Math.abs(point.x) > .22) continue;
+        const bin = Math.round(point.z * 10) / 10;
+        if (point.y > (bins.get(bin) ?? -1)) bins.set(bin, point.y);
+      }
+    });
+    const line = [...bins.entries()].map(([z, y]) => ({ z, y })).sort((a, b) => a.z - b.z);
+    this.topCache.set(id, line);
+    return line;
+  }
+
   get(id: TrafficId): CarModel {
     const m = this.models.get(id);
     if (!m) throw new Error(`Model ${id} not loaded`);
@@ -454,7 +483,7 @@ export class ModelLibrary {
             const finish=createCarbonMaterial();factoryExhaust.material=finish;customPaintCopies.push(finish);
           }
         }
-        wrapper.add(createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080, this.measureArches(id)));
+        wrapper.add(createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080, this.measureArches(id), this.measureTopLine(id)));
       }
     }
     const wheels: THREE.Group[] = [];

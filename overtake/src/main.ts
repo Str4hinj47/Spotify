@@ -108,7 +108,7 @@ function syncCustomizationUI() {
     const select = $(`custom-${part}`) as HTMLSelectElement;
     const labels = BODY_FITS[selected].labels[part];
     const options = [['stock','Factory'], ['street',labels[0]], ['touring','Touring'], ['sport','Sport'], ['rally','Rally'], ['gt','GT aero'], ['track',labels[1]], ['wide','Widebody']];
-    if (part === 'exhaust') options.push(['titanium','Titanium quad'], ['flame','Afterfire flames']);
+    if (part === 'exhaust') options.push(['titanium','Titanium quad'], ['flame','Afterfire flames'], ['quadflame','Quad afterfire']);
     select.replaceChildren(...options.map(([value,label]) => {
       const option=document.createElement('option'); option.value=value; option.textContent=label; return option;
     }));

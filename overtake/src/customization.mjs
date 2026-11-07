@@ -1,12 +1,12 @@
 import { normalizeHex } from './paint.mjs';
 
-export const BODY_PARTS = ['front', 'rear', 'skirts', 'spoiler', 'exhaust'];
+export const BODY_PARTS = ['front', 'rear', 'skirts', 'spoiler', 'exhaust', 'hood'];
 export const PART_OPTIONS = ['stock', 'street', 'touring', 'sport', 'rally', 'gt', 'track', 'wide', 'titanium'];
 export const PAINT_FINISHES = ['gloss', 'metallic', 'pearlescent', 'matte', 'satin'];
 export const LIVERY_OPTIONS = ['none', 'stripe', 'race', 'camo', 'fade', 'checker', 'slash'];
 export const DEFAULT_CUSTOMIZATION = Object.freeze({
-  front:'stock', rear:'stock', skirts:'stock', spoiler:'stock', exhaust:'stock',
-  frontFinish:'standard', rearFinish:'standard', skirtsFinish:'standard', spoilerFinish:'standard', exhaustFinish:'standard',
+  front:'stock', rear:'stock', skirts:'stock', spoiler:'stock', exhaust:'stock', hood:'stock',
+  frontFinish:'standard', rearFinish:'standard', skirtsFinish:'standard', spoilerFinish:'standard', exhaustFinish:'standard', hoodFinish:'standard',
   paintScheme:'single', secondaryColor:'#141b24', secondaryFinish:'paint', paintFinish:'gloss', pearlColor:'#7dd3fc',
   livery:'none', liveryColor:'#f2f5f7', underglow:false, glowColor:'#00ddff',
 });
@@ -16,7 +16,7 @@ export function sanitizeCustomization(value) {
   const raw = value && typeof value === 'object' ? value : {};
   const out = { ...DEFAULT_CUSTOMIZATION };
   for (const part of BODY_PARTS) {
-    if (PART_OPTIONS.includes(raw[part]) || (part === 'exhaust' && raw[part] === 'flame')) out[part] = raw[part];
+    if (PART_OPTIONS.includes(raw[part]) || (part === 'exhaust' && (raw[part] === 'flame' || raw[part] === 'quadflame'))) out[part] = raw[part];
     if (raw[`${part}Finish`] === 'carbon') out[`${part}Finish`] = 'carbon';
   }
   if (['single','upper','lower'].includes(raw.paintScheme)) out.paintScheme = raw.paintScheme;
