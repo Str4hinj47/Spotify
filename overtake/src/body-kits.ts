@@ -29,7 +29,7 @@ export const BODY_FITS: Record<CarId, Fit> = {
 function taperedBand(width:number, frontZ:number, y:number, depth:number, height:number, sweep:number) {
   // Curved, low bumper add-on: tapered corners wrap back onto the body.
   const geo=new THREE.BufferGeometry(), positions:number[]=[], indices:number[]=[];
-  const count=12;
+  const count=26;
   for(let i=0;i<=count;i++) {
     const t=i/count*2-1, x=t*width, outer=Math.pow(Math.abs(t),2);
     const z=frontZ+sweep*outer;
@@ -41,7 +41,7 @@ function taperedBand(width:number, frontZ:number, y:number, depth:number, height
 // A closed, contoured shell. Cross sections follow each bumper's sweep and
 // rake back into the original mesh instead of placing a bar in front of it.
 function apron(width:number, z:number, y:number, height:number, depth:number, sweep:number, rear=false) {
-  const positions:number[]=[], indices:number[]=[], segments=24, sign=rear ? -1 : 1;
+  const positions:number[]=[], indices:number[]=[], segments=40, sign=rear ? -1 : 1;
   for(let i=0;i<=segments;i++) {
     const t=2*i/segments-1, edge=Math.pow(Math.abs(t),2), x=t*width;
     const face=z+sign*sweep*edge;
@@ -185,7 +185,7 @@ function deckLip(f:Fit,id:CarId,level:number) {
 }
 // Horizontal aerodynamic plane with a cambered top, swept tips and a closed edge.
 function wingProfile(width:number,z:number,y:number,chord:number, pitch=.16) {
-  const positions:number[]=[],indices:number[]=[], n=32;
+  const positions:number[]=[],indices:number[]=[], n=48;
   const cos=Math.cos(pitch), sin=Math.sin(pitch);
   for(let i=0;i<=n;i++) {
     const t=2*i/n-1, edge=t*t, x=t*width, shift=-.075*edge;
@@ -218,7 +218,7 @@ export interface BumperSet { front: BumperRow[]; rear: BumperRow[] }
  * arch. Inner edge tucks under the stock lip, crown stands proud of the
  * panel, outer edge rolls back onto the body — like a real bolt-on flare. */
 function archFlareGeometry(side:number, arch:WheelArch, fallbackX:number, protrusion:number) {
-  const positions:number[]=[], indices:number[]=[], steps=20;
+  const positions:number[]=[], indices:number[]=[], steps=36;
   const bodyX=(deg:number)=>{ // nearest sampled bins, smoothed
     let best=fallbackX, weight=0, sum=0;
     for(const [bin,x] of arch.profile) { const d=Math.abs(bin-deg); if(d<=20) { const w=21-d; sum+=x*w; weight+=w; } }
@@ -246,11 +246,7 @@ function archFlareGeometry(side:number, arch:WheelArch, fallbackX:number, protru
 function bumperCoverGeometry(rows: BumperRow[], rear: boolean, offMag = .012, wrapMag = .14) {
   const positions:number[]=[], indices:number[]=[];
   const grid = rows.map(row => {
-    let pts = row.points.filter(pt => Number.isFinite(pt.z));
-    // Measurement fills gaps with copied z: a flat z plateau at a row end is
-    // filler past the body's real width — trim it or the shell grows "ears".
-    while(pts.length>6 && pts[0].z===pts[1].z && pts[1].z===pts[2].z) pts=pts.slice(1);
-    while(pts.length>6 && pts[pts.length-1].z===pts[pts.length-2].z && pts[pts.length-2].z===pts[pts.length-3].z) pts=pts.slice(0,-1);
+    const pts = row.points.filter(pt => Number.isFinite(pt.z));
     const first = pts[0], last = pts[pts.length-1];
     const wrap = (rear ? -1 : 1) * wrapMag; // corners sweep back along the flanks
     return wrapMag > 0
@@ -258,9 +254,14 @@ function bumperCoverGeometry(rows: BumperRow[], rear: boolean, offMag = .012, wr
       : pts.map(pt=>({x:pt.x, y:row.y, z:pt.z}));
   });
   const cols = grid[0].length, off = (rear ? 1 : -1) * offMag;
-  grid.forEach((row,i)=> row.forEach((pt,j)=> {
-    positions.push(pt.x, pt.y, pt.z+off);
-    if(i<grid.length-1 && j<cols-1) { const a=i*cols+j,b=a+1,c=a+cols,d=c+1;
+  // Feather rows above/below: the shell edge dives back to near-flush with
+  // the stock panel, so there is no hard "wrapped band" seam.
+  const feather=(row:{x:number;y:number;z:number}[], dy:number)=>row.map(pt=>({x:pt.x, y:pt.y+dy, z:pt.z}));
+  const fullGrid = [feather(grid[0],-.045), ...grid, feather(grid[grid.length-1],.045)];
+  const offFactors = fullGrid.map((_,i)=> (i===0||i===fullGrid.length-1) ? .12 : 1);
+  fullGrid.forEach((row,i)=> row.forEach((pt,j)=> {
+    positions.push(pt.x, pt.y, pt.z+off*offFactors[i]);
+    if(i<fullGrid.length-1 && j<cols-1) { const a=i*cols+j,b=a+1,c=a+cols,d=c+1;
       if(rear) indices.push(a,b,c,b,d,c); else indices.push(a,c,b,b,c,d); }
   }));
   const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
@@ -285,7 +286,7 @@ function plateGeometry(points:[number,number][], thickness:number) {
   const shape=new THREE.Shape();
   points.forEach(([x,y],i)=> i===0?shape.moveTo(x,y):shape.lineTo(x,y));
   shape.closePath();
-  const geo=new THREE.ExtrudeGeometry(shape,{depth:thickness,bevelEnabled:true,bevelThickness:.0025,bevelSize:.0025,bevelSegments:1,steps:1});
+  const geo=new THREE.ExtrudeGeometry(shape,{depth:thickness,bevelEnabled:true,bevelThickness:.0025,bevelSize:.0025,bevelSegments:2,steps:1,curveSegments:12});
   geo.translate(0,0,-thickness/2); return geo;
 }
 function rodBetween(a:THREE.Vector3, b:THREE.Vector3, r:number, mat:THREE.Material, name:string) {
@@ -301,16 +302,16 @@ function box(w:number,h:number,d:number,x:number,y:number,z:number,mat:THREE.Mat
 }
 function tip(group:THREE.Group, x:number, y:number, z:number, radius:number, metal:THREE.Material, dark:THREE.Material, oval=false) {
   // The dark interior and metal rim make an actual visible exhaust opening.
-  const pipe=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,.10,16,1,true),metal);
+  const pipe=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,.10,28,1,true),metal);
   pipe.name='exhaust-pipe';pipe.rotation.x=Math.PI/2;pipe.position.set(x,y,z);if(oval)pipe.scale.x=1.35;group.add(pipe);
-  const hole=new THREE.Mesh(new THREE.CircleGeometry(radius*.77,16),dark);hole.position.set(x,y,z+.052);if(oval)hole.scale.x=1.35;group.add(hole);
-  const ring=new THREE.Mesh(new THREE.TorusGeometry(radius*.90,radius*.10,6,16),metal);ring.name='exhaust-mouth';ring.position.set(x,y,z+.054);if(oval)ring.scale.x=1.35;group.add(ring);
+  const hole=new THREE.Mesh(new THREE.CircleGeometry(radius*.77,28),dark);hole.position.set(x,y,z+.052);if(oval)hole.scale.x=1.35;group.add(hole);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(radius*.90,radius*.10,8,28),metal);ring.name='exhaust-mouth';ring.position.set(x,y,z+.054);if(oval)ring.scale.x=1.35;group.add(ring);
 }
 
 /** A player-only kit. All geometries/materials are owned by the returned group. */
 export function createBodyKit(id:CarId, config:Customization, paint:number, arches: WheelArch[] = [], topLine: TopLine[] = [], bumpers?: BumperSet) {
   const f=BODY_FITS[id], g=new THREE.Group(); g.name='custom-body-kit';
-  const body=new THREE.MeshPhysicalMaterial({ color:paint, metalness:.35,roughness:.38,clearcoat:.5,clearcoatRoughness:.22, envMapIntensity:1.1 });
+  const body=new THREE.MeshPhysicalMaterial({ color:paint, metalness:.45,roughness:.36,clearcoat:.4,clearcoatRoughness:.22, envMapIntensity:.9 });
   const carbon=new THREE.MeshStandardMaterial({ color:0x141a20,metalness:.35,roughness:.38, envMapIntensity:.9 });
   const woven=createCarbonMaterial();
   const metal=new THREE.MeshStandardMaterial({ color:0xb6c7cf,metalness:.9,roughness:.22 });
@@ -350,7 +351,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
     return hi.z===lo.z ? lo.y : lo.y+(hi.y-lo.y)*((z-lo.z)/(hi.z-lo.z)); };
   // A sheet hugging the measured hood/roof surface (cx/hw in metres, lift off it).
   const surfaceSheet=(group:THREE.Group, name:string, z0:number, z1:number, cx:number, hw:number, lift:number, bump:number, mat:THREE.Material, taperBump=false)=>{
-    const positions:number[]=[], indices:number[]=[], rows=10, cols=4;
+    const positions:number[]=[], indices:number[]=[], rows=18, cols=8;
     for(let i=0;i<=rows;i++) { const z=z0+(z1-z0)*(i/rows), base=surfaceY(z)+lift;
       const zTaper=taperBump?Math.pow(Math.sin(Math.PI*(i/rows)),.7):1;
       for(let j=0;j<=cols;j++) { const t=j/cols*2-1, x=cx+t*hw;

@@ -362,7 +362,7 @@ export class ModelLibrary {
     const root = this.get(id).scene;
     root.updateMatrixWorld(true);
     const xs: number[] = [];
-    for (let x = -1.02; x <= 1.021; x += .06) xs.push(Math.round(x * 100) / 100);
+    for (let x = -1.02; x <= 1.021; x += .03) xs.push(Math.round(x * 100) / 100);
     const build = (rowsY: number[], rear: boolean) => rowsY.map(y => {
       const points = xs.map(x => ({ x, z: rear ? -Infinity : Infinity }));
       const point = new THREE.Vector3();
@@ -376,21 +376,48 @@ export class ModelLibrary {
         for (let i = 0; i < pos.count; i++) {
           point.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
           if (Math.abs(point.y - y) > .055) continue;
-          const cell = points[Math.round((point.x + 1.02) / .06)];
-          if (!cell || Math.abs(point.x - cell.x) > .045) continue;
+          const cell = points[Math.round((point.x + 1.02) / .03)];
+          if (!cell || Math.abs(point.x - cell.x) > .028) continue;
           cell.z = rear ? Math.max(cell.z, point.z) : Math.min(cell.z, point.z);
         }
       });
+      // Real measured extent of this row (before gap filling).
+      let extent = 0;
+      for (const pt of points) if (Number.isFinite(pt.z)) extent = Math.max(extent, Math.abs(pt.x));
       // fill gaps from nearest measured neighbour so the loft is continuous
       for (let i = 0; i < points.length; i++) {
         if (Number.isFinite(points[i].z)) continue;
-        let best = rear ? 0 : 0, dist = 1e9;
+        let best = 0, dist = 1e9;
         for (let j = 0; j < points.length; j++) if (Number.isFinite(points[j].z) && Math.abs(j - i) < dist) { dist = Math.abs(j - i); best = points[j].z; }
         points[i].z = best;
       }
+      // Compress filler columns past the measured extent onto the edge:
+      // the loft grid must stay uniform, and the shell must not grow ears.
+      for (const pt of points) {
+        const over = Math.abs(pt.x) - extent;
+        if (over > .03) pt.x = Math.sign(pt.x) * (extent + .03);
+      }
       return { y, points };
     });
-    const set = { front: build([.20, .30, .40, .50, .60], false), rear: build([.34, .44, .54, .64], true) };
+    // Smooth each row (5-bin moving average x2) and blend across rows:
+    // raw per-bin min/max sampling jitters between mesh triangles and the
+    // lofted shell comes out rippled.
+    const smooth = (set: { y: number; points: { x: number; z: number }[] }[]) => {
+      for (const row of set) for (let pass = 0; pass < 2; pass++) {
+        const src = row.points.map(pt => pt.z);
+        row.points.forEach((pt, i) => {
+          let sum = 0, n = 0;
+          for (let j = Math.max(0, i - 2); j <= Math.min(src.length - 1, i + 2); j++) { sum += src[j]; n++; }
+          pt.z = sum / n;
+        });
+      }
+      for (let r = 1; r < set.length - 1; r++) {
+        const prev = set[r - 1].points, next = set[r + 1].points;
+        set[r].points.forEach((pt, i) => { pt.z = (prev[i].z + pt.z * 2 + next[i].z) / 4; });
+      }
+      return set;
+    };
+    const set = { front: smooth(build([.16, .22, .28, .34, .40, .46, .52, .58], false)), rear: smooth(build([.26, .32, .38, .44, .50, .56, .62], true)) };
     this.bumperCache.set(id, set);
     return set;
   }
