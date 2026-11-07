@@ -15,12 +15,14 @@ export function validateContent({ cars = CAR_CONTENT, liveries = LIVERY_OPTIONS,
   const errors = [], ids = new Set(), liveryIds = new Set();
   if (!Number.isSafeInteger(revision) || revision < 1) errors.push('Content revision must be a positive integer.');
   if (!Array.isArray(cars) || !cars.length) return ['At least one car is required.'];
-  let manifest = {}, sillProfiles = {};
+  let manifest = {}, sillProfiles = {}, released = {};
   if (checkFiles) {
     try { manifest = JSON.parse(fs.readFileSync(new URL('public/models/manifest.json', root), 'utf8')); }
     catch { errors.push('Cannot read public/models/manifest.json.'); }
     try { sillProfiles = JSON.parse(fs.readFileSync(new URL('src/sill-profiles.json', root), 'utf8')); }
     catch { errors.push('Cannot read src/sill-profiles.json.'); }
+    try { released = JSON.parse(fs.readFileSync(new URL('src/content/released-ids.json', root), 'utf8')); }
+    catch { errors.push('Cannot read src/content/released-ids.json.'); }
   }
   for (const car of cars) {
     if (!car || typeof car !== 'object') { errors.push('Invalid car entry.'); continue; }
@@ -41,7 +43,7 @@ export function validateContent({ cars = CAR_CONTENT, liveries = LIVERY_OPTIONS,
       catch { errors.push(`${tag}: missing ${path}.`); }
     }
   }
-  if (!cars.some(car => car.id === 'golf' && car.price === 0)) errors.push('The free starter car golf must remain in the catalog.');
+  if (!cars.some(car => car?.id === 'golf' && car.price === 0)) errors.push('The free starter car golf must remain in the catalog.');
   if (!Array.isArray(liveries) || !liveries.length) errors.push('At least one livery option is required.');
   else for (const item of liveries) {
     if (!item || typeof item !== 'object') { errors.push('Invalid livery entry.'); continue; }
@@ -56,6 +58,15 @@ export function validateContent({ cars = CAR_CONTENT, liveries = LIVERY_OPTIONS,
   }
   for (const [id,pattern] of [['none','none'],['stripe','stripe'],['race','race']]) if (!Array.isArray(liveries) || !liveries.some(item => item?.id === id && item.pattern === pattern)) errors.push(`Keep legacy livery ${id} with its original pattern for saved games.`);
   if (!Array.isArray(liveries) || liveries.find(item => item?.id === 'none')?.price !== 0) errors.push('The no-livery option must remain free.');
+  if (checkFiles) {
+    if (released.revision !== revision || !Array.isArray(released.cars) || !released.liveries || typeof released.liveries !== 'object') errors.push('Update the released ID ledger and revision together.');
+    else {
+      for (const id of released.cars) if (!ids.has(id)) errors.push(`Released car ${id} is missing; never remove IDs used by saves.`);
+      for (const id of ids) if (!released.cars.includes(id)) errors.push(`Car ${String(id)} is not in the released ID ledger.`);
+      for (const [id,pattern] of Object.entries(released.liveries)) if (!Array.isArray(liveries) || !liveries.some(item => item?.id === id && item.pattern === pattern)) errors.push(`Released livery ${id} is missing or changed pattern.`);
+      for (const id of liveryIds) if (!Object.hasOwn(released.liveries,id)) errors.push(`Livery ${String(id)} is not in the released ID ledger.`);
+    }
+  }
   if (!Array.isArray(paints) || !paints.length) errors.push('At least one paint swatch is required.');
   else for (const paint of paints) if (!text(paint?.name) || !hexPattern.test(paint?.hex ?? '')) errors.push(`Invalid paint swatch: ${String(paint?.name)}.`);
   return errors;

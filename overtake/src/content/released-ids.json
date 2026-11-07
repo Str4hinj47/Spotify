@@ -1,0 +1,10 @@
+{
+  "revision": 1,
+  "cars": ["golf", "mercedes", "audi", "mustang", "ferrari", "r8", "challenger"],
+  "liveries": {
+    "none": "none",
+    "stripe": "stripe",
+    "race": "race",
+    "sunset-stripe": "stripe"
+  }
+}

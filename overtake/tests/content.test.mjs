@@ -29,6 +29,10 @@ test('validator catches content collisions, missing assets, invalid prices and u
  const errors=validateContent({cars:[...CAR_CONTENT,car,CAR_CONTENT[0]],liveries:[...LIVERY_OPTIONS,{...LIVERY_OPTIONS[1],id:'future',pattern:'missing'}]});
  assert.ok(errors.some(e=>e.includes('duplicate ID')));assert.ok(errors.some(e=>e.includes('invalid price')));assert.ok(errors.some(e=>e.includes('missing models/season-car.glb')));assert.ok(errors.some(e=>e.includes('unsupported renderer pattern')));
 });
+test('released IDs cannot disappear or change livery patterns unnoticed', () => {
+ const errors=validateContent({cars:CAR_CONTENT.filter(c=>c.id!=='audi'),liveries:LIVERY_OPTIONS.map(item=>item.id==='sunset-stripe'?{...item,pattern:'race'}:item)});
+ assert.ok(errors.some(e=>e.includes('Released car audi is missing')));assert.ok(errors.some(e=>e.includes('Released livery sunset-stripe is missing or changed pattern')));
+});
 test('catalog drives purchasing, traffic and saved run car IDs', () => {
  for(const car of CAR_CONTENT) {
   assert.equal(CAR_PRICES[car.id],car.price);assert.equal(TRAFFIC_CRUISE[car.id],car.trafficCruise);

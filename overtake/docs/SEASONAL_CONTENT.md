@@ -19,6 +19,8 @@ server or automatic update scheduler here.
   purchase, rendering and save validation. `collection` is metadata only.
 - `src/content/version.mjs` contains the monotonically increasing content
   revision used in newly captured cloud/offline backups.
+- `src/content/released-ids.json` is the append-only ledger of shipped car and
+  livery IDs and livery patterns. Validation checks it against the catalog.
 
 ### Adding a paint swatch
 
@@ -85,7 +87,8 @@ saves retain up to 256 purchased tune tokens per car; revisit that cap and the
 ## Release and save safety
 
 1. Increment `CONTENT_REVISION` whenever adding a **persistent car or cosmetic
-   ID**. Keep old entries and models. Pre-revision backups are still accepted.
+   ID**, add the new IDs/patterns to `released-ids.json` and set its revision
+   to match. Never delete or overwrite old ledger entries. Keep old entries and models. Pre-revision backups are still accepted.
    Revision-aware builds reject backups from a *newer* revision rather than
    silently dropping its content. This is not a universal rollback guarantee:
    builds released before revision checks cannot enforce it, and open old game
