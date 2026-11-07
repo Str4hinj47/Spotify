@@ -19,3 +19,10 @@
 #account-status { margin-top:12px; }
 .account-dialog .account-disclaimer { border-top:1px solid #33413f; margin-top:20px; padding-top:15px; font-size:11px; }
 @media(max-width:700px) { .header-actions { gap:10px; } }
+.cloud-controls { border-top:1px solid #33413f; margin-top:20px; padding-top:18px; }
+.cloud-controls h3 { font-size:11px; letter-spacing:.12em; margin:0 0 10px; }
+.cloud-actions { display:grid; gap:8px; margin-top:14px; }
+.cloud-actions button { background:#1a292b; border:1px solid #536763; color:#f2f7f3; font:700 10px inherit; font-family:inherit; font-weight:700; font-size:10px; letter-spacing:.06em; padding:12px; cursor:pointer; text-align:left; }
+.cloud-actions button:hover { border-color:#ff713d; }
+.cloud-actions button:disabled { opacity:.5; cursor:wait; }
+#cloud-status { margin-top:10px; }

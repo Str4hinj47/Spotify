@@ -60,7 +60,18 @@
     </form>
     <button id="account-signout" class="account-signout" type="button" hidden>SIGN OUT</button>
     <p id="account-status" role="status" aria-live="polite"></p>
-    <p class="account-disclaimer">Signing in does not sync your garage or scores yet. They remain on this device.</p>
+    <section id="cloud-controls" class="cloud-controls" hidden aria-label="Cloud save">
+      <h3>MANUAL CLOUD SAVE</h3>
+      <p>Save or restore your garage and personal records across devices. Nothing syncs automatically; records remain unverified. Device settings stay local.</p>
+      <div class="cloud-actions">
+        <button id="cloud-upload" type="button">SAVE THIS DEVICE TO CLOUD</button>
+        <button id="cloud-restore" type="button">RESTORE FROM CLOUD</button>
+        <button id="cloud-delete" type="button">DELETE CLOUD SAVE</button>
+      </div>
+      <p id="cloud-status" role="status" aria-live="polite"></p>
+    </section>
+    <button id="cloud-undo" class="account-signout" type="button" hidden>UNDO LAST LOCAL RESTORE</button>
+    <p class="account-disclaimer">Sign-in and cloud saves require project setup. Close game tabs before saving or restoring. Backups and scores are not verified.</p>
   </dialog>
   <script type="module" src="/src/account.ts"></script>
 </body>
