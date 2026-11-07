@@ -4,20 +4,23 @@ import type { TrafficId } from './catalog';
 // Only include materials/components known to belong to rotating assemblies.
 // Brake calipers stay on the body. Mixed wheel/body materials are clipped
 // to measured wheel volumes rather than spinning the whole mesh.
+// Every new playable car must provide a reviewed wheel selection rule. The
+// complete Record makes a missing rule a TypeScript build error, not a silent
+// stationary-wheel regression.
+const WHEEL_RULES: Record<TrafficId, (mesh: THREE.Mesh, material: string) => boolean> = {
+  golf: (_mesh, name) => /^(tire__New-Tyre|rim__Alloys|brake__Brake-discs|other__Wheel-nuts)$/.test(name),
+  mercedes: (_mesh, name) => /^(tire__W222 - Wheel|rim__W222 - Rims(?:#2)?)$/.test(name),
+  audi: (_mesh, name) => /^(tire__tire\.001|rim__RIM BRIGHT|rim__RIM DARK|carbon__carbon disk brake)$/.test(name),
+  mustang: (_mesh, name) => /^(tire__M_Tire1|rim__M_Rim[12]|brake__M_BrakePad2)$/.test(name),
+  ferrari: (_mesh, name) => /^(tire__Tire\.00[02]|rim__Rims\.000|brake__Break_Discs\.000)$/.test(name),
+  r8: (mesh, name) => name === 'tire__r8' || name === 'rim__r8' || /^metal_2(?:_(?:[1-5]|1[1-6]))?$/.test(mesh.name),
+  semi: (_mesh, name) => /^(tire__TireRubber|tire__TireTreads|chrome__Chrome)$/.test(name),
+  kraz: (_mesh, name) => /^(tire__tire|chrome__wheel)$/.test(name),
+  challenger: (mesh, name) => name === 'tire__challenger' || (name === 'rim__challenger' && /^mesh_(?:40|44|48|52)(?:_1)?$/.test(mesh.name)) ||
+    /^Volkswagen_Touareg_Hybrid_Wheel_OBJ(?:004|007|014|015|010|011|002|005)(?:_|$)/.test(mesh.name),
+};
 function rotates(id: TrafficId, mesh: THREE.Mesh): boolean {
-  if (Array.isArray(mesh.material)) return false;
-  const name = mesh.material.name;
-  if (id === 'golf') return /^(tire__New-Tyre|rim__Alloys|brake__Brake-discs|other__Wheel-nuts)$/.test(name);
-  if (id === 'mercedes') return /^(tire__W222 - Wheel|rim__W222 - Rims(?:#2)?)$/.test(name);
-  if (id === 'audi') return /^(tire__tire\.001|rim__RIM BRIGHT|rim__RIM DARK|carbon__carbon disk brake)$/.test(name);
-  if (id === 'mustang') return /^(tire__M_Tire1|rim__M_Rim[12]|brake__M_BrakePad2)$/.test(name);
-  if (id === 'ferrari') return /^(tire__Tire\.00[02]|rim__Rims\.000|brake__Break_Discs\.000)$/.test(name);
-  if (id === 'r8') return name === 'tire__r8' || name === 'rim__r8' || /^metal_2(?:_(?:[1-5]|1[1-6]))?$/.test(mesh.name);
-  if (id === 'semi') return /^(tire__TireRubber|tire__TireTreads|chrome__Chrome)$/.test(name);
-  if (id === 'kraz') return /^(tire__tire|chrome__wheel)$/.test(name);
-  if (id === 'challenger') return name === 'tire__challenger' || (name === 'rim__challenger' && /^mesh_(?:40|44|48|52)(?:_1)?$/.test(mesh.name)) ||
-    /^Volkswagen_Touareg_Hybrid_Wheel_OBJ(?:004|007|014|015|010|011|002|005)(?:_|$)/.test(mesh.name);
-  return false;
+  return !Array.isArray(mesh.material) && WHEEL_RULES[id](mesh, mesh.material.name);
 }
 
 /** Split the source's merged wheel primitives once; clones share the buffers. */

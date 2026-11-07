@@ -14,6 +14,12 @@ npm test         # gameplay rule unit tests
 # Website: /   |   Game: /play.html
 ```
 
+## Seasonal updates
+
+See [docs/SEASONAL_CONTENT.md](docs/SEASONAL_CONTENT.md) for the car and
+cosmetic catalogs, model-specific authoring, save compatibility, validation and
+release checklist. Content changes are shipped in a new build, not remotely.
+
 ## Deployment and accounts
 
 See [LAUNCH.md](LAUNCH.md) for Vercel setup, optional Supabase email sign-in,
@@ -133,7 +139,7 @@ Choose carbon fiber independently for each aftermarket part. The afterfire
 exhaust previews flames in the garage and produces flames while accelerating
 on the road. Choose an upper or lower two-tone paint layout, a second paint
 color or carbon finish, and one of two car-specific liveries with a custom
-color. The workshop also offers arbitrary-color underglow and front/side/rear
+color; an additional Sunset stripe offers a suggested color as a reusable variant. The workshop also offers arbitrary-color underglow and front/side/rear
 views or drag-to-rotate inspection. These workshop settings are saved per car
 in local storage, apply only to the player in the garage and on the road, and
 are cosmetic: they do not change handling or traffic cars. Reset car clears
