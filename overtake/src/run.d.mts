@@ -1,8 +1,8 @@
-export type RunMode = 'endless' | 'rush' | 'trial' | 'near' | 'daily' | 'weekly';
+export type RunMode = 'endless' | 'rush' | 'trial' | 'near' | 'daily' | 'weekly' | 'ranked';
 export type Medal = 'bronze' | 'silver' | 'gold' | null;
 export interface RunContract { id: string; title: string; desc: string; metric: string; target: number; reward: number; }
 export interface RunState {
-  mode: RunMode; seed: number; elapsed: number; timeLeft: number | null;
+  mode: RunMode; seed: number; elapsed: number; timeLeft: number | null; rankedScenario: import('./ranked.mjs').ScenarioId | null;
   distance: number; score: number; combo: number; bestCombo: number;
   overtakes: number; nearMisses: number; oncomingDodges: number;
   topSpeed: number; highSpeedTime: number;
@@ -14,7 +14,7 @@ export interface RunSummary { mode: RunMode; car: string; score: number; distanc
 export const RUN_MODES: Record<RunMode, { id: RunMode; label: string; duration: number | null; tagline: string; medals: { bronze: number; silver: number; gold: number } }>;
 export function mulberry32(seed: number): () => number;
 export function eventFor(mode: 'daily' | 'weekly', now?: number): { period: number; contract: RunContract };
-export function createRun(mode?: RunMode, seed?: number, now?: number): RunState;
+export function createRun(mode?: RunMode, seed?: number, now?: number, scenarioId?: import('./ranked.mjs').ScenarioId): RunState;
 export function medalFor(mode: RunMode, score: number): Medal;
 export function contractProgress(run: RunState): { contract: RunContract | null; value: number; target: number; ratio: number };
 export function tickRun(run: RunState, dt: number, speed: number): RunEvent[];
