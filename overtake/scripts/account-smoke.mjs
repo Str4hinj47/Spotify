@@ -15,6 +15,6 @@ try {
  assert.equal(request.method(),'POST');assert.ok(request.url().includes('/auth/v1/otp'));
  assert.equal(JSON.parse(request.postData()).email,'driver@example.com');
  assert.equal(new URL(request.url()).searchParams.get('redirect_to'),`${base}/`);
- assert.match(await page.locator('.account-disclaimer').innerText(),/does not sync/i);
+ assert.match(await page.locator('.account-disclaimer').innerText(),/not verified/i);
  assert.deepEqual(errors,[]);console.log('Mocked account sign-in passed');
 } finally {await browser.close();}

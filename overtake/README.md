@@ -17,8 +17,9 @@ npm test         # gameplay rule unit tests
 ## Deployment and accounts
 
 See [LAUNCH.md](LAUNCH.md) for Vercel setup, optional Supabase email sign-in,
-security boundaries, and the work still required before global rankings. No
-cloud sync or verified leaderboard is currently enabled.
+manual cloud saves, security boundaries, and the work still required before global
+rankings. Cloud saves are implemented but require project setup; no verified
+leaderboard is enabled.
 
 ## Controls
 

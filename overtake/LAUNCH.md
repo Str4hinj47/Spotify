@@ -11,10 +11,13 @@ Players can also download an unverified result card as a PNG.
 Developer-option runs are excluded from new personal records. Older personal
 records cannot be retrospectively verified.
 
-An optional email-link sign-in UI exists on the website. It is disabled until
-configured. Sign-in does not currently synchronize progress, use the profile
-migration, submit scores, or create a leaderboard. Do not promise cross-device
-saves or competitive rankings on the basis of this foundation.
+Optional email-link sign-in and manual cloud save/restore are implemented on the
+website but **not connected or deployed yet**. Once configured, signed-in players
+can explicitly upload or restore their garage, cosmetics, selected car and local
+personal records. There is no automatic sync or merging. Device settings stay
+local; developer access is not transferred. Saves and scores are unverified and
+cannot be used for competitive rankings. The profile migration is not used by the
+app; there is no leaderboard or score-submission endpoint.
 
 ## Vercel (when you create the project)
 
@@ -51,9 +54,28 @@ saves or competitive rankings on the basis of this foundation.
   It has owner-only RLS and grants only display-name changes; the application
   currently does not read or write it. No ranking or score-submission table is
   provided, deliberately. Test RLS as anonymous, another user and the owner.
+- For manual cloud saves, review and apply
+  `supabase/migrations/20261108000000_overtake_cloud_saves.sql` to the approved
+  game project (not automatically applied). It creates a separate table with
+  per-user RLS, a payload size limit, server-controlled revision and restricted
+  columns. Owners can read/write/delete only their own snapshots. A cloud snapshot
+  remains user-controlled and is never evidence of fair play. The profile migration
+  is not required for cloud saves. Back up and check for name collisions first.
+- Close other Overtake game tabs before a save/restore, since active tabs can hold
+  older data in memory. Upload replaces the account's previous snapshot after
+  confirmation; conflicting revisions are rejected. Restore replaces this device's
+  listed game data after confirmation and keeps one local undo backup. The undo
+  button swaps with that backup; making another restore replaces it. Browser storage
+  limits or clearing site data can remove local data/backups. Downloads and restores
+  do not automatically update any open game tab. Snapshot data is stored in Supabase,
+  not end-to-end encrypted; do not treat it as secret.
+- Database isolation is tested with an embedded PostgreSQL test, and the UI with
+  mocked Supabase requests. Before release, test the migration, policies, email
+  delivery, save/restore/delete, concurrent devices, backup failure, and account
+  switching against a dedicated real Supabase test project as well.
 - Configure abuse protections and email rate limits. Add privacy, retention,
   account-deletion, support and consent policies appropriate to the audience.
-  The profile row cascades on auth user deletion, but an account-deletion UI and
+  Profile and cloud-save rows cascade on auth user deletion, but an account-deletion UI and
   operational process have not been implemented.
 
 ## Before enabling global rankings
