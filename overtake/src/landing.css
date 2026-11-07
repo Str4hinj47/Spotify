@@ -32,3 +32,6 @@
 .backup-import:hover, .backup-import:focus-within { border-color:#ff713d; }
 .backup-import input { display:block; width:100%; margin-top:8px; color:#aebbb8; font:inherit; }
 #backup-status { margin-top:10px; }
+
+@media(min-width:801px) { .mode-grid { grid-template-columns:repeat(4,1fr); } }
+.ranked-tile { background:linear-gradient(145deg,#23312b,#151e20); border-color:#b5f54b44; }.ranked-mark { color:#b5f54b; font-size:78px; font-style:italic; }

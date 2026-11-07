@@ -359,6 +359,8 @@ function syncModeUI() {
   if (!game) return;
   const mode = game.getRunMode();
   const records = game.getRecords();
+  $('best-top').textContent = fmt(mode === 'ranked' ? game.getRanked().points : game.getBest());
+  document.querySelector('.best-pill')?.setAttribute('title', mode === 'ranked' ? 'Local rank points' : 'Personal best score');
   document.querySelectorAll<HTMLButtonElement>('.mode-card').forEach((b) => {
     const active = b.dataset.mode === mode;
     b.classList.toggle('active', active);
@@ -406,7 +408,7 @@ function syncRankUI() {
     button.className = `rank-scenario${scenario.id === selectedScenario.id ? ' active' : ''}`;
     button.setAttribute('aria-pressed', String(scenario.id === selectedScenario.id));
     const best = state.scenarios[scenario.id];
-    button.innerHTML = `<span class="rank-scenario-top"><span>${scenario.kicker}</span><span>GOLD +${Math.round(40 * scenario.multiplier)} RP</span></span><strong>${scenario.title}</strong><small>${(scenario.distance / 1000).toFixed(1)} km in ${scenario.limit}s · ${scenario.objective}</small><small>Gold ≤ ${scenario.gold}s · Silver ≤ ${scenario.silver}s${best?.bestTime ? ` · Best ${formatTime(best.bestTime)}` : ''}</small>`;
+    button.innerHTML = `<span class="rank-scenario-top"><span>${scenario.kicker}</span><span>GOLD +${Math.round(40 * scenario.multiplier)} RP</span></span><strong>${scenario.title}</strong><small>${(scenario.distance / 1000).toFixed(1)} km in ${scenario.limit}s · ${scenario.objective}</small><small>Gold ≤ ${scenario.gold}s · Silver ≤ ${scenario.silver}s · Finish +${Math.round(18 * scenario.multiplier)} RP${best?.bestTime ? ` · Best ${formatTime(best.bestTime)}` : ''}</small>`;
     button.addEventListener('click', () => { game.setRankedScenario(scenario.id as ScenarioId); syncRankUI(); list.querySelector<HTMLButtonElement>(`[data-scenario="${scenario.id}"]`)?.focus(); audio.click(); });
     list.appendChild(button);
   }
@@ -463,7 +465,7 @@ function onHud(h: HudState) {
   const card = $('contract-card');
   if (h.runMode === 'ranked') {
     const scenario = game.getRankedScenario(); const value = scenario.metric === 'overtakes' ? h.overtakes : h.nearMisses;
-    card.classList.remove('hidden'); $('contract-index').textContent = 'RANKED · TIME ATTACK'; $('contract-reward').textContent = `${scenario.limit}s LIMIT`;
+    card.classList.remove('hidden'); $('contract-index').textContent = 'RANKED · TIME ATTACK'; $('contract-reward').textContent = `GOLD ${scenario.limit - scenario.gold}s+ LEFT`;
     $('contract-title').textContent = scenario.title;
     $('contract-desc').textContent = `${scenario.objective} · ${(h.distance / 1000).toFixed(2)} / ${(scenario.distance / 1000).toFixed(1)} km`;
     $('contract-fill').style.width = `${Math.min(100, h.distance / scenario.distance * 100)}%`;
