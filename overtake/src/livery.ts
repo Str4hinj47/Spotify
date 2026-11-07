@@ -27,17 +27,21 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
   const livery = new THREE.Color(config.liveryColor);
   // Paint finish PBR (MeshPhysicalMaterial carries clearcoat/iridescence).
   const phys = mat as THREE.MeshPhysicalMaterial;
-  if (config.paintFinish === 'metallic') { mat.metalness = .9; mat.roughness = .24; if ('clearcoat' in phys) { phys.clearcoat = .7; phys.clearcoatRoughness = .12; } }
+  // NOTE: metalness near 1.0 erases the diffuse paint colour and leaves only
+  // env reflections — in a dim garage the car reads as black/transparent.
+  // Real metallic paint is a coloured base with flake: keep metalness moderate.
+  if (config.paintFinish === 'metallic') { mat.metalness = .5; mat.roughness = .3; mat.envMapIntensity = 1.6; if ('clearcoat' in phys) { phys.clearcoat = .9; phys.clearcoatRoughness = .1; } }
   else if (config.paintFinish === 'pearlescent') {
-    mat.metalness = .55; mat.roughness = .28;
+    mat.metalness = .3; mat.roughness = .3; mat.envMapIntensity = 1.35;
     if ('clearcoat' in phys) { phys.clearcoat = 1; phys.clearcoatRoughness = .06; }
-    if ('iridescence' in phys) { phys.iridescence = .85; phys.iridescenceIOR = 1.6; }
+    if ('iridescence' in phys) { phys.iridescence = .55; phys.iridescenceIOR = 1.6; }
     // Pearlescent accent: the livery/secondary tones shift toward the pearl tint.
     livery.lerp(new THREE.Color(config.pearlColor), .45);
     secondary.lerp(new THREE.Color(config.pearlColor), .3);
   }
-  else if (config.paintFinish === 'matte') { mat.metalness = .05; mat.roughness = .88; if ('clearcoat' in phys) phys.clearcoat = 0; }
-  else if (config.paintFinish === 'satin') { mat.metalness = .25; mat.roughness = .52; if ('clearcoat' in phys) { phys.clearcoat = .25; phys.clearcoatRoughness = .4; } }
+  else if (config.paintFinish === 'matte') { mat.metalness = 0; mat.roughness = .88; mat.envMapIntensity = .65; if ('clearcoat' in phys) phys.clearcoat = 0; }
+  else if (config.paintFinish === 'satin') { mat.metalness = .2; mat.roughness = .5; mat.envMapIntensity = 1.0; if ('clearcoat' in phys) { phys.clearcoat = .3; phys.clearcoatRoughness = .35; } }
+  else { mat.envMapIntensity = 1.15; }
   mat.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, {
       kitMatrix:{value:meshToCar}, kitSecondary:{value:secondary}, kitAccent:{value:livery},
