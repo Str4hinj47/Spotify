@@ -13,12 +13,18 @@ test('cloud save migration enforces per-user RLS, column privileges and revision
       grant usage on schema auth to anon, authenticated; grant execute on function auth.uid() to anon, authenticated;`);
     await db.exec(await readFile(new URL('../supabase/migrations/20261108000000_overtake_cloud_saves.sql',import.meta.url),'utf8'));
     await db.exec(`set role authenticated; set request.jwt.claim.sub='${alice}';`);
-    const inserted=await db.query(`insert into public.overtake_cloud_saves(user_id,payload) values ($1,'{"schema":1}') returning revision`,[alice]);assert.equal(inserted.rows[0].revision,1);
+    const inserted=await db.query(`insert into public.overtake_cloud_saves(user_id,payload) values ($1,'{"schema":1}') returning revision,save_id`,[alice]);assert.equal(inserted.rows[0].revision,1);
     await assert.rejects(db.query(`insert into public.overtake_cloud_saves(user_id,payload) values ($1,'{}')`,[bob]));
     const update=await db.query(`update public.overtake_cloud_saves set payload='{"schema":1,"n":2}' where user_id=$1 and revision=1 returning revision`,[alice]);assert.equal(update.rows[0].revision,2);
     assert.equal((await db.query(`update public.overtake_cloud_saves set payload='{}' where user_id=$1 and revision=1 returning revision`,[alice])).rows.length,0);
     await assert.rejects(db.query(`update public.overtake_cloud_saves set revision=999 where user_id=$1`,[alice]));
     await assert.rejects(db.query(`update public.overtake_cloud_saves set payload=$1 where user_id=$2`,[JSON.stringify({huge:'x'.repeat(132000)}),alice]));
+    // Delete/recreate creates a new incarnation: stale IDs cannot overwrite it even if revision resets to 1.
+    const oldId=inserted.rows[0].save_id;
+    await db.query('delete from public.overtake_cloud_saves where user_id=$1',[alice]);
+    const recreated=await db.query(`insert into public.overtake_cloud_saves(user_id,payload) values ($1,'{}') returning save_id,revision`,[alice]);
+    assert.notEqual(recreated.rows[0].save_id,oldId);
+    assert.equal((await db.query(`update public.overtake_cloud_saves set payload='{}' where user_id=$1 and save_id=$2 and revision=1 returning *`,[alice,oldId])).rows.length,0);
     await db.exec(`set request.jwt.claim.sub='${bob}';`);
     assert.equal((await db.query('select * from public.overtake_cloud_saves')).rows.length,0);
     assert.equal((await db.query(`update public.overtake_cloud_saves set payload='{}' where user_id=$1 returning *`,[alice])).rows.length,0);

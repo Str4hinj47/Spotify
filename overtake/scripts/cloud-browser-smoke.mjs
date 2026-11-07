@@ -20,9 +20,9 @@ try {
   if(url.pathname==='/rest/v1/overtake_cloud_saves') {
    let body=[];
    if(method==='GET') body=row?[row]:[];
-   else if(method==='POST'){const data=req.postDataJSON();row={user_id:data.user_id,payload:data.payload,revision:1,updated_at:'2026-11-08T00:00:00Z'};body=[row];}
-   else if(method==='PATCH'){ if(conflict){row.revision++;conflict=false;} else if(row&&url.searchParams.get('revision')===`eq.${row.revision}`){row.payload=req.postDataJSON().payload;row.revision++;body=[{revision:row.revision}];} }
-   else if(method==='DELETE'){if(row&&url.searchParams.get('revision')===`eq.${row.revision}`){body=[{revision:row.revision}];row=null;}}
+   else if(method==='POST'){const data=req.postDataJSON();row={user_id:data.user_id,save_id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',payload:data.payload,revision:1,updated_at:'2026-11-08T00:00:00Z'};body=[row];}
+   else if(method==='PATCH'){ if(conflict==='recreate'){row.save_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';row.revision=1;conflict=false;} else if(conflict){row.revision++;conflict=false;} else if(row&&url.searchParams.get('save_id')===`eq.${row.save_id}`&&url.searchParams.get('revision')===`eq.${row.revision}`){row.payload=req.postDataJSON().payload;row.revision++;body=[{revision:row.revision}];} }
+   else if(method==='DELETE'){if(row&&url.searchParams.get('save_id')===`eq.${row.save_id}`&&url.searchParams.get('revision')===`eq.${row.revision}`){body=[{revision:row.revision}];row=null;}}
    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
   }
   return route.fulfill({status:404,contentType:'application/json',body:'{}'});
@@ -35,6 +35,7 @@ try {
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('overtake-progression-v2')).money),1234);
  await page.click('#cloud-undo');assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('overtake-progression-v2')).money),777);
  conflict=true;await page.click('#cloud-upload');await page.waitForFunction(()=>document.querySelector('#cloud-status').textContent.includes('changed on another device'));assert.equal(row.payload.progression.money,1234);
+ row.revision=1; conflict='recreate';await page.click('#cloud-upload');await page.waitForFunction(()=>document.querySelector('#cloud-status').textContent.includes('changed on another device'));assert.equal(row.payload.progression.money,1234);assert.equal(row.save_id,'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
  row.payload.schema=2;await page.click('#cloud-upload');await page.waitForFunction(()=>document.querySelector('#cloud-status').textContent.includes('Unsupported'));assert.equal(row.payload.schema,2);
  await page.click('#cloud-delete');await page.waitForFunction(()=>document.querySelector('#cloud-status').textContent.includes('deleted'));assert.equal(row,null);
  assert.deepEqual(errors,[]);console.log('Mocked cloud save flows passed');

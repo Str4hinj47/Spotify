@@ -97,17 +97,17 @@ async function initAccount() {
     submit.disabled = false;
   });
 
-  type CloudRow = { revision: number; payload: unknown; updated_at: string };
+  type CloudRow = { save_id: string; revision: number; payload: unknown; updated_at: string };
   async function currentUser() {
     const { data, error } = await auth.auth.getUser();
     if (error || !data.user?.id) throw new Error('Please sign in again before using cloud saves.');
     return data.user.id;
   }
   async function readCloud(userId: string): Promise<CloudRow | null> {
-    const { data, error } = await auth.from('overtake_cloud_saves').select('revision,payload,updated_at').eq('user_id', userId).maybeSingle();
+    const { data, error } = await auth.from('overtake_cloud_saves').select('save_id,revision,payload,updated_at').eq('user_id', userId).maybeSingle();
     if (error) throw new Error('Cloud save unavailable. Check the project setup or try again later.');
     if (!data) return null;
-    if (!Number.isSafeInteger(data.revision) || data.revision < 1 || typeof data.updated_at !== 'string') throw new Error('Cloud save has invalid metadata; nothing was changed.');
+    if (typeof data.save_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.save_id) || !Number.isSafeInteger(data.revision) || data.revision < 1 || typeof data.updated_at !== 'string') throw new Error('Cloud save has invalid metadata; nothing was changed.');
     return data as CloudRow;
   }
   async function sameUser(id: string) {
@@ -129,7 +129,7 @@ async function initAccount() {
     const payload = captureSnapshot(localStorage);
     await sameUser(id);
     if (existing) {
-      const { data, error } = await auth.from('overtake_cloud_saves').update({payload}).eq('user_id', id).eq('revision', existing.revision).select('revision').maybeSingle();
+      const { data, error } = await auth.from('overtake_cloud_saves').update({payload}).eq('user_id', id).eq('save_id', existing.save_id).eq('revision', existing.revision).select('revision').maybeSingle();
       if (error) throw new Error('Could not save to cloud. Check the project setup or try again.');
       if (!data) throw new Error('Cloud save changed on another device. Nothing was overwritten; try again.');
     } else {
@@ -153,7 +153,7 @@ async function initAccount() {
     if (!existing) { cloudStatus.textContent = 'No cloud save exists for this account.'; return; }
     if (!confirm(`Permanently delete cloud revision ${existing.revision}? Local game data is not deleted.`)) { cloudStatus.textContent = 'No changes made.'; return; }
     await sameUser(id);
-    const { data, error } = await auth.from('overtake_cloud_saves').delete().eq('user_id', id).eq('revision', existing.revision).select('revision').maybeSingle();
+    const { data, error } = await auth.from('overtake_cloud_saves').delete().eq('user_id', id).eq('save_id', existing.save_id).eq('revision', existing.revision).select('revision').maybeSingle();
     if (error) throw new Error('Could not delete the cloud save. Please try again.');
     if (!data) throw new Error('Cloud save changed on another device. Nothing was deleted; try again.');
     cloudStatus.textContent = 'Cloud save deleted. Local game data was not changed.';

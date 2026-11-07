@@ -60,13 +60,13 @@ app; there is no leaderboard or score-submission endpoint.
 - For manual cloud saves, review and apply
   `supabase/migrations/20261108000000_overtake_cloud_saves.sql` to the approved
   game project (not automatically applied). It creates a separate table with
-  per-user RLS, a payload size limit, server-controlled revision and restricted
+  per-user RLS, a payload size limit, server-controlled save ID/revision and restricted
   columns. Owners can read/write/delete only their own snapshots. A cloud snapshot
   remains user-controlled and is never evidence of fair play. The profile migration
   is not required for cloud saves. Back up and check for name collisions first.
 - Close other Overtake game tabs before a save/restore, since active tabs can hold
   older data in memory. Upload replaces the account's previous snapshot after
-  confirmation; conflicting revisions are rejected. Restore replaces this device's
+  confirmation; conflicting save IDs or revisions are rejected. Restore replaces this device's
   listed game data after confirmation and keeps one local undo backup. The undo
   button swaps with that backup; making another restore replaces it. Browser storage
   limits or clearing site data can remove local data/backups. Downloads and restores
