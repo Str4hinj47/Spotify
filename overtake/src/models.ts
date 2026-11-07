@@ -361,6 +361,7 @@ export class ModelLibrary {
     if (cached) return cached;
     const root = this.get(id).scene;
     root.updateMatrixWorld(true);
+    const arches = this.measureArches(id);
     const xs: number[] = [];
     for (let x = -1.02; x <= 1.021; x += .03) xs.push(Math.round(x * 100) / 100);
     const build = (rowsY: number[], rear: boolean) => rowsY.map(y => {
@@ -370,12 +371,33 @@ export class ModelLibrary {
         const mesh = o as THREE.Mesh;
         if (!mesh.isMesh) return;
         const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        if (!mats.some(m => m?.name.startsWith('paint__'))) return;
+        // Not every bumper is painted (Mustang chrome, Ferrari mesh): sample
+        // every exterior bumper material, not just paint.
+        if (!mats.some(m => m?.name.startsWith('paint__') || m?.name.startsWith('chrome__') || m?.name.startsWith('trim__') || m?.name.startsWith('carbon__'))) return;
         const pos = mesh.geometry.getAttribute('position');
         if (!pos) return;
         for (let i = 0; i < pos.count; i++) {
           point.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
           if (Math.abs(point.y - y) > .055) continue;
+          // Zone guard: both bumpers share height bands, so a bin with no
+          // rear-surface vertex would otherwise capture the FRONT bumper
+          // (and vice versa), zig-zagging the loft between nose and tail.
+          // Restricting to |z| > 1 m also keeps doors/quarters out.
+          if (rear ? point.z < 1 : point.z > -1) continue;
+          // Wheel-well guard: arch lips, liners and splash shields live at
+          // bumper heights beside the wheels; without this the loft builds
+          // a wall across the wheel opening.
+          let inArch = false;
+          for (const arch of arches) {
+            if ((point.x > 0) !== (arch.x > 0)) continue;
+            if (rear !== (arch.z > 0)) continue;
+            const dy = point.y - arch.y, dz = point.z - arch.z;
+            if (dy * dy + dz * dz < (arch.r + .05) * (arch.r + .05)) { inArch = true; break; }
+            // Outboard of the wheel, the bumper surface must stay on the
+            // bumper side of the arch (plus a small wrap allowance).
+            if (Math.abs(point.x) > Math.abs(arch.x) && (rear ? point.z < arch.z - arch.r - .02 : point.z > arch.z + arch.r + .02)) { inArch = true; break; }
+          }
+          if (inArch) continue;
           const cell = points[Math.round((point.x + 1.02) / .03)];
           if (!cell || Math.abs(point.x - cell.x) > .028) continue;
           cell.z = rear ? Math.max(cell.z, point.z) : Math.min(cell.z, point.z);
