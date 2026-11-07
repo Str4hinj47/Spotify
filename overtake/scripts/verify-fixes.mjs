@@ -10,7 +10,7 @@ const errors = [];
 page.on('pageerror', e => errors.push(String(e)));
 page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
 await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`, { waitUntil: 'domcontentloaded' });
-await page.waitForSelector('#topbar:not(.hidden)', { timeout: 120000 });
+await page.waitForSelector('#topbar:not(.hidden)', { timeout: 120000 });await page.click('#menu-garage');
 await page.addStyleTag({ content: '*{backdrop-filter:none!important;animation:none!important;transition:none!important}' });
 
 const golfLights = await page.evaluate(() => {
@@ -53,7 +53,7 @@ await page.keyboard.up('ArrowUp');
 
 // Persistence across reload
 await page.reload({ waitUntil: 'domcontentloaded' });
-await page.waitForSelector('#topbar:not(.hidden)', { timeout: 120000 });
+await page.waitForSelector('#topbar:not(.hidden)', { timeout: 120000 });await page.click('#menu-garage');
 const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem('overtake-paints')||'{}'));
 console.log(JSON.stringify({ golfLights, golfPaint, ferrari, persisted, errors }, null, 2));
 await browser.close();

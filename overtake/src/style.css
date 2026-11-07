@@ -618,7 +618,7 @@ svg { stroke-width: 1.75; }
 @media (max-width: 700px) { .car-detail { width:auto; } .garage-tabs { margin:5px 0 4px; } .garage-tabs button { padding:4px 2px; } .garage-tabs button span { display:inline; margin:0 0 0 4px; } .section-kicker { margin:5px 0; } .local-note { margin:2px 0 6px; } .site-link { display:none; } }
 #btn-share-result { padding: 12px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid var(--border); font-weight:700; }
 #btn-share-result:hover { background:rgba(255,255,255,.12); }
-@media (max-width:700px) { #car-detail .progress-hint { display:none; } #garage-drive { padding-bottom:44px; } }
+@media (max-width:700px) { #car-detail .progress-hint { display:none; } }
 
 .active-mode-info { display:none; }
 @media (max-width:700px) { #car-detail #progress-next { display:none; } .active-mode-info { display:block; color:#c8d5d0; font-size:10px; margin:4px 0 6px; } }
@@ -648,7 +648,7 @@ svg { stroke-width: 1.75; }
 .rank-road-dialog { margin:auto; padding:0; border:0; background:transparent; color:var(--text); max-width:100vw; max-height:100dvh; }
 .rank-road-dialog::backdrop { background:rgba(6,8,12,.8); backdrop-filter:blur(10px); }
 
-@media(max-width:700px) { #car-detail:has(#garage-ranked:not(.hidden)) { max-height:min(55dvh,460px); } .rank-badge { width:80px; flex-basis:80px; } .rank-hero { min-height:78px; } }
+@media(max-width:700px) { .rank-badge { width:80px; flex-basis:80px; } .rank-hero { min-height:78px; } }
 
 .rank-scroll-hint { display:none; }
 @media(max-width:700px) { .rank-scroll-hint { display:inline; } }

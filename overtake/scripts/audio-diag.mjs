@@ -6,7 +6,7 @@ const page = await browser.newPage();
 page.on('console', m => console.log('CON', m.type(), m.text()));
 page.on('pageerror', e => console.log('ERR', String(e)));
 await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`, { waitUntil: 'domcontentloaded' });
-await page.waitForSelector('#topbar:not(.hidden)', { timeout: 120000 });
+await page.waitForSelector('#topbar:not(.hidden)', { timeout: 120000 });await page.click('#menu-garage');
 await page.click('.car-card[data-car="mustang"]');
 await page.click('#btn-start');
 await page.keyboard.down('ArrowUp');
