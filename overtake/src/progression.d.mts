@@ -1,7 +1,7 @@
 import type { CarId } from './catalog';
 export type Upgrade = 'engine' | 'tires' | 'brakes';
 export type UpgradeLevels = Record<Upgrade, number>;
-export interface Progression { version: 2; walletVersion: 1; coins: number; credits: number; gems: number; dev: boolean; owned: CarId[]; upgrades: Partial<Record<CarId, UpgradeLevels>>; tunes: Partial<Record<CarId, string[]>>; seasonPass: import('./season-pass.mjs').SeasonPass | null; }
+export interface Progression { version: 2; walletVersion: 1; coins: number; credits: number; gems: number; dev: boolean; retiredChironRefunded: boolean; owned: CarId[]; upgrades: Partial<Record<CarId, UpgradeLevels>>; tunes: Partial<Record<CarId, string[]>>; seasonPass: import('./season-pass.mjs').SeasonPass | null; }
 export const CAR_PRICES: Readonly<Record<CarId, number>>;
 export const UPGRADE_PRICES: Readonly<Record<Upgrade, readonly number[]>>;
 export const TUNE_PRICES: Readonly<Record<string, number>>;

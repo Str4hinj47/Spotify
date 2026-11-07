@@ -1,16 +1,16 @@
-import { CAR_CONTENT } from './content/cars.mjs';
+import { CAR_CONTENT, ACTIVE_CAR_CONTENT } from './content/cars.mjs';
 export type CarId = (typeof CAR_CONTENT)[number]['id'];
 export type TruckId = 'semi' | 'kraz';
 export const TRAFFIC_ONLY = [
-  { id: 'camry', name: 'Toyota Camry' },
-  { id: 'mercedes-560', name: 'Mercedes-Benz 560 SEL' },
-  { id: 'range-rover', name: 'Range Rover Sport' },
+  { id: 'camry', name: 'Traffic sedan' },
+  { id: 'mercedes-560', name: 'Classic sedan' },
+  { id: 'range-rover', name: 'Traffic SUV' },
 ] as const;
 export type TrafficOnlyId = (typeof TRAFFIC_ONLY)[number]['id'];
 export type TrafficId = CarId | TruckId | TrafficOnlyId;
 export function isPlayableCar(id: TrafficId): id is CarId { return CARS.some(car => car.id === id); }
 export const TRUCKS: { id: TruckId; name: string }[] = [
-  { id: 'semi', name: 'Tractor trailer' }, { id: 'kraz', name: 'KrAZ truck' },
+  { id: 'semi', name: 'Tractor trailer' }, { id: 'kraz', name: 'Heavy truck' },
 ];
 
 export interface CarSpec {
@@ -46,7 +46,7 @@ export interface VehiclePhysics {
   drag: number;          // quadratic drag coefficient
 }
 
-export const CARS: readonly CarSpec[] = CAR_CONTENT;
+export const CARS: readonly CarSpec[] = ACTIVE_CAR_CONTENT;
 
 
 export const TRAFFIC_COLORS = [

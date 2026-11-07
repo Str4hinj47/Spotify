@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CAR_CONTENT } from '../src/content/cars.mjs';
+import { CAR_CONTENT, ACTIVE_CAR_CONTENT, RETIRED_CAR_IDS } from '../src/content/cars.mjs';
 import { LIVERY_OPTIONS } from '../src/content/cosmetics.mjs';
 import { CONTENT_REVISION } from '../src/content/version.mjs';
 import { validateContent } from '../tools/validate-content.mjs';
@@ -18,7 +18,7 @@ const storage = (initial={}) => {const map = new Map(Object.entries(initial)); r
 test('shipped content and model assets validate', () => assert.deepEqual(validateContent(), []));
 test('every catalog model is readable, paintable and has tire material', async () => {
  const io=new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({'draco3d.decoder':await draco3d.createDecoderModule()});
- for(const car of CAR_CONTENT) {
+ for(const car of ACTIVE_CAR_CONTENT) {
   const doc=await io.read(new URL(`../public/models/${car.id}.glb`,import.meta.url).pathname), root=doc.getRoot();
   assert.ok(root.listMeshes().length>0,`${car.id}: missing geometry`);
   for(const prefix of ['paint__','tire__']) assert.ok(root.listMaterials().some(m=>m.getName().startsWith(prefix)),`${car.id}: missing ${prefix} material`);
@@ -34,10 +34,10 @@ test('released IDs cannot disappear or change livery patterns unnoticed', () => 
  assert.ok(errors.some(e=>e.includes('Released car audi is missing')));assert.ok(errors.some(e=>e.includes('Released livery sunset-stripe is missing or changed pattern')));
 });
 test('catalog drives purchasing, traffic and saved run car IDs', () => {
- for(const car of CAR_CONTENT) {
+ for(const car of ACTIVE_CAR_CONTENT) {
   assert.equal(CAR_PRICES[car.id],car.price);assert.equal(TRAFFIC_CRUISE[car.id],car.trafficCruise);
   const record=sanitizeRecords({modes:{endless:{recent:[{car:car.id,score:1}]}}});assert.equal(record.modes.endless.recent[0].car,car.id);
-  if(car.id!=='golf') {const result=buyCar({...emptyProgression(),credits:1_000_000_000,owned:CAR_CONTENT.filter(c=>c.unlockTier<car.unlockTier).map(c=>c.id)},car.id);assert.ok(result.ok);assert.ok(sanitizeProgression(result.progress).owned.includes(car.id));}
+  if(car.id!=='golf') {const result=buyCar({...emptyProgression(),credits:1_000_000_000,owned:ACTIVE_CAR_CONTENT.filter(c=>c.unlockTier<car.unlockTier).map(c=>c.id)},car.id);assert.ok(result.ok);assert.ok(sanitizeProgression(result.progress).owned.includes(car.id));}
  }
 });
 test('livery variants retain their ID, price, ownership and customization through backup', () => {

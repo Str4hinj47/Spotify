@@ -1,7 +1,7 @@
 // Fast pre-release checks for data errors and missing content assets.
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { CAR_CONTENT } from '../src/content/cars.mjs';
+import { CAR_CONTENT, ACTIVE_CAR_CONTENT, RETIRED_CAR_IDS } from '../src/content/cars.mjs';
 import { LIVERY_OPTIONS, PAINT_COLORS, RIM_OPTIONS } from '../src/content/cosmetics.mjs';
 import { CONTENT_REVISION } from '../src/content/version.mjs';
 import { SEASON_TIERS, PREMIUM_TIERS } from '../src/season-pass.mjs';
@@ -38,7 +38,7 @@ export function validateContent({ cars = CAR_CONTENT, liveries = LIVERY_OPTIONS,
     if (!['Common','Uncommon','Rare','Epic','Exotic','Legendary'].includes(car.rarity)) errors.push(`${tag}: invalid rarity.`);
     for (const key of ['speed','handling','bonus']) if (!Number.isInteger(car.stats?.[key]) || !finite(car.stats[key],1,5)) errors.push(`${tag}: ${key} rating must be 1–5.`);
     for (const [key,min,max] of [['grip',.1,5],['brake',.1,50],['wheelbase',.5,10],['maxSteer',.01,2],['understeer',0,1],['yawResponse',.1,50],['steerResponse',.1,50],['drag',.00001,.1]]) if (!finite(car.physics?.[key],min,max)) errors.push(`${tag}: invalid physics.${key}.`);
-    if (checkFiles && typeof id === 'string' && idPattern.test(id)) {
+    if (checkFiles && !RETIRED_CAR_IDS.includes(id) && typeof id === 'string' && idPattern.test(id)) {
       const path = `models/${id}.glb`;
       if (manifest[id]?.id !== id || manifest[id]?.file !== path) errors.push(`${tag}: missing or mismatched model manifest entry.`);
       if (car.bodywork !== false && (!sillProfiles[id]?.range || !sillProfiles[id]?.sides)) errors.push(`${tag}: missing sill profile.`);
@@ -104,5 +104,5 @@ export function validateContent({ cars = CAR_CONTENT, liveries = LIVERY_OPTIONS,
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const errors = validateContent();
   if (errors.length) { console.error(`Content validation failed:\n- ${errors.join('\n- ')}`); process.exitCode = 1; }
-  else console.log(`Content OK: ${CAR_CONTENT.length} cars, ${LIVERY_OPTIONS.length} liveries, ${PAINT_COLORS.length} paint swatches; revision ${CONTENT_REVISION}. Run the TypeScript build and browser checklist as well.`);
+  else console.log(`Content OK: ${ACTIVE_CAR_CONTENT.length} active cars, ${LIVERY_OPTIONS.length} liveries, ${PAINT_COLORS.length} paint swatches; revision ${CONTENT_REVISION}. Run the TypeScript build and browser checklist as well.`);
 }

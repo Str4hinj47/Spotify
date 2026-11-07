@@ -12,7 +12,7 @@ try {
  const data=await page.evaluate(async()=>{
   const g=window.__overtake, {spinWheels}=await import('/src/wheels.ts');
   let output={};
-  for(const id of ['golf','mercedes','audi','mustang','ferrari','r8','challenger','bmw-m3','skyline','aventador','aventador-game','bugatti']){
+  for(const id of ['golf','mercedes','audi','mustang','ferrari','r8','challenger','bmw-m3','skyline','aventador-game']){
    g.library.setCustomization(id,{rim:'rim-1',rimColor:'#ddaa33',tireWidth:'wide'});
    const car=g.library.create(id,{player:true}),traffic=g.library.create(id),w=car.userData.wheels;
    spinWheels(car,1);
@@ -27,13 +27,13 @@ try {
  // Reset the test library before checking the real garage UI and persistence.
  await page.reload();await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
  await page.click('#menu-garage');await page.click('[data-garage-tab=style]');await page.click('#btn-customize');await page.click('[data-workshop-tab=wheels]');
- await page.click('[aria-label="Rim design"] button[data-value="rim-10"]');
+ await page.selectOption('#custom-rim','rim-10');
  await page.locator('#custom-rim-color').fill('#1a78c0');
- await page.click('[aria-label="Tire width"] button[data-value="wide"]');
+ await page.selectOption('#custom-tire-width','wide');
  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('overtake-customization-v1')).golf);
  assert.equal(saved.rim,'rim-10');assert.equal(saved.rimColor,'#1a78c0');assert.equal(saved.tireWidth,'wide');
  await page.reload();await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.click('#menu-garage');await page.click('[data-garage-tab=style]');await page.click('#btn-customize');await page.click('[data-workshop-tab=wheels]');
  assert.equal(await page.locator('#custom-rim').inputValue(),'rim-10');assert.equal(await page.locator('#custom-rim-color').inputValue(),'#1a78c0');assert.equal(await page.locator('#custom-tire-width').inputValue(),'wide');
  await page.setViewportSize({width:390,height:844});assert.ok(await page.locator('#custom-rim-color').isVisible());
- assert.deepEqual(errors,[]);console.log('Wheel customization passed for 12 cars, all 10 designs, garage persistence and mobile controls.');
+ assert.deepEqual(errors,[]);console.log('Wheel customization passed for 10 cars, all 10 designs, garage persistence and mobile controls.');
 } finally {await browser.close()}

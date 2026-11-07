@@ -21,7 +21,7 @@ try {
  assert.equal(await page.evaluate(()=>window.__overtake.traffic.filter(t=>t.dir===1).length),7);
  await page.evaluate(()=>window.__overtake.pause()); await page.click('#btn-quit');
  await page.click('#menu-garage'); assert.equal(await page.locator('[data-car=camry]').count(),0);
- for(const id of ['bmw-m3','skyline','aventador','aventador-game']) {
+ for(const id of ['bmw-m3','skyline','aventador-game']) {
    await page.click(`[data-car="${id}"]`); await page.click('[data-garage-tab=style]'); await page.click('#btn-customize');
    assert.ok(await page.locator('[data-workshop-tab=body]').isEnabled()); await page.click('[data-workshop-tab=body]'); await page.click('[data-workshop-part=front]'); await page.click('[data-part-panel=front] button[data-value=street]');
    const state=await page.evaluate(()=>{const g=window.__overtake;g.composer.render();return {wheels:g.player.userData.wheels.length,kit:!!g.player.getObjectByName('custom-body-kit')}});

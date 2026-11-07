@@ -274,6 +274,7 @@ export class OvertakeGame {
   private garageZoom = 9.0;
   private garageDragging = false;
   private garageWorkshop = false;
+  private lobbyPreview = false;
   private garageAuto = true;
 
   // Free-driving state (road-relative vehicle model)
@@ -1396,6 +1397,12 @@ export class OvertakeGame {
     this.scene.add(this.player);
   }
 
+  setLobbyPreview(open: boolean) {
+    this.lobbyPreview = open;
+    if (open) { this.garageAuto = true; this.garageDragging = false; this.garagePitch = .22; this.garageZoom = 7.6; }
+    if (this.mode === 'garage') this.updateCamera(0);
+  }
+
   setGarageWorkshop(open: boolean) {
     this.garageWorkshop = open;
     if (this.mode === 'garage') this.updateCamera(0);
@@ -2008,17 +2015,18 @@ export class OvertakeGame {
 
   private updateCamera(dt: number) {
     if (this.mode === 'garage') {
-      if (this.garageAuto && !this.garageDragging) this.garageAngle += dt * 0.05;
+      if (this.garageAuto && !this.garageDragging) this.garageAngle += dt * (this.lobbyPreview ? .20 : .05);
       // On phones the controls occupy the lower half; lift the preview into
       // the clear upper area, in both the showroom and workshop.
-      const compactGarage = window.innerWidth <= 700 && (window.innerHeight > window.innerWidth || this.garageWorkshop);
-      const r = compactGarage ? Math.max(this.garageZoom, 10.5) : this.garageZoom;
+      const compactGarage = !this.lobbyPreview && window.innerWidth <= 700 && (window.innerHeight > window.innerWidth || this.garageWorkshop);
+      const compactLobby = this.lobbyPreview && window.innerWidth <= 700 && window.innerHeight > window.innerWidth;
+      const r = compactGarage ? Math.max(this.garageZoom, 10.5) : compactLobby ? 10 : this.garageZoom;
       const y = 0.7 + Math.sin(this.garagePitch) * r;
       const horiz = Math.cos(this.garagePitch) * r;
       this.camera.position.set(Math.sin(this.garageAngle) * horiz, y, Math.cos(this.garageAngle) * horiz);
       this.camera.lookAt(0, 0.65, 0);
-      this.camera.fov = compactGarage ? 50 : 42;
-      if (compactGarage) this.camera.setViewOffset(window.innerWidth, window.innerHeight, 0, window.innerHeight * 0.2, window.innerWidth, window.innerHeight);
+      this.camera.fov = compactGarage || compactLobby ? 50 : 42;
+      if (compactGarage || compactLobby) this.camera.setViewOffset(window.innerWidth, window.innerHeight, 0, window.innerHeight * (compactLobby ? .03 : .2), window.innerWidth, window.innerHeight);
       else this.camera.clearViewOffset();
       this.camera.updateProjectionMatrix();
       this.atmosphere.sky.position.copy(this.camera.position);

@@ -144,16 +144,18 @@ paid gems to convert to coins or credits, or premium rewards to grant performanc
 The showroom is ordered from lower to higher **game performance rarity**, not
 real-world production scarcity or market value. A player spends credits to
 unlock one car from every lower numbered tier before buying a higher tier.
-The two Aventador assets are equal, tier-10 alternatives; neither requires the
-other. Existing owned cars, upgrades, cosmetics and selected cars are kept even
-if an older save has gaps. A gap must be filled before a new higher-tier buy,
+The game-ready Aventador is the tier-10 car. The detailed Aventador and Chiron
+are retired; their IDs and old run records remain valid in saves. Owners of the
+detailed Aventador receive the surviving version with their upgrades and tunes,
+and Chiron owners receive a one-time credit refund. Other owned cars, upgrades
+and cosmetics are kept even if an older save has gaps. A gap must be filled before a new higher-tier buy,
 but an already-owned car can still be driven. Dev preview doesn't bypass the
-purchase order. The Chiron is tier 11, after either Aventador; the Camry, 560 SEL and Range Rover are traffic-only and are not in the unlock path.
+purchase order. The Camry, 560 SEL and Range Rover are traffic-only and are not in the unlock path.
 
 The coarse ordering is an estimate, not an exact comparison: the models don't all
 specify year, engine or trim. It draws on representative 2003 GTI 1.8T,
 Challenger R/T, R34 GT-R, Mustang GT, an E92-based race M3, RS 6, S 63,
-R8 V10, 458 Italia, LP 700-4 Aventador and Chiron. Acceleration, top speed and the race
+R8 V10, 458 Italia and LP 700-4 Aventador. Acceleration, top speed and the race
 car's track capability all influence placement; close entries can overlap.
 In-game speeds and acceleration are deliberately scaled to the game, not exact
 manufacturer specifications. Examples of reference figures:

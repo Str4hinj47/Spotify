@@ -1,5 +1,5 @@
 import '@fontsource-variable/inter';
-import { createIcons, Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, Cloud, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor } from 'lucide';
+import { createIcons, Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, Cloud, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor, Settings } from 'lucide';
 import { ModelLibrary } from './models';
 import { OvertakeGame, CAMERA_ORDER, type Mode, type HudState, type RunStats, type CameraPreset } from './game';
 import { RUN_MODES, eventFor, HIGH_SPEED_THRESHOLD, type RunMode } from './run.mjs';
@@ -15,9 +15,10 @@ import { BODY_FITS } from './body-kits';
 import { LIVERIES } from './livery';
 import { performanceStats } from './car-performance.mjs';
 import { LIVERY_OPTIONS } from './content/cosmetics.mjs';
+import { CAR_CONTENT } from './content/cars.mjs';
 import { BODY_PARTS, DEFAULT_CUSTOMIZATION, sanitizeCustomization, sanitizeCustomizations, type Customization } from './customization.mjs';
 
-createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, Cloud, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor } });
+createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, Cloud, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor, Settings } });
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
@@ -49,12 +50,13 @@ function initializeEconomy() {
 }
 function loadPaints() {
   try {
-    paints = sanitizePaints(JSON.parse(localStorage.getItem('overtake-paints') || '{}'), CARS.map((c) => c.id));
+    paints = sanitizePaints(JSON.parse(localStorage.getItem('overtake-paints') || '{}'), CAR_CONTENT.map((c) => c.id));
+    if (!paints['aventador-game'] && paints.aventador) paints['aventador-game'] = paints.aventador;
   } catch { paints = {}; }
 }
 
 function loadCustomizations() {
-  try { customizations = sanitizeCustomizations(JSON.parse(localStorage.getItem('overtake-customization-v1') || '{}'), CARS.map(c => c.id)); }
+  try { customizations = sanitizeCustomizations(JSON.parse(localStorage.getItem('overtake-customization-v1') || '{}'), CAR_CONTENT.map(c => c.id)); if (!customizations['aventador-game'] && customizations.aventador) customizations['aventador-game'] = { ...customizations.aventador }; }
   catch { customizations = {}; }
 }
 function currentCustomization() { return sanitizeCustomization(customizations[selected] ?? DEFAULT_CUSTOMIZATION); }
@@ -69,7 +71,7 @@ function syncWorkshopChoices() {
       group.setAttribute('role', 'group');
       group.setAttribute('aria-label', select.getAttribute('aria-label') || 'Options');
       select.parentElement!.after(group);
-      select.hidden = true;
+      select.hidden = false;
     }
     const options = Array.from(select.options);
     const signature = options.map(option => `${option.value}:${option.text}`).join('|');
@@ -93,7 +95,9 @@ function syncWorkshopChoices() {
       const option = options.find(o => o.value === value)!;
       const price = tunePrice(key, value);
       const owned = progress.tunes[selected]?.includes(`${key}:${value}`);
-      button.textContent = `${option.text}${price ? progress.dev ? ' · DEV' : owned ? ' · Owned' : ` · ${fmt(price)} gems` : ''}`;
+      const base = option.dataset.baseLabel ?? option.text; option.dataset.baseLabel = base;
+      const label = `${base}${price ? progress.dev ? ' · DEV' : owned ? ' · Owned' : ` · ${fmt(price)} gems` : ''}`;
+      option.textContent = label; button.textContent = label;
       button.disabled = select.disabled;
       button.setAttribute('aria-pressed', String(button.dataset.value === select.value));
     });
@@ -259,10 +263,10 @@ function syncProgressionUI() {
   ($('paint-reset') as HTMLButtonElement).disabled = !available;
   const startLabel = available ? game.getRunMode() === 'ranked' ? 'Start ranked attack' : 'Start engine' : 'Buy car to drive';
   $('start-label').textContent = startLabel;
-  $('menu-start-label').textContent = startLabel.toUpperCase();
+  $('menu-start-label').textContent = available ? 'PLAY' : 'LOCKED';
   ($('menu-start') as HTMLButtonElement).disabled = !available;
   ($('menu-mobile-start') as HTMLButtonElement).disabled = !available;
-  $('menu-mobile-start-label').textContent = startLabel.toUpperCase();
+  $('menu-mobile-start-label').textContent = available ? 'PLAY' : 'LOCKED';
   $('menu-car-name').textContent = `${getCar(selected).maker} ${getCar(selected).name}`;
   $('menu-car-status').textContent = owned ? 'OWNED' : progress.dev ? 'DEV ACCESS' : 'NOT OWNED';
   document.querySelectorAll<HTMLButtonElement>('.car-card').forEach(card => {
@@ -301,7 +305,9 @@ function setMode(m: Mode) {
   if (m !== 'gameover') hidePromotion();
   audio.setActive(m === 'driving');
   if (m === 'garage') { syncModeUI(); syncProgressionUI(); syncRankUI(); syncSeasonPassUI(); }
+  game.setLobbyPreview(m === 'garage' && frontScreen === 'menu');
   $('main-menu').classList.toggle('hidden', m !== 'garage' || frontScreen !== 'menu');
+  if (m !== 'garage') closeLobbyDrawer();
   $('garage').classList.toggle('hidden', m !== 'garage' || frontScreen !== 'garage');
   $('hud').classList.toggle('hidden', m === 'garage');
   $('pause').classList.toggle('hidden', m !== 'paused');
@@ -313,6 +319,7 @@ function setMode(m: Mode) {
   $('btn-world').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
   closeSoundPanel();
   closeGraphicsPanel();
+  $('settings-actions').classList.add('hidden'); $('btn-settings-menu').setAttribute('aria-expanded', 'false');
   if (m !== 'driving' && m !== 'paused') {
     $('camera-panel').classList.add('hidden');
     $('world-panel').classList.add('hidden');
@@ -323,6 +330,7 @@ function showFrontScreen(screen: 'menu' | 'garage') {
   if (game.mode !== 'garage') return;
   if (screen === 'menu' && !$('custom-panel').classList.contains('hidden')) showCustomization(false);
   frontScreen = screen;
+  if (screen === 'garage') updateCarPage(true);
   setMode('garage');
 }
 
@@ -392,7 +400,7 @@ function syncModeUI() {
   if (!game) return;
   const mode = game.getRunMode();
   const records = game.getRecords();
-  $('menu-ranked').classList.toggle('hidden', mode !== 'ranked');
+  if (mode !== 'ranked') $('menu-ranked').classList.add('hidden');
   $('menu-selected-mode').textContent = RUN_MODES[mode].label.toUpperCase();
   const info = rankFor(game.getRanked().points);
   $('mode-best-ranked').textContent = info.rank.name;
@@ -439,14 +447,14 @@ function syncMenuStats() {
   $('menu-best-score').textContent = fmt(Math.max(0, ...currentBests.map(b => b.bestScore)));
   $('menu-longest').innerHTML = `${(Math.max(0, ...currentBests.map(b => b.bestDistance)) / 1000).toFixed(1)} <small>KM</small>`;
   $('menu-runs').textContent = fmt(buckets.reduce((sum, b) => sum + b.runs, 0) + ranked.attempts);
-  $('menu-owned').textContent = `${progress.owned.length} / ${CARS.length}`;
+  $('menu-owned').textContent = `${CARS.filter(car => earnedCar(progress, car.id)).length} / ${CARS.length}`;
   $('menu-rank-badge').innerHTML = rankBadge(info.index);
   $('menu-rank-name').textContent = info.rank.name;
   $('menu-rank-points').textContent = `${fmt(info.points)} RP`;
 }
 function showGarageTab(tab: string) {
   document.querySelectorAll<HTMLButtonElement>('[data-garage-tab]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.garageTab === tab)));
-  for (const section of ['upgrades', 'style']) $('garage-' + section).classList.toggle('hidden', section !== tab);
+  for (const section of ['stats', 'upgrades', 'style']) $('garage-' + section).classList.toggle('hidden', section !== tab);
 }
 function syncSeasonPassUI() {
   const pass=currentSeasonPass(game.getProgression().seasonPass), max=SEASON_TIERS[SEASON_TIERS.length-1].xp;
@@ -472,6 +480,7 @@ function syncSeasonPassUI() {
     const status=document.createElement('b');status.textContent=pass.premium && tier.xp<=pass.xp?'UNLOCKED':tier.xp<=pass.xp?'NEEDS PREMIUM':`${tier.xp} XP`;
     item.append(title,status);return item;
   }));
+  updateRewardPage();
 }
 
 function syncRankUI() {
@@ -792,14 +801,71 @@ function bindHold(id: string, name: 'throttle' | 'brake' | 'left' | 'right' | 'h
   el.addEventListener('pointercancel', up);
 }
 
+let modePage = 0, rewardPage = 0, carPage = 0;
+function carsPerPage() { return window.innerWidth <= 700 && window.innerHeight > window.innerWidth ? 3 : window.innerHeight <= 500 ? 3 : 5; }
+function updateCarPage(focusSelected=false) {
+  const cards=[...document.querySelectorAll<HTMLButtonElement>('.car-card')], count=carsPerPage(), pages=Math.ceil(cards.length/count);
+  if (focusSelected) carPage=Math.floor(Math.max(0,cards.findIndex(card=>card.dataset.car===selected))/count);
+  carPage=Math.max(0,Math.min(pages-1,carPage));
+  cards.forEach((card,i)=>card.classList.toggle('hidden',Math.floor(i/count)!==carPage));
+  $('car-page-label').textContent=`${carPage+1} / ${pages}`;
+  ($('car-prev') as HTMLButtonElement).disabled=carPage===0; ($('car-next') as HTMLButtonElement).disabled=carPage===pages-1;
+}
+function updateModePage() {
+  const cards = [...document.querySelectorAll<HTMLButtonElement>('.mode-card')];
+  const perPage = 6, pages = Math.ceil(cards.length / perPage);
+  modePage = Math.max(0, Math.min(pages - 1, modePage));
+  cards.forEach((card, i) => card.classList.toggle('hidden', Math.floor(i / perPage) !== modePage));
+  $('mode-page-label').textContent = `${modePage + 1} / ${pages}`;
+  ($('mode-prev') as HTMLButtonElement).disabled = modePage === 0;
+  ($('mode-next') as HTMLButtonElement).disabled = modePage === pages - 1;
+}
+function updateRewardPage() {
+  const perPage=2, pages=Math.ceil(SEASON_TIERS.length/perPage);
+  rewardPage=Math.max(0,Math.min(pages-1,rewardPage));
+  for(const id of ['season-reward-list','season-premium-list'])
+    [...$(id).children].forEach((item,i)=>item.classList.toggle('hidden',Math.floor(i/perPage)!==rewardPage));
+  $('reward-page-label').textContent=`${rewardPage+1} / ${pages}`;
+  ($('reward-prev') as HTMLButtonElement).disabled=rewardPage===0;
+  ($('reward-next') as HTMLButtonElement).disabled=rewardPage===pages-1;
+}
+function showRankDrawer(open: boolean) {
+  $('menu-drive').classList.toggle('hidden',open);
+  document.querySelector('.mode-pager')!.classList.toggle('hidden',open);
+  $('menu-ranked').classList.toggle('hidden',!open);
+  $('drawer-title').textContent=open ? 'RANKED ATTACK' : 'GAME MODES';
+}
+function closeLobbyDrawer() { $('lobby-drawer').classList.add('hidden'); }
+function openLobbyDrawer(page: 'modes' | 'stats' | 'season', rank=false) {
+  $('lobby-drawer').classList.remove('hidden');
+  for(const name of ['modes','stats','season']) $('drawer-'+name).classList.toggle('hidden',name!==page);
+  $('drawer-title').textContent=page==='modes'?'GAME MODES':page==='stats'?'YOUR PROFILE':'SEASON PASS';
+  if(page==='modes') { updateModePage(); showRankDrawer(rank); }
+  if(page==='season') updateRewardPage();
+  $('drawer-close').focus();
+}
 function bindUI() {
+  $('car-prev').addEventListener('click',()=>{carPage--;updateCarPage()});
+  $('car-next').addEventListener('click',()=>{carPage++;updateCarPage()});
+  window.addEventListener('resize',()=>updateCarPage(true));
+  $('open-modes').addEventListener('click',()=>openLobbyDrawer('modes'));
+  $('open-stats').addEventListener('click',()=>openLobbyDrawer('stats'));
+  $('open-season').addEventListener('click',()=>openLobbyDrawer('season'));
+  $('drawer-close').addEventListener('click',closeLobbyDrawer);
+  $('lobby-drawer').addEventListener('click',e=>{ if(e.target === $('lobby-drawer')) closeLobbyDrawer(); });
+  $('rank-back-to-modes').addEventListener('click',()=>showRankDrawer(false));
+  $('mode-prev').addEventListener('click',()=>{modePage--;updateModePage()});
+  $('mode-next').addEventListener('click',()=>{modePage++;updateModePage()});
+  $('reward-prev').addEventListener('click',()=>{rewardPage--;updateRewardPage()});
+  $('reward-next').addEventListener('click',()=>{rewardPage++;updateRewardPage()});
+  $('btn-settings-menu').addEventListener('click',()=>{const panel=$('settings-actions');const open=panel.classList.toggle('hidden')===false;$('btn-settings-menu').setAttribute('aria-expanded',String(open));});
   $('btn-start').addEventListener('click', startRun);
   $('menu-start').addEventListener('click', startRun);
   $('menu-mobile-start').addEventListener('click', startRun);
   $('menu-mobile-garage').addEventListener('click', () => showFrontScreen('garage'));
   $('menu-garage').addEventListener('click', () => showFrontScreen('garage'));
   $('garage-back').addEventListener('click', () => showFrontScreen('menu'));
-  $('menu-rank-select').addEventListener('click', () => { selectMode('ranked'); $('menu-ranked').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  $('menu-rank-select').addEventListener('click', () => { selectMode('ranked'); openLobbyDrawer('modes', true); });
   $('dev-toggle').addEventListener('click', () => {
     const enabled = !game.getProgression().dev;
     game.setDeveloperMode(enabled);
@@ -812,7 +878,7 @@ function bindUI() {
   });
   $('buy-car').addEventListener('click', () => { if (game.purchaseCar(selected)) { syncProgressionUI(); audio.click(); } });
   document.querySelectorAll<HTMLButtonElement>('.mode-card').forEach((b) => {
-    b.addEventListener('click', () => selectMode(b.dataset.mode as RunMode));
+    b.addEventListener('click', () => { const mode=b.dataset.mode as RunMode; selectMode(mode); if (mode === 'ranked') showRankDrawer(true); else closeLobbyDrawer(); });
   });
   $('btn-pause').addEventListener('click', togglePause);
   $('btn-camera').addEventListener('click', toggleCameraPanel);
@@ -1008,6 +1074,7 @@ function bindUI() {
   };
   window.addEventListener('keydown', (e) => {
     if (($('rank-road') as HTMLDialogElement).open) return;
+    if (e.key === 'Escape' && !$('lobby-drawer').classList.contains('hidden')) { e.preventDefault(); closeLobbyDrawer(); return; }
     const target = e.target as HTMLElement | null;
     if (e.key === 'Escape' && !$('graphics-panel').classList.contains('hidden')) {
       e.preventDefault(); closeGraphicsPanel(); $(game.mode === 'paused' ? 'btn-pause-graphics' : 'btn-graphics').focus(); return;
@@ -1094,7 +1161,7 @@ async function boot() {
 
   try {
     const saved = localStorage.getItem('overtake-car') as CarId | null;
-    if (saved && CARS.some((c) => c.id === saved)) selected = saved;
+    if (saved === 'aventador') selected = 'aventador-game'; else if (saved && CARS.some((c) => c.id === saved)) selected = saved;
   } catch { /* ignore */ }
 
   game = new OvertakeGame($('game') as HTMLCanvasElement, library, {
@@ -1110,6 +1177,7 @@ async function boot() {
   syncSoundUI();
 
   bindUI();
+  updateCarPage(true);
   setMode('garage');
   $('loading').classList.add('hidden');
   $('topbar').classList.remove('hidden');

@@ -5,6 +5,7 @@ import { sanitizeCustomizations } from './customization.mjs';
 import { emptyRecords, sanitizeRecords } from './records.mjs';
 import { emptyRanked, sanitizeRanked, RANKED_STORAGE_KEY } from './ranked.mjs';
 import { CONTENT_REVISION } from './content/version.mjs';
+import { CAR_CONTENT } from './content/cars.mjs';
 
 const CARS = Object.keys(CAR_PRICES);
 export const CLOUD_BACKUP_KEY = 'overtake-cloud-restore-backup-v1';
@@ -39,9 +40,13 @@ export function normalizeSnapshot(raw) {
     if (typeof value === 'number' && !Number.isFinite(value)) throw new Error('Cloud save contains invalid records.');
     return value;
   });
-  const result = { schema: 1, contentRevision: CONTENT_REVISION, progression, paints: sanitizePaints(raw.paints, CARS),
-    customizations: sanitizeCustomizations(raw.customizations, CARS),
-    selectedCar: CARS.includes(raw.selectedCar) ? raw.selectedCar : 'golf', records: JSON.parse(text),
+  const allIds = CAR_CONTENT.map(car => car.id);
+  const paints = sanitizePaints(raw.paints, allIds), customizations = sanitizeCustomizations(raw.customizations, allIds);
+  if (!paints['aventador-game'] && paints.aventador) paints['aventador-game'] = paints.aventador;
+  if (!customizations['aventador-game'] && customizations.aventador) customizations['aventador-game'] = { ...customizations.aventador };
+  const selectedCar = raw.selectedCar === 'aventador' ? 'aventador-game' : CARS.includes(raw.selectedCar) ? raw.selectedCar : 'golf';
+  const result = { schema: 1, contentRevision: CONTENT_REVISION, progression, paints,
+    customizations, selectedCar, records: JSON.parse(text),
     ranked: raw.ranked == null ? null : sanitizeRanked(raw.ranked) };
   boundedJson(result);
   return result;

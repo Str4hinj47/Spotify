@@ -2,7 +2,7 @@ import { chromium as pw } from '@playwright/test';
 import chromium from '@sparticuz/chromium';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { CAR_CONTENT } from '../src/content/cars.mjs';
+import { ACTIVE_CAR_CONTENT } from '../src/content/cars.mjs';
 const browser=await pw.launch({executablePath:await chromium.executablePath(),headless:true,args:chromium.args.filter(a=>a!=='--single-process').concat(['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox']),env:{...process.env,LD_LIBRARY_PATH:`/home/user/.local/lib/chromium-deps:${process.env.LD_LIBRARY_PATH||''}`}});
 const errors=[];
 try {
@@ -20,10 +20,10 @@ try {
    const traffic=g.library.create(id),result={id,variant,triangles,nonfinite,parts,names,trafficKit:!!traffic.getObjectByName('custom-body-kit')};out.push(result);disposeBodyKit(kit);
   }
   return out;
- },CAR_CONTENT.map(c=>c.id));
+ },ACTIVE_CAR_CONTENT.map(c=>c.id));
  for(const r of results){assert.equal(r.nonfinite,0,`${r.id}/${r.variant} finite geometry`);assert.ok(r.triangles>5000 && r.triangles<100000,`${r.id}/${r.variant} triangles ${r.triangles}`);assert.ok(r.parts['front-fascia']>1000,`${r.id} front`);assert.ok(r.parts['side-skirt']>3000,`${r.id} skirts`);assert.equal(r.trafficKit,false);assert.ok(r.names.includes('custom-body-kit')===false);}
  await page.click('#menu-garage');
- for(const id of ['golf','mustang','bugatti','aventador-game']) {
+ for(const id of ['golf','mustang','skyline','aventador-game']) {
   await page.evaluate(id=>{const g=window.__overtake;g.library.setCustomization(id,{front:'track',rear:'track',skirts:'track',spoiler:'track',exhaust:'track',hood:'track',roof:'track'});g.setSelectedCar(id);g.garageAuto=false;g.garageZoom=5.8;g.garagePitch=.20;g.garageAngle=Math.PI*.75;g.updateCamera(0);g.composer.render()},id);
   await page.screenshot({path:`test-results/body-polish-${id}-front.png`,timeout:120000});
   await page.evaluate(()=>{const g=window.__overtake;g.garageAngle=.25;g.updateCamera(0);g.composer.render()});await page.screenshot({path:`test-results/body-polish-${id}-rear.png`,timeout:120000});

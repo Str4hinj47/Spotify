@@ -28,6 +28,8 @@
       </div>
       <div class="top-actions">
         <div class="best-pill"><i data-lucide="trophy"></i><span id="best-top">0</span></div>
+        <button id="btn-settings-menu" class="icon-btn" aria-label="Open settings" aria-expanded="false" type="button"><i data-lucide="settings"></i></button>
+        <div id="settings-actions" class="settings-actions hidden">
         <a id="btn-account" class="icon-btn" href="/#account" aria-label="Account and cloud save" title="Account and cloud save"><i data-lucide="cloud"></i></a>
         <button id="btn-sound" class="icon-btn" aria-label="Toggle sound">
           <i data-lucide="volume-2" class="ic-on"></i>
@@ -36,6 +38,7 @@
         <button id="btn-sound-settings" class="icon-btn" aria-label="Sound settings" aria-controls="sound-panel" aria-expanded="false" title="Sound settings"><i data-lucide="sliders-horizontal"></i></button>
         <button id="btn-graphics" class="icon-btn" aria-label="Graphics settings" aria-controls="graphics-panel" aria-expanded="false" title="Graphics settings"><i data-lucide="monitor"></i></button>
         <button id="btn-help" class="icon-btn" aria-label="Help"><i data-lucide="help-circle"></i></button>
+        </div>
         <button id="btn-world" class="icon-btn hidden" aria-label="World settings"><i data-lucide="sun-moon"></i></button>
         <button id="btn-camera" class="icon-btn hidden" aria-label="Toggle camera"><i data-lucide="camera"></i></button>
         <button id="btn-pause" class="icon-btn hidden" aria-label="Pause"><i data-lucide="pause"></i></button>
@@ -67,19 +70,24 @@
       <p class="sound-hint">Settings apply immediately and are saved on this device. Lower scenery and resolution if performance is slow; hardware limits may reduce resolution.</p>
     </section>
 
-    <!-- Main menu: navigation, challenges and player overview -->
+    <!-- Lobby: the selected 3D car is the stage. Secondary features open on demand. -->
     <section id="main-menu" class="main-menu hidden" aria-label="Main menu">
       <div class="menu-backdrop" aria-hidden="true"></div>
-      <div class="menu-layout">
-        <div class="menu-primary">
-          <div class="menu-intro"><p class="menu-kicker"><span></span> YOUR HIGHWAY. YOUR RULES.</p>
-            <h1>THE ROAD <em>IS YOURS.</em></h1>
-            <p>Pick your drive, build your garage and chase the next great run.</p>
-            <div class="menu-current-car"><span>YOUR RIDE</span><strong id="menu-car-name">Golf MK4 GTI</strong><span id="menu-car-status">OWNED</span></div>
-            <div class="menu-actions"><button id="menu-start" type="button" class="menu-play"><span id="menu-start-label">START ENGINE</span><b>↗</b></button><button id="menu-garage" type="button" class="menu-garage">OPEN GARAGE <span>↗</span></button></div>
-          </div>
-          <div class="menu-section-head"><div><p class="menu-kicker">01 / PICK YOUR CHALLENGE</p><h2>CHOOSE YOUR DRIVE<span>.</span></h2></div><span id="menu-selected-mode" class="menu-selected-mode">ENDLESS</span></div>
-          <div class="menu-mode-wrap">
+      <nav class="lobby-nav" aria-label="Game menu">
+        <button id="menu-garage" type="button"><span class="lobby-icon">▦</span><b>GARAGE</b></button>
+        <button id="open-season" type="button"><span class="lobby-icon">✦</span><b>PASS</b></button>
+        <button id="open-stats" type="button"><span class="lobby-icon">◆</span><b>PROFILE</b></button>
+      </nav>
+      <div class="lobby-car"><span>YOUR RIDE</span><strong id="menu-car-name">Rivet Flux</strong><small id="menu-car-status">OWNED</small></div>
+      <div class="lobby-play">
+        <button id="open-modes" class="lobby-mode" type="button"><span>GAME MODE</span><strong id="menu-selected-mode">ENDLESS</strong><b>CHANGE ›</b></button>
+        <button id="menu-start" class="menu-play" type="button"><span id="menu-start-label">PLAY</span><b>▶</b></button>
+      </div>
+      <div class="menu-mobile-actions hidden"><button id="menu-mobile-start" type="button"><span id="menu-mobile-start-label">PLAY</span></button><button id="menu-mobile-garage" type="button">GARAGE</button></div>
+      <div id="lobby-drawer" class="lobby-drawer hidden" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+        <div class="lobby-drawer-card">
+          <div class="drawer-head"><h2 id="drawer-title">GAME MODES</h2><button id="drawer-close" type="button" aria-label="Close">×</button></div>
+          <div id="drawer-modes" class="drawer-page">
         <div id="menu-drive" class="garage-section">
         <div class="section-kicker">SELECT YOUR DRIVE <span>LOCAL PLAY</span></div>
         <p id="active-mode-info" class="active-mode-info" aria-live="polite"></p>
@@ -113,7 +121,9 @@
           <div id="recent-list"></div>
         </div>
         </div>
+            <div class="mode-pager"><button id="mode-prev" type="button" aria-label="Previous modes">‹</button><span id="mode-page-label"></span><button id="mode-next" type="button" aria-label="Next modes">›</button></div>
         <div id="menu-ranked" class="garage-section ranked-section hidden">
+          <button id="rank-back-to-modes" class="drawer-back" type="button">‹ ALL MODES</button>
           <div class="rank-hero" id="rank-hero">
             <div id="rank-badge" class="rank-badge"></div>
             <div class="rank-hero-copy"><span id="rank-status" class="rank-eyebrow">LOCAL RANKED · TIME ATTACK</span><h2 id="rank-name">Rookie</h2><div class="rank-points"><b id="rank-points">0</b> RP</div><div class="rank-progress"><i id="rank-progress-fill"></i></div><div id="rank-next" class="rank-next"></div></div>
@@ -124,30 +134,26 @@
           <p class="rank-fineprint">Earn RP by meeting the finish time and objective. Crash, timeout, missed objective or quit: −12 RP (floor 0). Your car, upgrades, traffic and weather vary. Local and unverified; Dev runs earn no RP.</p>
         </div>
           </div>
-        </div>
-        <aside class="menu-sidebar" aria-label="Player overview">
+          <div id="drawer-stats" class="drawer-page hidden">
           <section class="menu-info-card player-overview"><div class="menu-card-head"><span>02 / YOUR STATS</span><span class="menu-chip">THIS DEVICE</span></div><h2>YOUR <em>DRIVE.</em></h2>
             <p>Every run is a story. Here's yours so far.</p>
             <div class="menu-stats-grid"><div><b id="menu-best-score">0</b><span>BEST SAVED SCORE</span></div><div><b id="menu-longest">0.0 <small>KM</small></b><span>LONGEST SAVED RUN</span></div><div><b id="menu-runs">0</b><span>RECORDED RUNS</span></div><div><b id="menu-owned">1 / 7</b><span>CARS OWNED</span></div></div>
             <div class="menu-rank-summary"><div id="menu-rank-badge" class="menu-rank-badge"></div><div><span>LOCAL RANK</span><strong id="menu-rank-name">Rookie</strong><small id="menu-rank-points">0 RP</small></div><button id="menu-rank-select" type="button" aria-label="Select Ranked Attack">↗</button></div>
             <p class="menu-footnote">Local, unverified stats. Best score and longest run exclude ranked; daily, weekly and seasonal bests reset. Dev runs and abandoned regular runs aren't recorded.</p>
           </section>
+          </div>
+          <div id="drawer-season" class="drawer-page hidden">
           <section class="menu-info-card season-pass-card" aria-label="Season pass">
             <div class="menu-card-head"><span>SEASON PASS</span><span class="menu-chip" id="season-period">UTC QUARTER</span></div>
             <h2>QUEST <em>REWARDS.</em></h2><p>Complete in-run quests for XP. The seasonal challenge awards 200 XP; other quests award 100 XP.</p>
             <div class="season-pass-progress"><strong id="season-xp">0 / 800 XP</strong><div class="season-pass-bar"><i id="season-xp-fill"></i></div><small id="season-next"></small></div>
             <div class="premium-pass"><strong>PREMIUM · COSMETICS ONLY</strong><p>Unlock a second reward track for 50 gems. Earn gems from quests; buy later and receive every premium tier you already reached. No gameplay boosts.</p><span id="season-wallet">0 gems available</span><button id="season-premium-buy" type="button">UNLOCK PREMIUM · 50 GEMS</button></div>
-            <details class="season-rewards"><summary>VIEW FREE &amp; PREMIUM REWARDS</summary><ol id="season-reward-list"></ol><ol id="season-premium-list"></ol></details>
+            <details class="season-rewards"><summary>VIEW FREE &amp; PREMIUM REWARDS</summary><div class="reward-lists"><ol id="season-reward-list"></ol><ol id="season-premium-list"></ol></div><div class="reward-pager"><button id="reward-prev" type="button">‹</button><span id="reward-page-label"></span><button id="reward-next" type="button">›</button></div></details>
             <p class="menu-footnote">Local, unverified pass · XP and premium access reset each UTC quarter; unlocked rewards stay yours. This track repeats each quarter. Rewards for unowned cars wait in their garage. Quests award 5 gems (10 in Seasonal). Ranked, Ghost and Dev runs have no quest earnings. Real-money checkout is not available.</p>
           </section>
-          <section class="menu-info-card global-overview"><div class="menu-card-head"><span>03 / GLOBAL STATS</span><span class="menu-chip muted">OFFLINE</span></div><h2>THE <em>GRID.</em></h2>
-            <div class="global-placeholder"><span class="global-icon">◎</span><div><strong>Not connected yet</strong><p>Global stats and verified leaderboards aren't available. Your local results are not submitted.</p></div></div>
-            <a href="/#account">ACCOUNT &amp; SAVE OPTIONS <span>↗</span></a>
-          </section>
-          <div class="menu-note">CONCEPT ART · GAMEPLAY IS RENDERED IN 3D</div>
-        </aside>
+          </div>
+        </div>
       </div>
-      <div class="menu-mobile-actions"><button id="menu-mobile-start" type="button"><span id="menu-mobile-start-label">START ENGINE</span><b>↗</b></button><button id="menu-mobile-garage" type="button">GARAGE ↗</button></div>
     </section>
 
     <!-- Garage -->
@@ -155,25 +161,27 @@
       <aside class="car-list panel">
         <div class="panel-title">Garage <span id="car-count" class="count"></span></div>
         <div id="car-cards"></div>
+        <div class="car-pager"><button id="car-prev" type="button" aria-label="Previous cars">‹</button><span id="car-page-label"></span><button id="car-next" type="button" aria-label="Next cars">›</button></div>
       </aside>
       <aside id="car-detail" class="car-detail panel">
         <button id="garage-back" class="garage-back" type="button">← MAIN MENU</button>
-        <div class="maker" id="d-maker">Volkswagen</div>
-        <h1 id="d-name">Golf MK4 GTI</h1>
+        <div class="maker" id="d-maker">Rivet</div>
+        <h1 id="d-name">Flux</h1>
         <div class="class-pill" id="d-class">Hot hatch</div>
         <p id="d-tagline" class="tagline"></p>
         <div class="garage-tabs" role="group" aria-label="Garage sections">
-          <button type="button" aria-pressed="true" data-garage-tab="upgrades">01 <span>Performance</span></button>
-          <button type="button" aria-pressed="false" data-garage-tab="style">02 <span>Style</span></button>
+          <button type="button" aria-pressed="true" data-garage-tab="stats"><span>Stats</span></button>
+          <button type="button" aria-pressed="false" data-garage-tab="upgrades"><span>Upgrades</span></button>
+          <button type="button" aria-pressed="false" data-garage-tab="style"><span>Style</span></button>
         </div>
         <section class="progression" aria-label="Car progression">
           <div class="progression-head"><b id="progress-xp">0 coins · 0 credits · 0 gems</b><button id="dev-toggle" type="button" aria-pressed="false">Dev options: OFF</button></div>
           <div id="progress-next" class="progress-next"></div>
           <button id="buy-car" class="purchase-button hidden" type="button"></button>
           <div id="car-requirement" class="car-requirement" aria-live="polite"></div>
-          <p class="progress-hint">Coins and credits are earned when a non-Dev run ends or you return to the garage. Gems come from quests. Cars unlock in tier order; same-tier variants are alternatives. Each 1,000 points increases your payout per point by 25%, up to 3×. Dev options grant temporary access.</p>
+          <p class="progress-hint">Coins and credits are earned when a non-Dev run ends or you return to the garage. Gems come from quests. Cars unlock in tier order. Each 1,000 points increases your payout per point by 25%, up to 3×. Dev options grant temporary access.</p>
         </section>
-        <div id="garage-upgrades" class="garage-section">
+        <div id="garage-stats" class="garage-section">
         <div class="performance-heading"><span>On-road performance</span><span>DRY ROAD</span></div>
         <dl class="performance-stats" aria-label="In-game performance statistics">
           <div class="performance-stat"><dt>Top speed</dt><dd><span id="stat-speed">—</span><small>km/h</small></dd></div>
@@ -183,6 +191,8 @@
           <div class="performance-stat"><dt>Score bonus</dt><dd><span id="stat-bonus">—</span><small>×</small></dd></div>
         </dl>
         <p class="performance-note">Estimated in-game values on a dry, straight road. Includes equipped upgrades and tires.</p>
+        </div>
+        <div id="garage-upgrades" class="garage-section hidden">
         <div class="upgrade-panel" aria-label="Performance upgrades">
           <div class="paint-head"><span>Performance upgrades</span><span class="count">3 stages</span></div>
           <p class="upgrade-hint">Per stage: engine +8% acceleration / +4% speed · tires +6% grip · brakes +10% braking. Dev uses max stages temporarily.</p>
@@ -210,7 +220,7 @@
       <aside id="custom-panel" class="car-detail custom-panel panel hidden" aria-label="Car customization">
         <div class="custom-heading"><div><div class="custom-kicker">PERSONALIZE YOUR RIDE</div><h2>Car workshop</h2></div><button id="custom-close" class="mini-btn" type="button" aria-label="Close customization">✕</button></div>
         <p class="custom-subtitle"><span id="custom-car-name"></span> · <b id="custom-balance"></b></p>
-        <p id="tune-message" class="custom-note" aria-live="polite">Paint 5 gems per car · Underglow 10 gems · Purchased options can be reused free.</p>
+        <p id="tune-message" class="custom-note" aria-live="polite">Paint 5 · Glow 10 gems</p>
         <div class="custom-views" role="group" aria-label="Preview angle">
           <button type="button" data-custom-view="front">Front</button><button type="button" data-custom-view="side">Side</button><button type="button" data-custom-view="rear">Rear</button>
         </div>
@@ -429,32 +439,14 @@
       <div class="modal wide">
         <h2>How to play</h2>
         <ul class="help-list">
-          <li><b>Drive it yourself:</b> hold <kbd>←</kbd>/<kbd>→</kbd> or <kbd>A</kbd>/<kbd>D</kbd> to steer, <kbd>↑</kbd>/<kbd>W</kbd> for throttle, <kbd>↓</kbd>/<kbd>S</kbd> to brake, <kbd>Space</kbd> for handbrake. The road bends and crests — follow it.</li>
-          <li><b>Graphics:</b> choose scenery detail and render resolution in the top bar or pause menu to balance quality and performance.</li>
-          <li><b>Sound:</b> open Sound settings in the top bar to control score sounds and indicator clicks separately. The speaker button mutes everything.</li>
-          <li><b>Indicators:</b> press <kbd>Q</kbd> for left or <kbd>E</kbd> for right; press again to cancel. Finish an overtake with the signal matching your passing side for <b>+50 points</b> (once per car); the signal cancels automatically. Brake lights brighten when braking.</li>
-          <li><b>Two-way road:</b> your lane is the right one. The left lane carries oncoming traffic. Pull out to overtake, then get back in before you meet a car head-on.</li>
-          <li><b>Overtake</b> slower cars in your lane for points. Close completed overtakes earn a <b>near-miss bonus</b>. Oncoming traffic is a hazard, not an overtake.</li>
-          <li>Chain clean passes to build a <b>combo multiplier</b>, up to ×5.</li>
-          <li><b>Speed bonus:</b> earn 25 points every half second continuously above 200 km/h. Slowing down resets the partial interval; Speed Run also keeps its separate 140 km/h bonus.</li>
-          <li><b>Modes:</b> Endless is survival; Rush and Near Miss are timed score attacks; Time Trial ends at 3 km. Daily and weekly local objectives rotate at UTC boundaries. Traffic and conditions vary. Records stay on this device and are not verified.</li>
-          <li><b>Ranked Attack:</b> choose a scenario and reach the finish within its time limit while meeting its overtake or near-miss objective. Faster finishes award more rank points; crashes, missed objectives, timeouts and quitting cost 12 RP, floored at zero. Dev runs do not count. Rank and results are local and unverified; traffic, upgrades, cars and weather vary.</li>
-          <li><b>Contracts:</b> most runs have three sequential objectives. Daily and weekly runs have one rotating objective and end when it is completed.</li>
-          <li><b>Traffic:</b> cars follow slower leaders and brake instead of stacking. The hazard warning shows the nearest closing threat.</li>
-          <li>Hit a car or the barrier and the run ends. In Rush, the clock can also end the run. Medals are awarded by score.</li>
-          <li>The cars you didn't pick become traffic. Press <kbd>C</kbd> to cycle camera presets (close, chase, far, hood, bumper) or <kbd>V</kbd> for camera settings. In the garage, drag to orbit and scroll to zoom.</li>
-          <li><b>Body workshop:</b> choose car-fitted bumper add-ons, skirts, spoilers and exhaust tips, and pick an underglow color. The choices are cosmetic and saved per car.</li>
-          <li><b>Paint:</b> in the garage, pick a swatch or a custom color for the selected car. Each car remembers its own paint, and traffic uses that color too. <b>Factory</b> resets it.</li>
-          <li><b>World:</b> the road crosses meadow, forest, alpine, desert and outskirts biomes with long cross-fades. A day–night cycle changes the sky, stars, headlights and street lamps. Use the world panel (or <kbd>B</kbd>) to set time, cycle speed, or force clear/rain/snow. Rain and snow reduce grip.</li>
+          <li><b>Drive:</b> arrows or WASD to steer, accelerate and brake. Space is handbrake.</li>
+          <li><b>Pass:</b> overtake traffic safely for points. Close passes and combos score more.</li>
+          <li><b>Signals:</b> Q / E. Signal your passing side for a bonus.</li>
+          <li><b>Speed:</b> earn points every half-second above 200 km/h.</li>
+          <li><b>Camera &amp; pause:</b> C cycles cameras, V opens camera settings, P pauses.</li>
+          <li><b>Rewards:</b> earn coins and credits from runs, and gems from quests.</li>
         </ul>
-        <div class="credits">
-          <b>Model credits</b>
-          <span>Golf — Jay-Artist · Ferrari — RainerS · Semi — ThePefDispenser (CC BY 3.0). Other models are user-provided. Models were modified for the game.</span>
-          <span><a href="./THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener noreferrer">Full third-party notices, credits and licenses</a></span>
-          <span>Vegetation and rocks include modified Poly Haven CC0 models.</span>
-          <span>Engine audio: <b>Engine_Sim</b> by YigitSalihEmecen (MIT), procedural Web Audio engine/gearbox/turbo synthesis.</span>
-          <span>World systems: <b>three.js</b> (MIT), <b>simplex-noise</b> (MIT), <b>maath</b> (MIT), <b>postprocessing</b> (Zlib), <b>Inter</b> (OFL). Rain/snow particle approach adapted from <b>Elemental-Serenity</b> by SahilK-027 (MIT).</span>
-        </div>
+        <div class="credits"><a href="./THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener noreferrer">Model credits and third-party licenses ↗</a></div>
         <button id="btn-close-help" class="primary">Got it</button>
       </div>
     </div>

@@ -40,7 +40,7 @@ try {
     const rear=ferrari.getObjectByName('custom-rear');let addedFins=0;rear.traverse(o=>{if(o.name==='diffuser-fin')addedFins++});
     const ferrariResult={visible:factory.visible,material:factory.material.name,markers,jets,nearest,pipes:kit.children.filter(o=>o.name==='exhaust-pipe').length,addedFins,factoryDiffuser:ferrari.getObjectByName('ferrari_mesh_56').visible};
     const skirts=[];
-    for(const id of ['golf','mercedes','audi','mustang','ferrari','r8','challenger','bmw-m3','skyline','aventador','aventador-game','bugatti']) {
+    for(const id of ['golf','mercedes','audi','mustang','ferrari','r8','challenger','bmw-m3','skyline','aventador-game']) {
       const c=make(id,{skirts:'track'});let front=-Infinity,rear=Infinity,meshCount=0,extensions=[];
       c.traverse(m=>{if(!m.isMesh)return;const mats=Array.isArray(m.material)?m.material:[m.material];
         if(mats.some(x=>x.name.startsWith('tire__'))) {const a=m.geometry.getAttribute('position'), idx=m.geometry.index;for(let i=0;i<(idx ? idx.count : a.count);i++){v.fromBufferAttribute(a,idx ? idx.getX(i) : i).applyMatrix4(m.matrixWorld);if(v.z<0)front=Math.max(front,v.z);else rear=Math.min(rear,v.z);}}

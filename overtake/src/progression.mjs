@@ -1,15 +1,15 @@
 // Local, reset-once economy. Dev access never purchases a car or an upgrade.
-import { CAR_CONTENT } from './content/cars.mjs';
+import { CAR_CONTENT, ACTIVE_CAR_CONTENT } from './content/cars.mjs';
 import { LIVERY_OPTIONS } from './content/cosmetics.mjs';
 import { SEASON_TIERS, PREMIUM_TIERS, PREMIUM_PASS_PRICE, sanitizeSeasonPass, currentSeasonPass } from './season-pass.mjs';
-export const CAR_PRICES = Object.freeze(Object.fromEntries(CAR_CONTENT.map(car => [car.id, car.price])));
+export const CAR_PRICES = Object.freeze(Object.fromEntries(ACTIVE_CAR_CONTENT.map(car => [car.id, car.price])));
 export const UPGRADE_PRICES = Object.freeze({ engine: [700, 1800, 4000], tires: [600, 1600, 3500], brakes: [500, 1300, 3000] });
 export const TUNE_PRICES = Object.freeze({ street: 5, touring: 10, sport: 16, track: 24, flame: 30, carbon: 8, upper: 7, lower: 7, underglow: 10, paint: 5 });
 const MAX = 1_000_000_000;
 const amount = n => typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.min(MAX, Math.floor(n))) : 0;
 const cars = CAR_CONTENT.map(car => car.id);
 const upgradeKeys = Object.keys(UPGRADE_PRICES);
-export function emptyProgression() { return { version: 2, walletVersion: 1, coins: 0, credits: 0, gems: 0, dev: false, owned: ['golf'], upgrades: {}, tunes: {}, seasonPass: null }; }
+export function emptyProgression() { return { version: 2, walletVersion: 1, coins: 0, credits: 0, gems: 0, dev: false, owned: ['golf'], upgrades: {}, tunes: {}, seasonPass: null, retiredChironRefunded: false }; }
 export function sanitizeProgression(raw) {
   const p = emptyProgression();
   if (!raw || typeof raw !== 'object' || raw.version !== 2) return p;
@@ -17,6 +17,7 @@ export function sanitizeProgression(raw) {
   if (raw.walletVersion === 1) { p.coins=amount(raw.coins); p.credits=amount(raw.credits); p.gems=amount(raw.gems); }
   else { const legacy=amount(raw.money); p.coins=legacy; p.credits=legacy; p.gems=Math.ceil(legacy/50); }
   p.dev = raw.dev === true;
+  p.retiredChironRefunded = raw.retiredChironRefunded === true;
   p.seasonPass = sanitizeSeasonPass(raw.seasonPass);
   if (Array.isArray(raw.owned)) p.owned = ['golf', ...cars.filter(id => id !== 'golf' && raw.owned.includes(id))];
   for (const id of cars) {
@@ -29,6 +30,18 @@ export function sanitizeProgression(raw) {
     const tunes = raw.tunes?.[id];
     if (Array.isArray(tunes)) p.tunes[id] = [...new Set(tunes.filter(key => typeof key === 'string' && /^[a-zA-Z][a-zA-Z0-9_-]{0,63}:[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(key)))].slice(0,256);
   }
+  // Preserve retired ownership and historic upgrades in saves. Owners of the
+  // detailed Aventador receive the surviving version and its earned upgrades.
+  if (p.owned.includes('aventador') && !p.owned.includes('aventador-game')) p.owned = cars.filter(id => id === 'aventador-game' || p.owned.includes(id));
+  if (p.upgrades.aventador) {
+    const old=p.upgrades.aventador, current=p.upgrades['aventador-game'] ?? {engine:0,tires:0,brakes:0};
+    p.upgrades['aventador-game']=Object.fromEntries(upgradeKeys.map(key=>[key,Math.max(old[key],current[key])]));
+  }
+  if (p.tunes.aventador) p.tunes['aventador-game']=[...new Set([...(p.tunes['aventador-game'] ?? []),...p.tunes.aventador])].slice(0,256);
+  // Refund the removed car's purchase once, preserving its history.
+  if (p.owned.includes('bugatti') && !p.retiredChironRefunded) {
+    p.credits=Math.min(MAX,p.credits+55000);p.retiredChironRefunded=true;
+  }
   return p;
 }
 // A run's entire score earns more per point as its final score rises.
@@ -40,11 +53,11 @@ export function awardProgress(p, run) { const before = sanitizeProgression(p); c
 // with gaps. Already owned higher-tier cars remain usable; same-tier variants
 // are alternatives and do not gate one another.
 export function missingCarPrerequisite(p, car) {
-  const target=CAR_CONTENT.find(c=>c.id===car);
+  const target=ACTIVE_CAR_CONTENT.find(c=>c.id===car);
   if (!target) return null;
-  const lowerTiers=[...new Set(CAR_CONTENT.filter(c=>c.unlockTier<target.unlockTier).map(c=>c.unlockTier))].sort((a,b)=>a-b);
+  const lowerTiers=[...new Set(ACTIVE_CAR_CONTENT.filter(c=>c.unlockTier<target.unlockTier).map(c=>c.unlockTier))].sort((a,b)=>a-b);
   for (const tier of lowerTiers) {
-    const choices=CAR_CONTENT.filter(c=>c.unlockTier===tier);
+    const choices=ACTIVE_CAR_CONTENT.filter(c=>c.unlockTier===tier);
     if (!choices.some(c=>earnedCar(p,c.id))) return choices[0].id;
   }
   return null;

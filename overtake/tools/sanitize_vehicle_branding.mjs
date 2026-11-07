@@ -13,7 +13,7 @@ import draco from 'draco3dgltf';
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
   'draco3d.decoder': await draco.createDecoderModule(), 'draco3d.encoder': await draco.createEncoderModule(),
 });
-const allIds = ['golf','mercedes','audi','mustang','ferrari','r8','challenger'];
+const allIds = ['golf','mercedes','audi','mustang','ferrari','r8','challenger','aventador-game','mercedes-560'];
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : allIds;
 if (ids.some(id => !allIds.includes(id))) throw new Error('Unknown vehicle ID');
 const manifestPath = 'public/models/manifest.json';
@@ -81,6 +81,30 @@ for (const id of ids) {
       try { fs.writeFileSync(src,tex.getImage()); execFileSync(python,['tools/redact_mercedes_atlas.py',src,out]); tex.setImage(new Uint8Array(fs.readFileSync(out))); tex.setMimeType('image/png'); }
       finally { fs.rmSync(dir,{recursive:true,force:true}); }
     }
+  }
+  // The classic traffic sedan keeps its hood star, trunk star and lettering
+  // as disconnected chrome components in chassis materials.
+  if (id==='mercedes-560') for (const mesh of root.listMeshes()) for (const p of mesh.listPrimitives()) {
+    const name=p.getMaterial()?.getName();
+    if (name==='other__chassis.0' || name==='other__chassis.1') removed += removeComponents(p, b =>
+      inside(b,-.06,.81,-2.43,.06,.87,-2.36) || // hood ornament
+      inside(b,-.06,.83,2.43,.06,.95,2.49) || // trunk star
+      inside(b,-.65,.83,2.40,-.37,.88,2.46)); // model lettering
+  }
+  // Small colored model badges remain as a separate red material on the wagon.
+  if (id==='audi') for (const mesh of root.listMeshes()) for (const p of [...mesh.listPrimitives()]) {
+    if (p.getMaterial()?.getName()==='rim__RIM BRIGHT_red') { removed += (p.getIndices()?.getCount() ?? 0)/3; mesh.removePrimitive(p); p.dispose(); }
+  }
+  // The game-ready supercar's hood emblem has a translucent glass cover,
+  // merged into the window primitive. Remove only triangles within its bounds.
+  if (id==='aventador-game') for (const mesh of root.listMeshes()) for (const p of mesh.listPrimitives()) {
+    if (p.getMaterial()?.getName() !== 'glass__Glass' || !p.getIndices()) continue;
+    const pos=p.getAttribute('POSITION').getArray(), idx=p.getIndices(), arr=idx.getArray(), kept=[];
+    for (let i=0;i<arr.length;i+=3) {
+      const badge=[arr[i],arr[i+1],arr[i+2]].every(n=>Math.abs(pos[n*3])<.045 && pos[n*3+1]>.47 && pos[n*3+1]<.54 && pos[n*3+2]<-2.23 && pos[n*3+2]>-2.33);
+      if (!badge) kept.push(arr[i],arr[i+1],arr[i+2]); else removed++;
+    }
+    idx.setArray(new arr.constructor(kept));
   }
   if (id==='audi') for(const mesh of root.listMeshes()) for(const p of mesh.listPrimitives()) {
     const name=p.getMaterial()?.getName();

@@ -26,8 +26,8 @@
   "audi": {
     "id": "audi",
     "file": "models/audi.glb",
-    "bytes": 1081560,
-    "triangles": 433071,
+    "bytes": 1083964,
+    "triangles": 433047,
     "dimensions": [
       2.114,
       4.99,
@@ -102,7 +102,7 @@
   "skyline": {
     "id": "skyline",
     "file": "models/skyline.glb",
-    "bytes": 663872,
+    "bytes": 666660,
     "triangles": 229955,
     "dimensions": [
       1.984,
@@ -114,8 +114,8 @@
   "aventador-game": {
     "id": "aventador-game",
     "file": "models/aventador-game.glb",
-    "bytes": 171544,
-    "triangles": 23582,
+    "bytes": 99988,
+    "triangles": 23514,
     "dimensions": [
       2.27,
       4.78,
@@ -135,35 +135,11 @@
     ],
     "source": "Toyota Camry 2002.blend"
   },
-  "aventador": {
-    "id": "aventador",
-    "file": "models/aventador.glb",
-    "bytes": 852572,
-    "triangles": 219993,
-    "dimensions": [
-      2.18,
-      4.781,
-      1.154
-    ],
-    "source": "blendswap.blend"
-  },
-  "bugatti": {
-    "id": "bugatti",
-    "file": "models/bugatti.glb",
-    "bytes": 786348,
-    "triangles": 219982,
-    "dimensions": [
-      2.164,
-      4.54,
-      1.144
-    ],
-    "source": "bugatti.blend"
-  },
   "mercedes-560": {
     "id": "mercedes-560",
     "file": "models/mercedes-560.glb",
-    "bytes": 631472,
-    "triangles": 79948,
+    "bytes": 343864,
+    "triangles": 78653,
     "dimensions": [
       1.955,
       5.16,

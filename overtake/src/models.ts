@@ -256,6 +256,19 @@ export class ModelLibrary {
       separateLampLenses(scene, spec.id);
       const normalized = new THREE.Group();
       normalized.add(scene);
+      // The R34's imported rear panel ends unevenly around the four lenses.
+      // Close those gaps with slim, fitted bezels; leave the actual lens and
+      // indicator geometry unobscured and share them across car instances.
+      if (spec.id === 'skyline') {
+        const material = new THREE.MeshStandardMaterial({ color: 0x252a2e, metalness: .3, roughness: .55 });
+        for (const side of [-1, 1]) for (const [x, y, z, radius] of [[.6625,.846,2.142,.096], [.4623,.8226,2.185,.076]]) {
+          const surround = new THREE.Mesh(new THREE.TorusGeometry(radius, .01, 12, 96), material);
+          surround.name = 'skyline-taillight-surround';
+          surround.position.set(side*x, y, z); surround.rotation.y = side*.34;
+          surround.castShadow = true;
+          normalized.add(surround);
+        }
+      }
       if (spec.id === 'mustang') exposeMustangValanceSignals(normalized);
       rigWheels(normalized, spec.id);
       this.models.set(spec.id, {
@@ -345,6 +358,9 @@ export class ModelLibrary {
           const meshToCar = new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
           const rear = isIndicatorMaterial(id, mat);
           let lamp = rear ? indicatorMaterial(id, mat, meshToCar, signal) : mat.clone() as THREE.MeshStandardMaterial;
+          // The source BMW lens has a pale texture; keep the rear lenses red
+          // while the existing signal shader can still flash amber.
+          if (id === 'bmw-m3' && rear) { lamp.map = null; lamp.emissiveMap = null; lamp.color.set(0xb50008); lamp.emissive.set(0x960008); }
           if (isFrontIndicatorMaterial(id, mat)) lamp = addFrontIndicator(id, lamp, meshToCar, signal);
           if (rear && (mat.name.startsWith('taillight__') || id === 'camry')) {
             if (id === 'camry') lamp.emissive.set(0xff2020);

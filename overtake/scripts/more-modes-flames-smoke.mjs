@@ -21,7 +21,7 @@ try {
  await page.click('#menu-garage');await page.click('[data-garage-tab=style]');await page.click('#btn-customize');await page.click('[data-workshop-tab=paint]');await page.locator('#custom-primary-color').fill('#183050');await page.selectOption('#custom-livery','flames',{force:true});assert.equal(await page.locator('#custom-livery-color').inputValue(),'#ff6a1a');await page.click('[data-custom-view=side]');await page.evaluate(()=>window.__overtake.composer.render());await page.screenshot({path:'test-results/flame-livery.png',timeout:120000});
  await page.locator('#custom-livery-color').fill('#28aaff');await page.evaluate(()=>window.__overtake.composer.render());await page.screenshot({path:'test-results/flame-livery-blue.png',timeout:120000});
  // Exercise the same shader on other fitted body geometries, without saving those previews.
- for (const id of ['skyline','challenger','bugatti']) {
+ for (const id of ['skyline','challenger','aventador-game']) {
   await page.evaluate(id=>{const g=window.__overtake;g.library.setCustomization(id,{...g.library.getCustomization(id),livery:'flames',liveryColor:'#ff6a1a'});g.setSelectedCar(id);g.setGarageView('side');g.composer.render()},id);
   await page.screenshot({path:`test-results/flames-${id}.png`,timeout:120000});
  }

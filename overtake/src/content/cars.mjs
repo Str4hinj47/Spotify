@@ -3,9 +3,9 @@
 export const CAR_CONTENT = /** @type {const} */ ([
   {
     "id": "golf",
-    "name": "Golf MK4 GTI",
-    "maker": "Volkswagen",
-    "tagline": "The hot-hatch original. Small, nimble, always up for a gap.",
+    "name": "Flux",
+    "maker": "Rivet",
+    "tagline": "The spirited hot hatch. Small, nimble, always up for a gap.",
     "klass": "Hot hatch",
     "maxSpeed": 54,
     "accel": 9.0,
@@ -37,8 +37,8 @@ export const CAR_CONTENT = /** @type {const} */ ([
   },
   {
     "id": "challenger",
-    "name": "Challenger",
-    "maker": "Dodge",
+    "name": "Brawler",
+    "maker": "Ironvale",
     "tagline": "Big V8 attitude, built for the open road.",
     "klass": "Muscle car",
     "maxSpeed": 56,
@@ -71,8 +71,8 @@ export const CAR_CONTENT = /** @type {const} */ ([
   },
   {
     "id": "skyline",
-    "name": "Skyline R34 GT-R",
-    "maker": "Nissan",
+    "name": "Specter",
+    "maker": "Kairo",
     "tagline": "A turbocharged icon built for the open road.",
     "klass": "Sport coupe",
     "maxSpeed": 58,
@@ -106,8 +106,8 @@ export const CAR_CONTENT = /** @type {const} */ ([
   },
   {
     "id": "mustang",
-    "name": "Mustang GT",
-    "maker": "Ford",
+    "name": "Stampede",
+    "maker": "Ironvale",
     "tagline": "American muscle. Loud, proud, and hungry for the left lane.",
     "klass": "Muscle car",
     "maxSpeed": 59,
@@ -140,8 +140,8 @@ export const CAR_CONTENT = /** @type {const} */ ([
   },
   {
     "id": "bmw-m3",
-    "name": "M3 GT3",
-    "maker": "BMW",
+    "name": "Circuit GT",
+    "maker": "Boreal",
     "tagline": "Track-bred precision with a wide stance.",
     "klass": "Race car",
     "maxSpeed": 60,
@@ -175,8 +175,8 @@ export const CAR_CONTENT = /** @type {const} */ ([
   },
   {
     "id": "audi",
-    "name": "RS 6 Avant",
-    "maker": "Audi",
+    "name": "Touring R",
+    "maker": "Boreal",
     "tagline": "The long-roof missile. Family wagon, supercar urgency.",
     "klass": "Performance wagon",
     "maxSpeed": 61,
@@ -209,8 +209,8 @@ export const CAR_CONTENT = /** @type {const} */ ([
   },
   {
     "id": "mercedes",
-    "name": "S 63 AMG",
-    "maker": "Mercedes-Benz",
+    "name": "Regent",
+    "maker": "Aster",
     "tagline": "Autobahn royalty. Effortless pace with a velvet hammer.",
     "klass": "Super sedan",
     "maxSpeed": 62,
@@ -243,8 +243,8 @@ export const CAR_CONTENT = /** @type {const} */ ([
   },
   {
     "id": "r8",
-    "name": "R8",
-    "maker": "Audi",
+    "name": "Vector",
+    "maker": "Boreal",
     "tagline": "Mid-engine balance and supercar pace.",
     "klass": "Supercar",
     "maxSpeed": 65,
@@ -277,9 +277,9 @@ export const CAR_CONTENT = /** @type {const} */ ([
   },
   {
     "id": "ferrari",
-    "name": "458 Italia",
-    "maker": "Ferrari",
-    "tagline": "Maranello precision. The fastest way to turn traffic into points.",
+    "name": "Veloce",
+    "maker": "Velara",
+    "tagline": "Sculpted precision. The fastest way to turn traffic into points.",
     "klass": "Supercar",
     "maxSpeed": 66,
     "accel": 11,
@@ -346,8 +346,8 @@ export const CAR_CONTENT = /** @type {const} */ ([
   },
   {
     "id": "aventador-game",
-    "name": "Aventador · Game-ready",
-    "maker": "Lamborghini",
+    "name": "Tempest",
+    "maker": "Velara",
     "tagline": "A game-ready take on the V12 flagship.",
     "klass": "Supercar",
     "maxSpeed": 68,
@@ -402,3 +402,7 @@ export const CAR_CONTENT = /** @type {const} */ ([
     "rarity": "Legendary"
   }
 ]);
+
+// Retired IDs remain in the ledger for old saves and records, but are never loaded or offered.
+export const RETIRED_CAR_IDS = Object.freeze(['aventador', 'bugatti']);
+export const ACTIVE_CAR_CONTENT = CAR_CONTENT.filter(car => !RETIRED_CAR_IDS.includes(car.id));

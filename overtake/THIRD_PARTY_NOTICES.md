@@ -95,7 +95,7 @@ records and verify them before release.
 
 ### Additional Drive vehicles
 
-- **Bugatti Chiron**: modeled by Bob Kimani (Kimz Auto), adapted and optimized
+- **Bugatti Chiron (retired; not included in the current game)**: modeled by Bob Kimani (Kimz Auto), adapted and optimized
   from the user-provided `bugatti_cgtrader_ready.zip`. The creator asks for
   credit; the original README is retained in `public/asset-licenses/bugatti-readme.txt`.
   That README does not specify a redistribution or commercial license. A
@@ -119,7 +119,7 @@ of commercial permission above; confirm rights before redistribution or release.
 - **Nissan Skyline R34 GT-R**, tikiteyboo, [Blend Swap record](https://blendswap.com/blend/21982), [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
 - **Toyota Camry**, abdulsalamnaqeeb, [Blend Swap record](https://blendswap.com/blend/14705), bundled notice states CC BY 3.0 **and a fan-art noncommercial restriction**. The archive is named 2001 but its blend file is named 2002; the game uses no year.
 - **Aventador, game-ready variant**, shadewar, [Blend Swap record](https://blendswap.com/blend/16710), bundled notice states CC BY 3.0 **and a fan-art noncommercial restriction**.
-- **Aventador, detailed variant**, Papa_Dragon, [original record](http://www.blendswap.com/blends/view/72453): bundled notice states CC BY 3.0, while a later [Blend Swap listing](https://blendswap.com/3d/lamborghini) reports CC BY-NC-SA. Verify the applicable license and any separate design/trademark rights before distribution or commercial use.
+- **Aventador, detailed variant (retired; not included in the current game)**, Papa_Dragon, [original record](http://www.blendswap.com/blends/view/72453): bundled notice states CC BY 3.0, while a later [Blend Swap listing](https://blendswap.com/3d/lamborghini) reports CC BY-NC-SA. Verify the applicable license and any separate design/trademark rights before distribution or commercial use.
 
 ## Included software license texts
 
