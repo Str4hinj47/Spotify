@@ -616,3 +616,6 @@ svg { stroke-width: 1.75; }
 .share-status { font-size:11px; min-height:1em; }
 .share-fallback { width:100%; min-height:80px; display:block; user-select:text; touch-action:auto; margin-top:6px; padding:8px; background:#101820; color:#fff; border:1px solid #71827c; }
 @media (max-width: 700px) { .car-detail { width:auto; } .garage-tabs { margin:5px 0 4px; } .garage-tabs button { padding:4px 2px; } .garage-tabs button span { display:inline; margin:0 0 0 4px; } .section-kicker { margin:5px 0; } .local-note { margin:2px 0 6px; } .site-link { display:none; } }
+#btn-share-result { padding: 12px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid var(--border); font-weight:700; }
+#btn-share-result:hover { background:rgba(255,255,255,.12); }
+@media (max-width:700px) { #car-detail .progress-hint { display:none; } #garage-drive { padding-bottom:44px; } }

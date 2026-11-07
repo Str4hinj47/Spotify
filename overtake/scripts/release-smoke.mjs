@@ -1,0 +1,43 @@
+// Landing, mode links, local events, results, sharing fallback, and mobile layout.
+import { chromium as pw } from '@playwright/test';
+import chromium from '@sparticuz/chromium';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const base=process.env.BASE_URL || 'http://localhost:3000';
+const browser=await pw.launch({executablePath:await chromium.executablePath(),headless:true,args:chromium.args.filter(a=>a!=='--single-process').concat(['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox']),env:{...process.env,LD_LIBRARY_PATH:`/home/user/.local/lib/chromium-deps:${process.env.LD_LIBRARY_PATH||''}`}});
+try {
+  fs.mkdirSync('test-results',{recursive:true});
+  const page=await browser.newPage({viewport:{width:1440,height:900}}), errors=[];
+  page.on('pageerror',e=>errors.push(String(e)));
+  await page.goto(base,{waitUntil:'networkidle'});
+  assert.equal(await page.locator('h1').innerText(),'THE ROAD\nIS YOURS.');
+  assert.equal(await page.locator('.daily-tile').getAttribute('href'),'/play.html?mode=daily');
+  await page.screenshot({path:'test-results/landing-desktop.png',fullPage:true});
+  await page.goto(`${base}/play.html?test=1&mode=daily`,{waitUntil:'domcontentloaded',timeout:180000});
+  await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
+  await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
+  assert.equal(await page.locator('[data-mode=daily]').getAttribute('aria-pressed'),'true');
+  assert.match(await page.locator('#daily-desc').innerText(), /UTC/);
+  assert.equal(await page.locator('#garage-upgrades').isVisible(),false);
+  await page.click('[data-garage-tab=upgrades]');assert.equal(await page.locator('#garage-upgrades').isVisible(),true);
+  await page.click('[data-garage-tab=style]');assert.equal(await page.locator('#btn-customize').isVisible(),true);
+  await page.click('[data-garage-tab=drive]');await page.screenshot({path:'test-results/garage-desktop.png',timeout:120000});
+  await page.click('[data-mode=trial]');await page.click('#btn-start');
+  await page.evaluate(()=>{ const g=window.__overtake; g.run.distance=2999; g.speed=25; g.updateDriving(.1); });
+  await page.waitForSelector('#gameover:not(.hidden)',{timeout:10000});
+  assert.match(await page.locator('#final-title').innerText(),/Finished/);
+  assert.equal(await page.locator('#final-best-label').innerText(),'FASTEST TIME');
+  await page.click('#btn-share-result');assert.match(await page.locator('#share-status').innerText(),/copied|Copy|Shared/i);
+  await page.screenshot({path:'test-results/results-desktop.png',timeout:120000});
+  assert.deepEqual(errors,[]);
+  await page.close();
+  const mobile=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+  await mobile.goto(base,{waitUntil:'networkidle'});await mobile.screenshot({path:'test-results/landing-mobile.png',fullPage:true});
+  assert.ok(await mobile.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await mobile.goto(`${base}/play.html?test=1&mode=daily`,{waitUntil:'domcontentloaded',timeout:180000});await mobile.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
+  await mobile.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
+  assert.equal(await mobile.locator('[data-mode=daily]').getAttribute('aria-pressed'),'true');
+  await mobile.screenshot({path:'test-results/garage-mobile.png',timeout:120000});
+  assert.equal(await mobile.locator('#btn-start').count(),1);
+  console.log('Release flows passed');
+} finally {await browser.close();}

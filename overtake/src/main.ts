@@ -143,8 +143,6 @@ function applyCustomization(value: Customization) {
   }
   $('tune-message').textContent = game.getProgression().dev ? 'Dev preview is temporary. Paid options remain yours.' : 'Purchased options can be reused free.';
   library.setCustomization(selected, config);
-  const requestedMode = new URLSearchParams(location.search).get('mode');
-  if (requestedMode && Object.hasOwn(RUN_MODES, requestedMode)) game.setRunMode(requestedMode as RunMode);
   game.setSelectedCar(selected);
   syncCustomizationUI(); syncProgressionUI();
 }
@@ -886,6 +884,8 @@ async function boot() {
     onHud, onEvent, onGameOver, onMode: setMode,
   });
   (window as any).__overtake = game; // test/debug hook
+  const requestedMode = new URLSearchParams(location.search).get('mode');
+  if (requestedMode && Object.hasOwn(RUN_MODES, requestedMode)) game.setRunMode(requestedMode as RunMode);
   game.setSelectedCar(selected);
   updateDetail(selected);
   syncModeUI();
