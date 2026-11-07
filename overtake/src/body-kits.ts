@@ -204,6 +204,51 @@ function wingSupport(x:number,y:number,z:number,height:number) {
   for(let i=0;i<4;i++){let j=(i+1)%4;indices.push(i,j,i+4,j,j+4,i+4);}
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
 }
+/** Measured wheel arch: centre, tyre radius, and the paint surface
+ * half-width sampled every 10 degrees (key = degrees, atan2(dy, dz)). */
+export interface WheelArch { x:number; y:number; z:number; r:number; profile: Map<number, number> }
+
+/** Lofted overfender: a closed 5-point section swept around the measured
+ * arch. Inner edge tucks under the stock lip, crown stands proud of the
+ * panel, outer edge rolls back onto the body — like a real bolt-on flare. */
+function archFlareGeometry(side:number, arch:WheelArch, fallbackX:number, protrusion:number) {
+  const positions:number[]=[], indices:number[]=[], steps=20;
+  const bodyX=(deg:number)=>{ // nearest sampled bins, smoothed
+    let best=fallbackX, weight=0, sum=0;
+    for(const [bin,x] of arch.profile) { const d=Math.abs(bin-deg); if(d<=20) { const w=21-d; sum+=x*w; weight+=w; } }
+    if(weight>0) best=sum/weight;
+    return best;
+  };
+  for(let i=0;i<=steps;i++) {
+    const t=i/steps, angle=-.38+t*(Math.PI+.76); // just below front lip, over the top, down the back
+    const taper=Math.pow(Math.sin(Math.PI*t),.55);
+    const out=protrusion*(.25+.75*taper);
+    const bx=bodyX(Math.round(angle*180/Math.PI));
+    const R=arch.r+.012;
+    const dy=Math.sin(angle), dz=Math.cos(angle);
+    // [radial offset, outward offset] closed section, panel-hugging to proud
+    const section:[number,number][]=[[-.075,-.012],[ -.012,out*.45],[.030,out],[.082,out*.30],[.088,-.014]];
+    for(const [dr,o] of section) positions.push(side*(bx+o), arch.y+dy*(R+dr), arch.z+dz*(R+dr));
+    if(i<steps) for(let j=0;j<5;j++){const a=i*5+j,b=i*5+(j+1)%5,c=(i+1)*5+j,d=(i+1)*5+(j+1)%5;
+      if(side>0)indices.push(a,c,b,b,c,d);else indices.push(a,b,c,b,d,c);}
+  }
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
+}
+/** Thin shaped plate (canards, fins, endplates, flaps) with a bevelled edge. */
+function plateGeometry(points:[number,number][], thickness:number) {
+  const shape=new THREE.Shape();
+  points.forEach(([x,y],i)=> i===0?shape.moveTo(x,y):shape.lineTo(x,y));
+  shape.closePath();
+  const geo=new THREE.ExtrudeGeometry(shape,{depth:thickness,bevelEnabled:true,bevelThickness:.0025,bevelSize:.0025,bevelSegments:1,steps:1});
+  geo.translate(0,0,-thickness/2); return geo;
+}
+function rodBetween(a:THREE.Vector3, b:THREE.Vector3, r:number, mat:THREE.Material, name:string) {
+  const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
+  const mesh=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,8),mat);
+  mesh.name=name; mesh.position.copy(a).addScaledVector(dir,.5);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.normalize());
+  return mesh;
+}
 function box(w:number,h:number,d:number,x:number,y:number,z:number,mat:THREE.Material, group:THREE.Group, name:string) {
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat); mesh.position.set(x,y,z); mesh.name=name; mesh.castShadow=true; group.add(mesh);return mesh;
 }
@@ -216,10 +261,10 @@ function tip(group:THREE.Group, x:number, y:number, z:number, radius:number, met
 }
 
 /** A player-only kit. All geometries/materials are owned by the returned group. */
-export function createBodyKit(id:CarId, config:Customization, paint:number) {
+export function createBodyKit(id:CarId, config:Customization, paint:number, arches: WheelArch[] = []) {
   const f=BODY_FITS[id], g=new THREE.Group(); g.name='custom-body-kit';
-  const body=new THREE.MeshPhysicalMaterial({ color:paint, metalness:.45,roughness:.34,clearcoat:.42,clearcoatRoughness:.22 });
-  const carbon=new THREE.MeshStandardMaterial({ color:0x10171c,metalness:.35,roughness:.44 });
+  const body=new THREE.MeshPhysicalMaterial({ color:paint, metalness:.35,roughness:.38,clearcoat:.5,clearcoatRoughness:.22, envMapIntensity:1.1 });
+  const carbon=new THREE.MeshStandardMaterial({ color:0x141a20,metalness:.35,roughness:.38, envMapIntensity:.9 });
   const woven=createCarbonMaterial();
   const metal=new THREE.MeshStandardMaterial({ color:0xb6c7cf,metalness:.9,roughness:.22 });
   const dark=new THREE.MeshBasicMaterial({ color:0x090d10, side:THREE.DoubleSide });
@@ -230,16 +275,26 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   g.userData.titaniumMaterial=burnt;
   const lampMat=new THREE.MeshStandardMaterial({ color:0xfff6d8, emissive:0xffedb8, emissiveIntensity:2.4, roughness:.3 });
   const rubber=new THREE.MeshStandardMaterial({ color:0x14171a, roughness:.95, metalness:0 });
-  // Bolt-on wide-arch flare (Liberty Walk style): torus arc over the wheel +
-  // visible rivets. Wheel centres sit just outside the sill ends.
-  const flare=(group:THREE.Group, side:number, wheelZ:number, mat:THREE.Material)=>{
-    const arc=new THREE.Mesh(new THREE.TorusGeometry(.40,.055,8,20,Math.PI),mat);
-    arc.name='fender-flare'; arc.position.set(side*(f.sideX+.015),.38,wheelZ); arc.rotation.y=Math.PI/2; arc.scale.set(1,1,1.35); group.add(arc);
-    for(let i=0;i<=4;i++){ const a=Math.PI*(i/4), rivet=new THREE.Mesh(new THREE.SphereGeometry(.014,6,6),metal);
-      rivet.name='flare-rivet'; rivet.position.set(side*(f.sideX+.075),.38+Math.sin(a)*.40,wheelZ+Math.cos(a)*.40); group.add(rivet); }
+  const archFor=(side:number, front:boolean)=>arches.find(a=>(a.x>0)===(side>0) && (front ? a.z<0 : a.z>0));
+  // Bolt-on overfender lofted onto the measured arch, rivets seated on its crown.
+  const flare=(group:THREE.Group, side:number, front:boolean, mat:THREE.Material)=>{
+    const arch=archFor(side,front);
+    const wheelZ=arch?arch.z:(front?f.sillFront-.30:f.sillRear+.30);
+    const geo=arch?archFlareGeometry(side,arch,f.sideX,.058)
+      :archFlareGeometry(side,{x:side*f.sideX,y:.36,z:wheelZ,r:.35,profile:new Map()},f.sideX,.058);
+    const mesh=new THREE.Mesh(geo,mat); mesh.name='fender-flare'; mesh.castShadow=true; group.add(mesh);
+    const R=(arch?arch.r:.35)+.045, cy=arch?arch.y:.36;
+    for(let i=1;i<6;i++){ const a=-.15+(Math.PI+.3)*(i/6), rivet=new THREE.Mesh(new THREE.SphereGeometry(.013,6,6),metal);
+      rivet.name='flare-rivet'; rivet.position.set(side*(f.sideX+.062),cy+Math.sin(a)*R,wheelZ+Math.cos(a)*R); group.add(rivet); }
   };
-  const mudflap=(group:THREE.Group, side:number, wheelZ:number)=>{
-    const flap=box(.05,.30,.22,side*(f.sideX+.02),.19,wheelZ+.44,rubber,group,'mud-flap'); flap.rotation.x=.06;
+  // Shaped rally flap: wide at the top, tapered foot, extruded with a bevel.
+  const mudflap=(group:THREE.Group, side:number, front:boolean)=>{
+    const arch=archFor(side,front), wheelZ=arch?arch.z:(front?f.sillFront-.30:f.sillRear+.30);
+    const geo=plateGeometry([[-.13,.16],[.13,.16],[.10,-.15],[-.10,-.15]],.018);
+    const flap=new THREE.Mesh(geo,rubber); flap.name='mud-flap';
+    flap.rotation.y=Math.PI/2; // shape plane faces sideways, thickness across x
+    flap.position.set(side*(f.sideX-.01),(arch?arch.y:.36)-.10,wheelZ+(arch?arch.r:.35)+.06);
+    flap.rotation.x=.05; flap.castShadow=true; group.add(flap);
   };
   if(config.front!=='stock') {
     const a=reg('front'), track=isTrack('front'), amount=level('front'), panel=config.frontFinish==='carbon'?woven:body;
@@ -262,22 +317,28 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       splitter.name='front-splitter';a.add(splitter);
     }
     if(id==='mercedes') box(f.frontW*1.35,.015,.035,0,f.bumperY+.11,nose+.04,metal,a,'bright-fascia-trim');
-    if(config.front==='touring') box(f.frontW*1.25,.022,.025,0,f.bumperY+.17,nose-.01,metal,a,'touring-chrome-strip');
+    if(config.front==='touring') { const strip=new THREE.Mesh(new THREE.CylinderGeometry(.011,.011,f.frontW*1.25,10),metal);
+      strip.name='touring-chrome-strip'; strip.rotation.z=Math.PI/2; strip.scale.y=1; strip.scale.x=1; strip.position.set(0,f.bumperY+.17,nose-.01); strip.scale.set(1,1,.55); a.add(strip); }
     if(config.front==='rally') { // rally signature: light pod + skid plate + front mud flaps
-      box(f.frontW*1.05,.10,.07,0,f.bumperY+.30,nose-.03,carbon,a,'rally-light-pod');
-      for(const lx of [-.30,-.10,.10,.30]) { const lamp=new THREE.Mesh(new THREE.CylinderGeometry(.048,.048,.03,14),lampMat);
-        lamp.name='rally-lamp'; lamp.rotation.x=Math.PI/2; lamp.position.set(lx*f.frontW*1.4,f.bumperY+.30,nose-.075); a.add(lamp); }
+      const pod=new THREE.Mesh(plateGeometry([[-f.frontW*.52,-.055],[-f.frontW*.44,.055],[f.frontW*.44,.055],[f.frontW*.52,-.055]],.075),carbon);
+      pod.name='rally-light-pod'; // shape is width x height, extruded toward the nose
+      pod.position.set(0,f.bumperY+.31,nose-.045); a.add(pod);
+      for(const lx of [-.30,-.10,.10,.30]) { const lamp=new THREE.Mesh(new THREE.CylinderGeometry(.047,.047,.028,16),lampMat);
+        lamp.name='rally-lamp'; lamp.rotation.x=Math.PI/2; lamp.position.set(lx*f.frontW*1.4,f.bumperY+.31,nose-.09); a.add(lamp);
+        const ring=new THREE.Mesh(new THREE.TorusGeometry(.049,.007,6,18),metal); ring.name='rally-lamp-ring'; ring.position.copy(lamp.position); a.add(ring); }
       const skid=box(f.frontW*1.15,.02,.42,0,f.bumperY-.06,nose-.10,metal,a,'rally-skid-plate'); skid.rotation.x=.18;
-      for(const side of [-1,1]) mudflap(a,side,f.sillFront-.30);
+      for(const side of [-1,1]) mudflap(a,side,true);
     }
     if(config.front==='track') { // time-attack: splitter tie rods + stacked dive planes
-      for(const side of [-1,1]) { const rod=box(.014,.014,.30,side*f.frontW*.55,f.bumperY+.07,nose-.16,metal,a,'splitter-rod'); rod.rotation.x=.5;
-        const dive=box(.18,.012,.08,side*(f.frontW*.90),f.bumperY+.20,nose+.06,carbon,a,'dive-plane'); dive.rotation.set(0,side*-.35,-side*.22); }
+      for(const side of [-1,1]) { a.add(rodBetween(new THREE.Vector3(side*f.frontW*.55,f.bumperY+.13,nose+.02),new THREE.Vector3(side*f.frontW*.60,f.bumperY-.01,nose-.22),.007,metal,'splitter-rod'));
+        const dive=new THREE.Mesh(plateGeometry([[0,0],[.20,.015],[.16,.075],[.02,.055]],.010),carbon); dive.name='dive-plane';
+        dive.position.set(side*(f.frontW*.88),f.bumperY+.20,nose+.05); dive.rotation.set(-.12,side*-.5,-side*.28); a.add(dive); }
     }
-    if(config.front==='wide' && config.skirts!=='wide') for(const side of [-1,1]) flare(a,side,f.sillFront-.30,panel);
-    if(amount>=.8) for(const side of [-1,1]) { // GT/wide/track canards
-      const canard=box(.16,.012,.07,side*(f.frontW*.92),f.bumperY+.12,nose+(id==='golf'||id==='audi'||id==='mustang'?.1:.02),carbon,a,'front-canard');
-      canard.rotation.set(0,side*-.35,-side*.18);
+    if(config.front==='wide' && config.skirts!=='wide') for(const side of [-1,1]) flare(a,side,true,panel);
+    if(amount>=.8) for(const side of [-1,1]) { // GT/wide/track swept canard fins
+      const canard=new THREE.Mesh(plateGeometry([[0,0],[.17,.01],[.13,.06],[.015,.045]],.009),carbon);
+      canard.name='front-canard'; canard.position.set(side*(f.frontW*.90),f.bumperY+.11,nose+(id==='golf'||id==='audi'||id==='mustang'?.10:.02));
+      canard.rotation.set(-.06,side*-.42,-side*.20); canard.castShadow=true; a.add(canard);
     }
   }
   if(config.rear!=='stock') {
@@ -305,25 +366,28 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       const finCount=config.rear==='wide'?7:amount<1?3:5;
       if(amount>=.67) for(let i=0;i<finCount;i++) {
         const x=(i-(finCount-1)/2)*f.rearW*diffuserWidth*1.6/Math.max(1,finCount-1);
-        const fin=box(.016,.09,.24,x,f.bumperY-.015,tail-.025,carbon,a,'diffuser-fin');fin.rotation.x=-.13;
+        const fin=new THREE.Mesh(plateGeometry([[-.13,-.045],[.11,-.055],[.13,.035],[-.11,.045]],.011),carbon);
+        fin.name='diffuser-fin'; fin.rotation.y=Math.PI/2; fin.position.set(x,f.bumperY-.01,tail-.03); fin.rotation.x=-.10; a.add(fin);
       }
     }
   }
   if(config.rear==='rally') { // rear mud flaps behind the driven wheels
     const a=g.getObjectByName('custom-rear') as THREE.Group;
-    if(a) for(const side of [-1,1]) mudflap(a,side,f.sillRear+.30);
+    if(a) for(const side of [-1,1]) mudflap(a,side,false);
   }
   if(config.rear==='touring') {
     const a=g.getObjectByName('custom-rear') as THREE.Group;
-    if(a) box(f.rearW*1.25,.022,.025,0,f.bumperY+.17,f.rearZ+.02,metal,a,'touring-chrome-strip');
+    if(a) { const strip=new THREE.Mesh(new THREE.CylinderGeometry(.011,.011,f.rearW*1.25,10),metal);
+      strip.name='touring-chrome-strip'; strip.rotation.z=Math.PI/2; strip.position.set(0,f.bumperY+.17,f.rearZ+.02); strip.scale.set(1,1,.55); a.add(strip); }
   }
   if(config.rear==='track') {
     const a=g.getObjectByName('custom-rear') as THREE.Group;
-    if(a) for(const side of [-1,1]) box(.02,.16,.30,side*f.rearW*.47,f.bumperY+.02,f.rearZ-.02,carbon,a,'diffuser-endplate');
+    if(a) for(const side of [-1,1]) { const plate=new THREE.Mesh(plateGeometry([[-.15,-.07],[.15,-.085],[.13,.075],[-.13,.06]],.014),carbon);
+      plate.name='diffuser-endplate'; plate.rotation.y=Math.PI/2; plate.position.set(side*f.rearW*.47,f.bumperY+.03,f.rearZ-.04); a.add(plate); }
   }
   if(config.rear==='wide' && config.skirts!=='wide') {
     const a=g.getObjectByName('custom-rear') as THREE.Group;
-    if(a) for(const side of [-1,1]) flare(a,side,f.sillRear+.30,config.rearFinish==='carbon'?woven:body);
+    if(a) for(const side of [-1,1]) flare(a,side,false,config.rearFinish==='carbon'?woven:body);
   }
   if(config.skirts!=='stock') {
     const a=reg('skirts'),amount=level('skirts'),panel=config.skirtsFinish==='carbon'?woven:body;
@@ -332,7 +396,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       if(amount>=.67) {
         const blade=new THREE.Mesh(skirtBlade(id,side,amount),carbon);blade.name='sill-blade';a.add(blade);
       }
-      if(config.skirts==='wide') { flare(a,side,f.sillFront-.30,panel); flare(a,side,f.sillRear+.30,panel); }
+      if(config.skirts==='wide') { flare(a,side,true,panel); flare(a,side,false,panel); }
     }
   }
   if(config.spoiler!=='stock') {
@@ -342,7 +406,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       const lip=new THREE.Mesh(id==='audi'?audiRoofExtension(amount):id==='golf'?golfRoofExtension(amount):roofExtension(f.spoilerW,f.spoilerZ,f.spoilerY,track),panel);
       lip.name='roof-extension';a.add(lip);
     } else if(config.spoiler==='wide') { // Liberty Walk ducktail, not a wing
-      const lip=new THREE.Mesh(deckLip(f,id,1),panel); lip.name='ducktail'; lip.scale.set(1.05,1.5,1.35); a.add(lip);
+      const lip=new THREE.Mesh(deckLip(f,id,1),panel); lip.name='ducktail'; a.add(lip);
     } else if(amount>=.67 || config.spoiler==='rally') {
       const h=(f.character==='luxury'?.13:f.character==='classic'?.19:.23)*(config.spoiler==='rally'?.62:config.spoiler==='sport'?.72:1);
       const chord=(f.character==='luxury'?.24:.34)*(track?1:.8);
@@ -353,7 +417,8 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       }
       const blade=new THREE.Mesh(wingProfile(wingWidth,f.spoilerZ,f.spoilerY+h,chord),panel);blade.name='wing-blade';a.add(blade);
       if(track && f.character!=='luxury') for(const side of [-1,1]) {
-        const end=box(.018,.085,chord*.90,side*(wingWidth-.012),f.spoilerY+h+.012,f.spoilerZ-.06,carbon,a,'wing-endplate');end.rotation.x=-.08;
+        const end=new THREE.Mesh(plateGeometry([[-chord*.48,-.045],[chord*.46,-.055],[chord*.40,.05],[-chord*.42,.055]],.013),carbon);
+        end.name='wing-endplate'; end.rotation.y=Math.PI/2; end.position.set(side*(wingWidth-.012),f.spoilerY+h+.008,f.spoilerZ-.05); end.rotation.x=-.06; a.add(end);
       }
     } else {
       const lip=new THREE.Mesh(deckLip(f,id,amount),panel);lip.name='deck-lip';a.add(lip);

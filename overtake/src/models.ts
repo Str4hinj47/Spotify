@@ -3,7 +3,7 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { CARS, TRUCKS, type CarId, type TrafficId } from './catalog';
 import { indicatorMaterial, isIndicatorMaterial, addFrontIndicator, isFrontIndicatorMaterial, type IndicatorUniforms } from './indicators';
-import { createBodyKit } from './body-kits';
+import { createBodyKit, type WheelArch } from './body-kits';
 import { rigWheels } from './wheels';
 import { createCarbonMaterial, customPaintMaterial } from './livery';
 import { sanitizeCustomization, type Customization } from './customization.mjs';
@@ -144,6 +144,7 @@ export class ModelLibrary {
   private paintOverrides = new Map<CarId, number>();
   private thumbs = new Map<CarId, string>();
   private customization = new Map<CarId, Customization>();
+  private archCache = new Map<CarId, WheelArch[]>();
 
   constructor() {
     const draco = new DRACOLoader();
@@ -282,6 +283,47 @@ export class ModelLibrary {
     }
   }
 
+  /** Wheel centres/radii from the rigged pivots, plus the actual paint
+   * surface half-width sampled every 10 degrees around each arch. Measured
+   * once per car from the source meshes; the body kit lofts onto this. */
+  measureArches(id: CarId): WheelArch[] {
+    const cached = this.archCache.get(id);
+    if (cached) return cached;
+    const root = this.get(id).scene;
+    root.updateMatrixWorld(true);
+    const pivots: THREE.Object3D[] = [];
+    root.traverse(o => { if (o.name.startsWith('wheel_pivot_')) pivots.push(o); });
+    const arches: WheelArch[] = pivots.map(pivot => ({
+      x: pivot.position.x, y: pivot.position.y, z: pivot.position.z,
+      r: (pivot.userData.wheelRadius as number) || .33,
+      profile: new Map<number, number>(),
+    }));
+    const point = new THREE.Vector3();
+    root.traverse(o => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      if (!mats.some(m => m?.name.startsWith('paint__'))) return;
+      const pos = mesh.geometry.getAttribute('position');
+      if (!pos) return;
+      for (let i = 0; i < pos.count; i++) {
+        point.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+        if (Math.abs(point.x) < .3) continue;
+        for (const arch of arches) {
+          if ((point.x > 0) !== (arch.x > 0)) continue;
+          const dy = point.y - arch.y, dz = point.z - arch.z;
+          const dist = Math.hypot(dy, dz);
+          if (dist < arch.r * .82 || dist > arch.r * 1.32) continue;
+          const bin = Math.round(Math.atan2(dy, dz) * 18 / Math.PI) * 10;
+          const prev = arch.profile.get(bin) ?? 0;
+          if (Math.abs(point.x) > prev) arch.profile.set(bin, Math.abs(point.x));
+        }
+      }
+    });
+    this.archCache.set(id, arches);
+    return arches;
+  }
+
   get(id: TrafficId): CarModel {
     const m = this.models.get(id);
     if (!m) throw new Error(`Model ${id} not loaded`);
@@ -412,7 +454,7 @@ export class ModelLibrary {
             const finish=createCarbonMaterial();factoryExhaust.material=finish;customPaintCopies.push(finish);
           }
         }
-        wrapper.add(createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080));
+        wrapper.add(createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080, this.measureArches(id)));
       }
     }
     const wheels: THREE.Group[] = [];
