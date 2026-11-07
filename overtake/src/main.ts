@@ -989,16 +989,24 @@ async function boot() {
   // smaller panels, always-on touch controls, no decorative hero text.
   if (game.isLiteMode()) document.body.classList.add('lite-preview');
   (window as any).__overtake = game; // test/debug hook
-  game.setSelectedCar(selected);
-  updateDetail(selected);
-  syncModeUI();
-  $('best-top').textContent = fmt(game.getBest());
-  syncSoundUI();
-
-  bindUI();
-  setMode('garage');
+  // The game exists and its loop is running: never trap the player behind the
+  // loader for a UI-sync failure. Hide it now, then wire the menus.
   $('loading').classList.add('hidden');
   $('topbar').classList.remove('hidden');
+  let step = 'car select';
+  try {
+    game.setSelectedCar(selected);
+    step = 'car detail'; updateDetail(selected);
+    step = 'mode UI'; syncModeUI();
+    $('best-top').textContent = fmt(game.getBest());
+    step = 'sound UI'; syncSoundUI();
+    step = 'controls'; bindUI();
+    step = 'garage mode'; setMode('garage');
+  } catch (err) {
+    console.error(err);
+    $('loading').classList.remove('hidden');
+    $('load-label').textContent = `Start failed at ${step}: ${err instanceof Error ? err.message : String(err)}`;
+  }
 }
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
