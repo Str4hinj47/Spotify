@@ -32,6 +32,12 @@ try {
   const downloadPromise=page.waitForEvent('download'); await page.click('#btn-download-card'); const download=await downloadPromise; assert.equal(download.suggestedFilename(),'overtake-result.png'); await download.saveAs('test-results/result-card.png');
   await page.screenshot({path:'test-results/results-desktop.png',timeout:120000});
   await page.click('#btn-garage');
+  await page.click('[data-mode=daily]'); await page.click('#btn-start');
+  await page.evaluate(()=>{const g=window.__overtake, c=g.run.contracts[0]; g.run[c.metric]=c.target; g.updateDriving(.01);});
+  await page.waitForSelector('#gameover:not(.hidden)',{timeout:10000});
+  assert.match(await page.locator('#final-title').innerText(),/Challenge complete/i);
+  assert.ok(await page.evaluate(()=>window.__overtake.getRecords().modes.daily.bestScore>0));
+  await page.click('#btn-garage');
   await page.click('#dev-toggle'); await page.click('[data-mode=trial]'); await page.click('#btn-start');
   const previous = await page.evaluate(()=>window.__overtake.getRecords().modes.trial.bestTime);
   await page.evaluate(()=>{ const g=window.__overtake; g.run.distance=2999; g.speed=25; g.updateDriving(.1); });
