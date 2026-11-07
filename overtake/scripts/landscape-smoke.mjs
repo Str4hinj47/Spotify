@@ -12,7 +12,7 @@ try {
   page.on('pageerror', e => errors.push(String(e)));
   await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`);
   await page.waitForSelector('#topbar:not(.hidden)', { timeout: 180000 });
-  await page.click('#btn-start');
+  await page.click('#menu-start');
   await page.evaluate(() => { const g=window.__overtake; cancelAnimationFrame(g.raf); g.clearTraffic(); g.trySpawn=()=>{}; g.setCycleRunning(false); g.setWeatherMode('clear'); });
   fs.mkdirSync('test-results', { recursive: true });
   for (const st of [{name:'day', s:4700, hour:13, snow:0}, {name:'forest', s:1500, hour:16, snow:0}, {name:'snow', s:14400, hour:10, snow:1}, {name:'night', s:7800, hour:23, snow:0}, {name:'rain', s:4700, hour:15, snow:0, rain:1}]) {

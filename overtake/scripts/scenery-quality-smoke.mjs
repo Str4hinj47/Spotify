@@ -19,7 +19,7 @@ try {
   await page.waitForFunction(()=>window.__overtake.detailedScenery.ready,null,{timeout:180000});
   await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
   assert.equal(await page.evaluate(()=>window.__overtake.getSceneryQuality()),'high');
-  await page.click('#btn-start');
+  await page.click('#menu-start');
   await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf);g.clearTraffic();g.trySpawn=()=>{};g.setCycleRunning(false);g.setTimeOfDay(12);g.setWeatherMode('clear');Object.assign(g.weather,{rain:0,wet:0,snow:0,snowCover:0});g.vehicle.s=1500;g.vehicle.speed=0;g.updateDriving(.01);g.updateCamera(2);g.atmosphere.update(12,g.weather,{fog:0xbfd4e2},g.camera.position,5);});
   const snapshot = () => page.evaluate(()=>{
     const g=window.__overtake, r=g.renderer;

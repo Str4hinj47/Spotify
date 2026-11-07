@@ -14,7 +14,7 @@ try {
   await page.goto(`${base}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
   await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.waitForFunction(()=>window.__overtake.detailedScenery.ready,null,{timeout:180000});
-  await page.click('#btn-start');
+  await page.click('#menu-start');
   await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf);g.clearTraffic();g.trySpawn=()=>{};g.setCycleRunning(false);g.setTimeOfDay(12);g.setWeatherMode('clear');Object.assign(g.weather,{rain:0,wet:0,snow:0,snowCover:0});g.vehicle.speed=35;g.setInput('throttle',true);});
   fs.mkdirSync('test-results',{recursive:true});
   let previous=0;

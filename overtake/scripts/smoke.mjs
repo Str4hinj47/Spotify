@@ -21,7 +21,7 @@ const g = (fn) => page.evaluate(fn);
 
 await seedEconomy(page);
 await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`, { waitUntil: 'domcontentloaded' });
-await page.waitForSelector('#topbar:not(.hidden)', { timeout: 120000 });
+await page.waitForSelector('#topbar:not(.hidden)', { timeout: 120000 });await page.click('#menu-garage');
 await page.addStyleTag({ content: '*{backdrop-filter:none!important;animation:none!important;transition:none!important}' });
 await page.waitForTimeout(800);
 const cards = await page.locator('.car-card').count();

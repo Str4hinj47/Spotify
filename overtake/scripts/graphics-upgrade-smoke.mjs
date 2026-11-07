@@ -17,7 +17,7 @@ try {
  await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
  await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
  await page.waitForFunction(()=>window.__overtake.detailedScenery.ready,null,{timeout:180000});
- await page.click('#btn-start');
+ await page.click('#menu-start');
  const result=await page.evaluate(async()=>{
   const T=await import('/node_modules/three/build/three.module.js'),g=window.__overtake;
   cancelAnimationFrame(g.raf);g.clearTraffic();g.trySpawn=()=>{};g.setCycleRunning(false);g.setTimeOfDay(12);g.setWeatherMode('clear');

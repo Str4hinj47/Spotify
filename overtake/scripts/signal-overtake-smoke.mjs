@@ -11,7 +11,7 @@ try {
   page.on('pageerror',e=>errors.push(String(e)));
   await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
   await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
-  await page.click('#btn-start');
+  await page.click('#menu-start');
   const result=await page.evaluate(()=>{
     const g=window.__overtake, audio=window.__audio;
     cancelAnimationFrame(g.raf);g.clearTraffic();g.trySpawn=()=>{};

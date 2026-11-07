@@ -21,7 +21,7 @@ try {
   await page.reload({waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.click('#btn-sound-settings');assert.equal(await page.locator('#sound-score').isChecked(),false);
   await page.keyboard.press('Escape');assert.equal(await page.locator('#sound-panel').isHidden(),true);
-  await page.click('#btn-start');await page.waitForFunction(()=>window.__audio?.ctx?.state==='running',{timeout:90000});
+  await page.click('#menu-start');await page.waitForFunction(()=>window.__audio?.ctx?.state==='running',{timeout:90000});
   await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf);g.clearTraffic();g.trySpawn=()=>{};});
   const result=await page.evaluate(async ()=>{
     const g=window.__overtake,a=window.__audio;

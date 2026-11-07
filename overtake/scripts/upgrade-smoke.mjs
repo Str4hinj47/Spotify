@@ -25,7 +25,7 @@ await page.waitForTimeout(600);
 await page.click('.mode-card[data-mode="rush"]');
 await shot('upgrade-garage-rush.png');
 
-await page.click('#btn-start');
+await page.click('#menu-start');
 await page.waitForFunction(() => window.__overtake?.mode === 'driving', undefined, { timeout: 30000 });
 const rushStart = await page.evaluate(() => ({ mode: window.__overtake.getRunMode(), timeLeft: window.__overtake.run.timeLeft, contracts: window.__overtake.run.contracts.length }));
 await page.evaluate(() => {
@@ -61,7 +61,7 @@ const results = await page.evaluate(() => ({
   records: window.__overtake.getRecords().modes.rush,
   finalTitle: document.getElementById('final-title').textContent,
 }));
-await page.click('#btn-garage');
+await page.click('#btn-result-menu');
 await page.waitForFunction(() => window.__overtake.mode === 'garage', undefined, { timeout: 15000 });
 const garage = await page.evaluate(() => ({
   mode: window.__overtake.getRunMode(),

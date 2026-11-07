@@ -41,6 +41,13 @@ Touch devices get on-screen steering, throttle and brake buttons.
 
 ## Gameplay
 
+The main menu offers mode selection, local player stats, rank and settings.
+Open the separate garage to choose, buy, upgrade or customize a car. The global
+stats panel is a placeholder: no online leaderboard or global stats service is
+connected. Best saved score/distance exclude ranked and expired daily/weekly
+periods; recorded runs include ranked attempts, but not abandoned regular or
+new developer-option runs.
+
 - **Run modes:** Endless (survival), Rush (120-second score attack), Time Trial
   (race to 3 km), Near Miss (90 seconds; close passes score more), and Ranked
   Attack (timed distance plus an overtake/near-miss objective). Daily and

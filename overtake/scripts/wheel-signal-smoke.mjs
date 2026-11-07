@@ -46,7 +46,7 @@ try {
     assert.ok(r.radii.every(a => a > .2 && a < .8) && r.parts.every(n => n > 0), r.id);
     assert.ok(r.shared && r.unchanged && r.brakeStill && r.attributesPreserved && r.stopped, r.id);
   }
-  await page.click('#btn-start');
+  await page.click('#menu-start');
   const gameplay = await page.evaluate(async () => {
     const g = window.__overtake;
     cancelAnimationFrame(g.raf); g.clearTraffic(); g.trySpawn = () => {};

@@ -413,10 +413,12 @@ function syncModeUI() {
 
 function syncMenuStats() {
   if (!game) return;
-  const records = game.getRecords(), buckets = Object.entries(records.modes).filter(([mode]) => mode !== 'ranked').map(([, bucket]) => bucket);
+  const records = game.getRecords(), entries = Object.entries(records.modes).filter(([mode]) => mode !== 'ranked');
+  const buckets = entries.map(([, bucket]) => bucket);
+  const currentBests = entries.filter(([mode, bucket]) => mode !== 'daily' && mode !== 'weekly' || bucket.period === eventFor(mode).period).map(([, bucket]) => bucket);
   const ranked = game.getRanked(), info = rankFor(ranked.points), progress = game.getProgression();
-  $('menu-best-score').textContent = fmt(Math.max(0, ...buckets.map(b => b.bestScore)));
-  $('menu-longest').innerHTML = `${(Math.max(0, ...buckets.map(b => b.bestDistance)) / 1000).toFixed(1)} <small>KM</small>`;
+  $('menu-best-score').textContent = fmt(Math.max(0, ...currentBests.map(b => b.bestScore)));
+  $('menu-longest').innerHTML = `${(Math.max(0, ...currentBests.map(b => b.bestDistance)) / 1000).toFixed(1)} <small>KM</small>`;
   $('menu-runs').textContent = fmt(buckets.reduce((sum, b) => sum + b.runs, 0) + ranked.attempts);
   $('menu-owned').textContent = `${progress.owned.length} / ${CARS.length}`;
   $('menu-rank-badge').innerHTML = rankBadge(info.index);

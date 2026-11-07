@@ -20,7 +20,7 @@ try {
   page.on('response', r => { if (r.status() >= 400) errors.push(`${r.status()} ${r.url()}`); });
   await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#topbar:not(.hidden)', { timeout: 180000 });
-  await page.click('#btn-start');
+  await page.click('#menu-start');
   await page.evaluate(() => {
     const g = window.__overtake;
     g.clearTraffic(); g.setCycleRunning(false); g.setTimeOfDay(12);

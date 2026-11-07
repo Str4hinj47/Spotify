@@ -14,7 +14,7 @@ try {
  if(real) await page.addInitScript(()=>localStorage.setItem('overtake-graphics-quality','balanced'));
  await page.goto(real?`${base}/play.html`:`${base}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
  await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
- await page.click('#btn-start');
+ await page.click('#menu-start');
  const r=await page.evaluate(async()=>{
   const g=window.__overtake;cancelAnimationFrame(g.raf);g.clearTraffic();g.trySpawn=()=>{};g.setCycleRunning(false);g.setSceneryQuality('high');g.setWeatherMode('clear');
   Object.assign(g.weather,{rain:0,snow:0,wet:0,snowCover:0});g.vehicle.s=1500;g.vehicle.speed=0;g.setTimeOfDay(0);g.updateDriving(0);g.updateCamera(0);g.updateWorld(0);

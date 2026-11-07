@@ -11,7 +11,7 @@ try {
   const page=await browser.newPage({viewport:{width:1000,height:700}});
   page.on('console',m=>{if(m.type()==='error') errors.push(m.text())});page.on('pageerror',e=>errors.push(String(e)));
   await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`,{waitUntil:'domcontentloaded'});
-  await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.click('#btn-start');
+  await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.click('#menu-start');
   await page.evaluate(()=>{
     const g=window.__overtake;cancelAnimationFrame(g.raf);g.clearTraffic();g.setCycleRunning(false);g.setTimeOfDay(12);g.setWeatherMode('clear');
     Object.assign(g.weather,{rain:0,wet:0,snow:0,snowCover:0});g.updateWorld(.1);g.updateRoad();g.scene.updateMatrixWorld(true);

@@ -14,7 +14,7 @@ try {
  page.on('pageerror',e=>errors.push(String(e)));
  page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
  await page.goto(real?`${base}/play.html`:`${base}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
- await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
+ await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.click('#menu-garage');
  await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf);g.garageAuto=false;});
  fs.mkdirSync('test-results',{recursive:true});
  const checks=[];

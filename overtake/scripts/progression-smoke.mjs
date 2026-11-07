@@ -19,7 +19,7 @@ try {
       localStorage.setItem('overtake-best','5000'); sessionStorage.setItem('seeded','1');
     }
   });
-  async function load(){await page.goto(`${base}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));}
+  async function load(){await page.goto(`${base}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.click('#menu-garage');await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));}
   const state=()=>page.evaluate(()=>window.__overtake.getProgression());
   await load();
   assert.deepEqual(await state(),{version:2,money:0,dev:false,owned:['golf'],upgrades:{},tunes:{}});

@@ -32,7 +32,7 @@ try {
   await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
   assert.deepEqual(await inspect(),{quality:'balanced',ratio:1,canvas:[960,640],buffer:[960,640]});
-  await page.click('#btn-start');await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
+  await page.click('#menu-start');await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
   await page.keyboard.down('ArrowUp');
   assert.equal(await page.evaluate(()=>window.__overtake.input.throttle),true);
   await page.evaluate(()=>window.__overtake.pause());

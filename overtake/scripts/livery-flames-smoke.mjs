@@ -11,7 +11,7 @@ try {
   const page=await browser.newPage({viewport:{width:1280,height:800}});
   page.on('console',m=>{if(m.type()==='error')errors.push(m.text())}); page.on('pageerror',e=>errors.push(String(e)));
   await seedEconomy(page);
-  await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
+  await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.click('#menu-garage');
   await page.click('.car-card[data-car="golf"]');await page.click('[data-garage-tab=style]');await page.click('#btn-customize');
   await page.click('[data-workshop-tab="paint"]');
   await page.selectOption('#custom-paint-scheme','upper',{force:true});
@@ -66,7 +66,7 @@ try {
     assert.ok(x.glass.length>0);for(const glass of x.glass) assert.deepEqual(glass,{opacity:1,transparent:false,depthWrite:true});
     if(x.id==='golf'||x.id==='audi'){assert.equal(x.roof,true);assert.equal(x.pedestals,0);}
   }
-  await page.reload({timeout:180000,waitUntil:'domcontentloaded'});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.click('.car-card[data-car="golf"]');await page.click('[data-garage-tab=style]');await page.click('#btn-customize');
+  await page.reload({timeout:180000,waitUntil:'domcontentloaded'});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.click('#menu-garage');await page.click('.car-card[data-car="golf"]');await page.click('[data-garage-tab=style]');await page.click('#btn-customize');
   assert.equal(await page.locator('#custom-livery').inputValue(),'race');assert.equal(await page.locator('#custom-exhaust').inputValue(),'flame');
   assert.equal(await page.locator('#custom-secondary-finish').inputValue(),'carbon');assert.equal(await page.locator('#custom-front-finish').inputValue(),'carbon');
   await page.close();
@@ -74,7 +74,7 @@ try {
   mobile.on('pageerror',e=>errors.push(String(e)));
   await seedEconomy(mobile);
   await mobile.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`,{timeout:180000,waitUntil:'domcontentloaded'});
-  await mobile.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await mobile.click('[data-garage-tab=style]');await mobile.click('#btn-customize');
+  await mobile.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await mobile.click('#menu-garage');await mobile.click('[data-garage-tab=style]');await mobile.click('#btn-customize');
   assert.equal(await mobile.locator('#custom-front-finish').isDisabled(),true);
   await mobile.selectOption('#custom-front','street',{force:true});await mobile.selectOption('#custom-front-finish','carbon',{force:true});
   await mobile.click('[data-workshop-tab="paint"]');
