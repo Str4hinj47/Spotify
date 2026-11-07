@@ -29,6 +29,7 @@ try {
   assert.match(await page.locator('#final-title').innerText(),/Finished/);
   assert.equal(await page.locator('#final-best-label').innerText(),'FASTEST TIME');
   await page.click('#btn-share-result');await page.waitForFunction(()=>/copied|copy|shared/i.test(document.querySelector('#share-status').innerText),null,{timeout:10000});
+  const downloadPromise=page.waitForEvent('download'); await page.click('#btn-download-card'); const download=await downloadPromise; assert.equal(download.suggestedFilename(),'overtake-result.png'); await download.saveAs('test-results/result-card.png');
   await page.screenshot({path:'test-results/results-desktop.png',timeout:120000});
   await page.click('#btn-garage');
   await page.click('#dev-toggle'); await page.click('[data-mode=trial]'); await page.click('#btn-start');
@@ -46,6 +47,8 @@ try {
   await mobile.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
   assert.equal(await mobile.locator('[data-mode=daily]').getAttribute('aria-pressed'),'true');
   await mobile.screenshot({path:'test-results/garage-mobile.png',timeout:120000});
+  await mobile.click('[data-mode=weekly]'); assert.equal(await mobile.locator('[data-mode=weekly]').getAttribute('aria-pressed'),'true');
+  assert.match(await mobile.locator('#active-mode-info').innerText(),/Weekly Event/);
   assert.equal(await mobile.locator('#btn-start').count(),1);
   console.log('Release flows passed');
 } finally {await browser.close();}

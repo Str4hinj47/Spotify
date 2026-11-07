@@ -7,6 +7,7 @@ events and records work without an account and live in the browser's localStorag
 Daily/weekly objective selection rotates in UTC; traffic is random, world settings
 and cars can vary, and the clock is local. Results are **not verified** or global.
 Sharing uses the native share sheet or clipboard, with a selectable-text fallback.
+Players can also download an unverified result card as a PNG.
 Developer-option runs are excluded from new personal records. Older personal
 records cannot be retrospectively verified.
 

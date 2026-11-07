@@ -699,6 +699,34 @@ function bindUI() {
       $('share-status').textContent = 'Copy your result:'; $('share-status').appendChild(box); box.focus(); box.select();
     }
   });
+  $('btn-download-card').addEventListener('click', () => {
+    if (!latestResult) return;
+    const s = latestResult, canvas = document.createElement('canvas');
+    canvas.width = 1200; canvas.height = 630;
+    const c = canvas.getContext('2d');
+    if (!c) { $('share-status').textContent = 'Could not create a card on this device.'; return; }
+    c.fillStyle = '#0b1114'; c.fillRect(0, 0, 1200, 630);
+    c.fillStyle = '#172126'; c.fillRect(800, 0, 400, 630);
+    c.fillStyle = '#ff713d'; c.fillRect(0, 0, 14, 630);
+    c.fillStyle = '#f4f7f3'; c.font = 'bold 38px sans-serif'; c.fillText('OVERTAKE', 72, 82);
+    c.fillStyle = '#ff713d'; c.font = 'bold 24px sans-serif'; c.fillText(RUN_MODES[s.mode].label.toUpperCase(), 72, 170);
+    c.fillStyle = '#f4f7f3'; c.font = 'bold 100px sans-serif';
+    const primary = s.mode === 'trial' && s.reason === 'distance' ? formatTime(s.elapsed) : fmt(s.score);
+    c.fillText(primary, 72, 290, 700);
+    c.fillStyle = '#a9bab6'; c.font = 'bold 24px sans-serif';
+    c.fillText(s.mode === 'trial' && s.reason === 'distance' ? '3 KM TIME' : 'POINTS', 76, 330);
+    c.fillStyle = '#f4f7f3'; c.font = 'bold 27px sans-serif'; c.fillText(`${s.overtakes} OVERTAKES   /   ${s.nearMisses} NEAR MISSES   /   ${(s.distance / 1000).toFixed(1)} KM`, 72, 423, 720);
+    c.fillStyle = '#ff9b76'; c.font = 'bold 22px sans-serif'; c.fillText(s.devRun ? 'DEV RUN · EXCLUDED FROM RECORDS' : 'LOCAL RESULT · NOT GLOBALLY VERIFIED', 72, 535, 720);
+    c.fillStyle = '#9cafaa'; c.font = '20px sans-serif'; c.fillText(location.origin, 72, 575, 720);
+    c.strokeStyle = '#ff713d'; c.lineWidth = 8; c.beginPath(); c.moveTo(900, 440); c.lineTo(1090, 250); c.moveTo(990, 250); c.lineTo(1090, 250); c.lineTo(1090, 350); c.stroke();
+    canvas.toBlob(blob => {
+      if (!blob) { $('share-status').textContent = 'Could not create a card on this device.'; return; }
+      const url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = 'overtake-result.png'; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      $('share-status').textContent = 'Result card downloaded.';
+    }, 'image/png');
+  });
   $('btn-retry').addEventListener('click', startRun);
   $('btn-garage').addEventListener('click', () => game.toGarage());
   $('btn-sound').addEventListener('click', toggleMute);
