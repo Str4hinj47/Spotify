@@ -596,3 +596,88 @@ svg { stroke-width: 1.75; }
 #upgrade-list button { text-align:left; }
 
 .upgrade-hint { margin:0 0 7px; color:var(--muted); font-size:10px; line-height:1.4; }
+
+/* ============================================================
+   SEASON 01 redesign — "Every Pass Counts"
+   Bold arcade identity layered over the legacy component CSS.
+   Tokens first: swap --accent / --volt to re-theme the game.
+   Inspired by shadcn/ui + Radix token patterns (see
+   WORLDWIDE_HIT_PLAN.md); no framework, all IDs preserved.
+   ============================================================ */
+:root{
+  --bg:#07090c; --panel:rgba(10,13,17,.88); --panel-2:rgba(255,255,255,.05);
+  --border:rgba(255,255,255,.12); --text:#f7f9ec; --muted:#a7b0a0;
+  --accent:#d7ff3f; --accent-strong:#b8ec1e; --volt:#d7ff3f; --ink:#0a0f05;
+  --warm:#ffb02e; --danger:#ff5c47; --good:#7CFC9A; --radius:10px;
+}
+body{ background:var(--bg); }
+.logo{ font-style:italic; font-weight:900; letter-spacing:.06em; transform:skewX(-6deg); }
+.logo span{ color:var(--volt); }
+.logo.big{ font-size:clamp(44px,9vw,72px); }
+.load-sub{ color:var(--volt); }
+.panel{ border-radius:var(--radius); border-top:3px solid var(--volt); box-shadow:0 20px 60px rgba(0,0,0,.55); }
+.panel-title{ color:var(--text); } .panel-title .count{ color:var(--volt); }
+.primary{ background:var(--volt); color:var(--ink); border-radius:8px; font-weight:900; font-style:italic;
+  text-transform:uppercase; letter-spacing:.06em; box-shadow:0 8px 28px rgba(215,255,63,.25); }
+.primary:hover{ filter:brightness(1.08); transform:translateY(-1px); }
+.ghost{ border-radius:8px; } .ghost:hover{ border-color:var(--volt); color:var(--volt); }
+.icon-btn{ border-radius:8px; } .icon-btn:hover{ border-color:var(--volt); color:var(--volt); }
+.best-pill{ color:var(--warm); border-radius:8px; }
+.rankings-btn{ display:flex; align-items:center; gap:7px; padding:8px 12px; border-radius:8px;
+  background:var(--volt); color:var(--ink); font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:.05em; }
+.rankings-btn svg{ width:14px; height:14px; } .rankings-btn:hover{ filter:brightness(1.08); }
+
+/* Garage hero (decorative, never blocks the car) */
+.menu-hero{ position:absolute; left:50%; top:11%; transform:translateX(-50%); text-align:center; pointer-events:none; z-index:0; }
+.hero-kicker{ color:var(--volt); font-size:11px; font-weight:800; letter-spacing:.28em; text-transform:uppercase; }
+.hero-title{ margin-top:8px; font-size:clamp(38px,6.5vw,84px); line-height:.88; font-weight:900; font-style:italic;
+  letter-spacing:-.02em; transform:skewX(-6deg); text-shadow:0 10px 40px rgba(0,0,0,.65); }
+.hero-title em{ color:var(--volt); font-style:italic; }
+.hero-sub{ margin-top:10px; color:rgba(247,249,236,.82); font-size:13px; letter-spacing:.08em; text-transform:uppercase; }
+@media (max-width:900px){ .menu-hero{ display:none; } .rankings-btn{ display:none; } }
+
+/* Car list + detail */
+.car-card{ border-radius:8px; } .car-card.active{ border-color:var(--volt); background:rgba(215,255,63,.10); }
+.car-card .cc-class,.maker{ color:var(--volt); }
+.car-detail h1{ font-style:italic; font-weight:900; }
+.mode-card{ border-radius:8px; } .mode-card.active{ border-color:var(--volt); background:rgba(215,255,63,.12); }
+.mode-card.active .mode-name{ color:var(--volt); } .mode-best b{ color:var(--warm); }
+.dots i.on{ background:var(--volt); }
+.paint-swatch.active{ border-color:var(--volt); box-shadow:0 0 0 2px rgba(215,255,63,.35); }
+.customize-open{ border-color:rgba(215,255,63,.45); color:var(--text); }
+.customize-open span,.custom-kicker{ color:var(--volt); }
+#dev-toggle[aria-pressed="true"]{ background:var(--volt); color:var(--ink); border-color:var(--volt); }
+
+/* Season hub: Daily + Rankings entry points */
+.season-hub{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:0 0 14px; }
+.season-card{ display:flex; flex-direction:column; gap:3px; text-align:left; padding:11px 12px; border-radius:8px;
+  background:rgba(255,255,255,.04); border:1px solid var(--border); color:var(--text); font:inherit; }
+.season-card b{ font-size:12.5px; line-height:1.25; } .season-card .season-note{ font-size:10.5px; color:var(--muted); line-height:1.35; }
+.season-eyebrow{ display:flex; align-items:center; gap:5px; font-size:9.5px; font-weight:800; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--volt); } .season-eyebrow svg{ width:12px; height:12px; }
+.season-card.daily{ border-left:3px solid var(--warm); } .season-card.daily .season-eyebrow{ color:var(--warm); }
+button.season-card{ cursor:pointer; } button.season-card:hover{ border-color:var(--volt); background:rgba(215,255,63,.08); }
+
+/* HUD: broadcast score block */
+.hud-value{ font-size:52px; font-weight:900; font-style:italic; letter-spacing:-.02em; }
+.hud-label{ color:var(--volt); }
+.combo{ color:var(--ink); background:var(--warm); border-color:var(--warm); font-style:italic; }
+.combo small{ color:rgba(10,15,5,.65); }
+.contract-card{ border-radius:8px; border-left:3px solid var(--volt); }
+.contract-bar div{ background:var(--volt); } .contract-top #contract-reward{ color:var(--warm); }
+.event{ font-style:italic; } .run-clock.rush b{ color:var(--volt); }
+
+/* Results + rankings modal */
+.modal{ border-radius:12px; border-top:3px solid var(--volt); }
+.crash-title{ font-style:italic; font-weight:900; } .final-score{ font-weight:900; font-style:italic; }
+.final-medal.gold{ color:var(--ink); background:var(--warm); border-color:var(--warm); }
+.rankings-modal{ width:min(460px,94vw); text-align:left; }
+.rankings-head{ display:flex; justify-content:space-between; align-items:flex-start; }
+.rankings-tabs{ display:grid; grid-template-columns:repeat(4,1fr); gap:4px; padding:4px; border-radius:8px; background:rgba(255,255,255,.05); }
+.rankings-tabs button{ padding:8px 4px; border-radius:6px; background:transparent; color:var(--muted); font:inherit; font-size:12px; font-weight:700; }
+.rankings-tabs button.active{ background:var(--volt); color:var(--ink); } .rankings-tabs button:disabled{ opacity:.4; cursor:not-allowed; }
+.rankings-empty{ text-align:center; padding:22px 10px; display:flex; flex-direction:column; gap:8px; align-items:center; }
+.rankings-empty svg{ width:30px; height:30px; color:var(--warm); } .rankings-empty p{ font-size:12.5px; line-height:1.55; }
+.rankings-local{ display:flex; justify-content:space-between; padding:11px 12px; border:1px solid var(--border); border-radius:8px;
+  font-size:12px; color:var(--muted); } .rankings-local b{ color:var(--warm); font-size:15px; }
+@media (max-width:700px){ .hud-value{ font-size:34px; } .season-hub{ margin-bottom:8px; } .season-card{ padding:8px 9px; } .season-card b{ font-size:11px; } }

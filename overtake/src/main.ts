@@ -695,6 +695,18 @@ function bindUI() {
   $('sound-indicator').addEventListener('change', e => audio.setIndicatorSounds((e.target as HTMLInputElement).checked));
   $('btn-help').addEventListener('click', openHelp);
   $('btn-close-help').addEventListener('click', closeHelp);
+  const openRankings = () => {
+    closeSoundPanel(); closeGraphicsPanel();
+    $('rankings-local-best').textContent = fmt(game.getBest());
+    $('rankings').classList.remove('hidden');
+    $('btn-close-rankings').focus();
+  };
+  const closeRankings = () => { $('rankings').classList.add('hidden'); $('btn-rankings').focus(); };
+  $('btn-rankings').addEventListener('click', openRankings);
+  $('btn-rankings-hub').addEventListener('click', openRankings);
+  $('btn-close-rankings').addEventListener('click', closeRankings);
+  $('btn-rankings-drive').addEventListener('click', () => { closeRankings(); $('car-detail').scrollTop = 0; $('btn-start').focus(); });
+  $('rankings').addEventListener('click', (e) => { if (e.target === $('rankings')) closeRankings(); });
 
   const swatches = $('paint-swatches');
   for (const p of PAINT_COLORS) {
