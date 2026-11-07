@@ -181,16 +181,16 @@ export class Atmosphere {
   }
 
   setGarage() {
-    this.skyMat.uniforms.topColor.value.set(0x05070c);
-    this.skyMat.uniforms.horizonColor.value.set(0x161d2a);
+    this.skyMat.uniforms.topColor.value.set(0x2e4258);
+    this.skyMat.uniforms.horizonColor.value.set(0x93a9bd);
     this.skyMat.uniforms.sunIntensity.value = 0;
     this.skyMat.uniforms.cloudLight.value = 0;
     this.sun.intensity = 0.5;
     this.moonLight.intensity = 0;
-    this.hemi.intensity = 0.35;
+    this.hemi.intensity = 0.55;
     this.stars.visible = false;
     this.moon.visible = false;
-    this.scene.fog = new THREE.Fog(0x0a0e16, 26, 110);
+    this.scene.fog = new THREE.Fog(0x46586c, 26, 110);
     this.scene.environmentIntensity = 0.75;
   }
 }

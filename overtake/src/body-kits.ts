@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { CarId } from './catalog';
 import type { Customization, BodyPart } from './customization.mjs';
-import { createCarbonMaterial } from './livery';
+import { createCarbonMaterial, LIVERIES } from './livery';
 import sillProfiles from './sill-profiles.json';
 
 // Individually measured against the normalized, oriented car bodies (not the
@@ -210,6 +210,8 @@ function wingSupport(x:number,y:number,z:number,height:number, lean=.05) {
  * half-width sampled every 10 degrees (key = degrees, atan2(dy, dz)). */
 export interface WheelArch { x:number; y:number; z:number; r:number; profile: Map<number, number> }
 export interface TopLine { z:number; y:number }
+export interface BumperRow { y:number; points:{x:number;z:number}[] }
+export interface BumperSet { front: BumperRow[]; rear: BumperRow[] }
 
 /** Lofted overfender: a closed 5-point section swept around the measured
  * arch. Inner edge tucks under the stock lip, crown stands proud of the
@@ -236,6 +238,33 @@ function archFlareGeometry(side:number, arch:WheelArch, fallbackX:number, protru
       if(side>0)indices.push(a,c,b,b,c,d);else indices.push(a,b,c,b,d,c);}
   }
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
+}
+/** Replacement bumper shell: lofted over the measured stock surface,
+ * offset 12 mm proud, wrapping back around both corners. The stock bumper
+ * stays underneath but is fully covered — no floating panel, no gap. */
+function bumperCoverGeometry(rows: BumperRow[], rear: boolean) {
+  const positions:number[]=[], indices:number[]=[];
+  const grid = rows.map(row => {
+    const pts = row.points.filter(pt => Number.isFinite(pt.z));
+    const first = pts[0], last = pts[pts.length-1];
+    const wrap = rear ? -.20 : .20; // corners sweep back along the flanks
+    return [{x:first.x-.13, y:row.y, z:first.z+wrap}, ...pts.map(pt=>({x:pt.x, y:row.y, z:pt.z})), {x:last.x+.13, y:row.y, z:last.z+wrap}];
+  });
+  const cols = grid[0].length, off = rear ? .012 : -.012;
+  grid.forEach((row,i)=> row.forEach((pt,j)=> {
+    positions.push(pt.x, pt.y, pt.z+off);
+    if(i<grid.length-1 && j<cols-1) { const a=i*cols+j,b=a+1,c=a+cols,d=c+1;
+      if(rear) indices.push(a,b,c,b,d,c); else indices.push(a,c,b,b,c,d); }
+  }));
+  const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  geo.setIndex(indices); geo.computeVertexNormals(); return geo;
+}
+function bumperZ(rows: BumperRow[], x:number, y:number, rear:boolean) {
+  let row = rows[0], rd = 1e9;
+  for(const r of rows) if(Math.abs(r.y-y)<rd) { rd=Math.abs(r.y-y); row=r; }
+  let best = row.points[0], bd = 1e9;
+  for(const pt of row.points) if(Number.isFinite(pt.z) && Math.abs(pt.x-x)<bd) { bd=Math.abs(pt.x-x); best=pt; }
+  return best.z + (rear ? .012 : -.012);
 }
 /** Thin shaped plate (canards, fins, endplates, flaps) with a bevelled edge. */
 function plateGeometry(points:[number,number][], thickness:number) {
@@ -264,7 +293,7 @@ function tip(group:THREE.Group, x:number, y:number, z:number, radius:number, met
 }
 
 /** A player-only kit. All geometries/materials are owned by the returned group. */
-export function createBodyKit(id:CarId, config:Customization, paint:number, arches: WheelArch[] = [], topLine: TopLine[] = []) {
+export function createBodyKit(id:CarId, config:Customization, paint:number, arches: WheelArch[] = [], topLine: TopLine[] = [], bumpers?: BumperSet) {
   const f=BODY_FITS[id], g=new THREE.Group(); g.name='custom-body-kit';
   const body=new THREE.MeshPhysicalMaterial({ color:paint, metalness:.35,roughness:.38,clearcoat:.5,clearcoatRoughness:.22, envMapIntensity:1.1 });
   const carbon=new THREE.MeshStandardMaterial({ color:0x141a20,metalness:.35,roughness:.38, envMapIntensity:.9 });
@@ -311,7 +340,9 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
       for(let j=0;j<=cols;j++) { const t=j/cols*2-1, x=cx+t*hw;
         positions.push(x, base+bump*(1-t*t)-Math.abs(t)*.004, z); }
       if(i<rows) for(let j=0;j<cols;j++){const a=i*(cols+1)+j,b=a+1,c=a+cols+1,d=c+1;indices.push(a,c,b,b,c,d);} }
+    const uvs:number[]=[]; for(let i=0;i<=rows;i++) for(let j=0;j<=cols;j++) uvs.push(j/cols, i/rows);
     const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+    geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
     geo.setIndex(indices); geo.computeVertexNormals();
     const mesh=new THREE.Mesh(geo,mat); mesh.name=name; mesh.castShadow=true; group.add(mesh); return mesh; };
 
@@ -370,26 +401,83 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
     else if(config.roof==='track') { scoop(true); fin(); }
     else if(config.roof==='wide') { surfaceSheet(a,'black-roof',rz0,rz1,0,f.frontW*.66,.005,0,glossBlack); fin(); }
   }
+  if(config.paintScheme!=='single' || config.livery!=='none') {
+    const a=reg('livery'), d=LIVERIES[id], len=f.rearZ-f.frontZ;
+    const accent=new THREE.MeshPhysicalMaterial({ color:config.liveryColor, metalness:.3, roughness:.42, clearcoat:.5, envMapIntensity:1.0 });
+    const second=new THREE.MeshPhysicalMaterial({ color:config.secondaryColor, metalness:.3, roughness:.42, clearcoat:.5, envMapIntensity:1.0 });
+    const secondMat=config.secondaryFinish==='carbon'?woven:second;
+    (g.userData.extraMaterials ??= []).push(accent, second);
+    // measured hood / roof / trunk spans along the centreline
+    const hz0=f.frontZ+len*.07; let hz1=f.frontZ+len*.35;
+    if(topLine.length) { const baseY=surfaceY(hz0+.3);
+      for(const pt of topLine) if(pt.z>hz0+.55 && pt.y>baseY+.30) { hz1=Math.min(hz1,pt.z-.10); break; } }
+    let rz0=f.frontZ+len*.45, rz1=f.frontZ+len*.68;
+    if(topLine.length) { const maxY=Math.max(...topLine.map(pt=>pt.y));
+      const plat=topLine.filter(pt=>pt.y>=maxY-.09 && pt.z>f.frontZ+len*.30 && pt.z<f.frontZ+len*.85);
+      if(plat.length>2) { rz0=plat[0].z+.04; rz1=plat[plat.length-1].z-.04; } }
+    const topSpans:[number,number][]=[[hz0,hz1],[rz0,rz1],[rz1+.06,f.rearZ-len*.04]];
+    const doorY=f.sillY+.52, doorX=f.sideX+.006;
+    if(config.paintScheme==='upper') for(const [z0,z1] of topSpans) surfaceSheet(a,'two-tone-top',z0,z1,0,f.frontW*.60,.006,0,secondMat);
+    if(config.paintScheme==='lower') for(const side of [-1,1]) { const m=new THREE.Mesh(skirtShell(id,side,.55),secondMat); m.name='two-tone-sill'; a.add(m); }
+    if(config.livery==='stripe' || config.livery==='race') {
+      for(const [z0,z1] of topSpans) for(const side of [-1,1])
+        surfaceSheet(a,'livery-stripe',z0,z1,side*d.offset,d.stripe*.5,.006,0,accent);
+    }
+    if(config.livery==='race') for(const side of [-1,1]) {
+      const ring=new THREE.Mesh(new THREE.RingGeometry(.145,.185,28),accent);
+      ring.name='race-roundel'; ring.rotation.y=side*Math.PI/2; ring.position.set(side*doorX,doorY,d.doorZ); a.add(ring);
+      const dot=new THREE.Mesh(new THREE.CircleGeometry(.05,20),second);
+      dot.name='race-dot'; dot.rotation.y=side*Math.PI/2; dot.position.set(side*(doorX+.002),doorY,d.doorZ); a.add(dot);
+      const slash=new THREE.Mesh(plateGeometry([[-.26,-.030],[.26,-.018],[.26,.030],[-.26,.018]],.008),accent);
+      slash.name='race-slash'; slash.rotation.y=Math.PI/2; slash.rotation.z=side*.0; slash.rotation.x=0; slash.rotation.set(0,Math.PI/2,-.55);
+      slash.position.set(side*doorX,f.sillY+.30,d.doorZ+.05); a.add(slash);
+    }
+    if(config.livery==='camo') { // deterministic blobs on flanks + roof
+      let seed=[...id].reduce((n,c)=>n+c.charCodeAt(0),7);
+      const rnd=()=>{ seed=(seed*16807)%2147483647; return seed/2147483647; };
+      for(let i=0;i<10;i++) { const side=i%2?1:-1, blob=new THREE.Mesh(new THREE.SphereGeometry(.16,12,10),i%3?accent:second);
+        blob.name='camo-blob'; blob.scale.set(.16,.75+rnd()*.5,1.1+rnd()*.9);
+        blob.position.set(side*doorX, f.sillY+.25+rnd()*.55, -1.2+rnd()*2.4); blob.rotation.y=side*Math.PI/2; a.add(blob); }
+      for(let i=0;i<4;i++) { const blob=new THREE.Mesh(new THREE.SphereGeometry(.17,12,10),i%2?second:accent);
+        blob.name='camo-blob'; blob.scale.set(1+rnd()*.7,.14,1.2+rnd()*.8);
+        blob.position.set((rnd()-.5)*.7, surfaceY(rz0+rnd()*(rz1-rz0))+.01, rz0+rnd()*(rz1-rz0)); a.add(blob); }
+    }
+    if(config.livery==='fade') { // segmented gradient wash over hood + roof
+      for(let i=0;i<6;i++) { const col=new THREE.Color(config.liveryColor).lerp(new THREE.Color(config.secondaryColor), i/5);
+        const mat=new THREE.MeshPhysicalMaterial({ color:col, metalness:.3, roughness:.42, clearcoat:.5 });
+        (g.userData.extraMaterials as THREE.Material[]).push(mat);
+        const z0=hz0+(rz1-hz0)*(i/6), z1=hz0+(rz1-hz0)*((i+1)/6);
+        surfaceSheet(a,'fade-wash',z0,z1,0,f.frontW*.58,.006,0,mat); }
+    }
+    if(config.livery==='checker') { // flag squares on the roof span
+      const cv=document.createElement('canvas'); cv.width=cv.height=128;
+      const cx2=cv.getContext('2d')!; for(let y=0;y<8;y++) for(let x=0;x<8;x++) { cx2.fillStyle=(x+y)%2?'#0c0e11':'#eef2f5'; cx2.fillRect(x*16,y*16,16,16); }
+      const tex=new THREE.CanvasTexture(cv); tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(3,3);
+      const mat=new THREE.MeshStandardMaterial({ map:tex, roughness:.5, metalness:.2 });
+      (g.userData.extraMaterials as THREE.Material[]).push(mat);
+      surfaceSheet(a,'checker-roof',rz0,rz1,0,f.frontW*.58,.006,0,mat);
+    }
+    if(config.livery==='slash') for(const side of [-1,1]) for(let i=0;i<3;i++) {
+      const blade=new THREE.Mesh(plateGeometry([[-.20,-.026],[.20,-.014],[.20,.026],[-.20,.014]],.008),accent);
+      blade.name='slash-blade'; blade.rotation.set(0,Math.PI/2,-.5);
+      blade.position.set(side*doorX, f.sillY+.28+i*.13, d.doorZ-.25+i*.22); a.add(blade); }
+  }
   if(config.front!=='stock') {
     const a=reg('front'), track=isTrack('front'), amount=level('front'), panel=config.frontFinish==='carbon'?woven:body;
     const nose=f.frontZ-.015;
-    if(id==='golf') {
+    if(bumpers) { // full replacement shell over the measured stock bumper
+      const shell=new THREE.Mesh(bumperCoverGeometry(bumpers.front,false),panel);
+      shell.name='front-bumper'; shell.castShadow=true; a.add(shell);
+    } else if(id==='golf') {
       const fascia=new THREE.Mesh(golfLowerBumper(false,amount),panel);fascia.name='front-fascia';a.add(fascia);
-    } else if(id==='audi') {
-      const lip=new THREE.Mesh(audiFrontLip(amount),config.frontFinish==='carbon'?woven:carbon);lip.name='front-fascia';a.add(lip);
-    } else if(id==='mustang') {
-      const chin=new THREE.Mesh(mustangChin(amount),panel);chin.name='front-fascia';a.add(chin);
-      if(amount>=.67) {
-        const blade=new THREE.Mesh(taperedBand(.73,-2.335,.239,THREE.MathUtils.lerp(.12,.16,amount),.012,.26),carbon);
-        blade.name='front-splitter';a.add(blade);
-      }
     } else {
       const sweep=f.character==='muscle'?.10:.23;
       const fascia=new THREE.Mesh(apron(f.frontW*THREE.MathUtils.lerp(.97,1.05,amount),nose,f.bumperY+.015,THREE.MathUtils.lerp(.10,.25,amount),.22,sweep),panel);
       fascia.name='front-fascia';a.add(fascia);
-      const splitter=new THREE.Mesh(taperedBand(f.frontW*THREE.MathUtils.lerp(.99,1.08,amount),nose-THREE.MathUtils.lerp(.06,.13,amount),f.bumperY-.005,THREE.MathUtils.lerp(.30,.58,amount),.028,sweep),carbon);
-      splitter.name='front-splitter';a.add(splitter);
     }
+    { const sweep=f.character==='muscle'?.10:.23;
+      const splitter=new THREE.Mesh(taperedBand(f.frontW*THREE.MathUtils.lerp(.99,1.08,amount),nose-THREE.MathUtils.lerp(.06,.13,amount),f.bumperY-.005,THREE.MathUtils.lerp(.30,.58,amount),.028,sweep),carbon);
+      splitter.name='front-splitter';a.add(splitter); }
     if(id==='mercedes') box(f.frontW*1.35,.015,.035,0,f.bumperY+.11,nose+.04,metal,a,'bright-fascia-trim');
     if(config.front==='touring') { const strip=new THREE.Mesh(new THREE.CylinderGeometry(.011,.011,f.frontW*1.25,10),metal);
       strip.name='touring-chrome-strip'; strip.rotation.z=Math.PI/2; strip.scale.y=1; strip.scale.x=1; strip.position.set(0,f.bumperY+.17,nose-.01); strip.scale.set(1,1,.55); a.add(strip); }
@@ -418,16 +506,21 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
   if(config.front!=='stock' && level('front')>=.67) {
     const a=g.getObjectByName('custom-front') as THREE.Group;
     if(a) { const nose=f.frontZ-.015;
-      const intake=box(f.frontW*1.02,.12,.025,0,f.bumperY+.09,nose-.035,dark,a,'front-intake'); intake.rotation.x=.06;
+      const iz = bumpers ? bumperZ(bumpers.front,0,f.bumperY+.10,false)-.004 : nose-.01;
+      const intake=box(f.frontW*1.02,.12,.025,0,f.bumperY+.09,iz,dark,a,'front-intake'); intake.rotation.x=.06;
       for(const side of [-1,1]) { const corner=new THREE.Mesh(plateGeometry([[-.10,-.055],[.11,-.045],[.09,.055],[-.08,.06]],.02),dark);
-        corner.name='front-corner-intake'; corner.position.set(side*f.frontW*.70,f.bumperY+.11,nose+.005); corner.rotation.y=side*-.28; a.add(corner); }
+        corner.name='front-corner-intake'; corner.position.set(side*f.frontW*.70,f.bumperY+.11, bumpers ? bumperZ(bumpers.front,side*f.frontW*.70,f.bumperY+.11,false)-.004 : nose+.005); corner.rotation.y=side*-.28; a.add(corner); }
       if(config.front==='wide') for(const side of [-1,1]) { const blade=new THREE.Mesh(plateGeometry([[0,-.02],[.22,-.03],[.20,.035],[0,.03]],.012),carbon);
         blade.name='bumper-blade'; blade.position.set(side*f.frontW*.92,f.bumperY+.03,nose+.06); blade.rotation.y=side*-.5; a.add(blade); }
     }
   }
   if(config.rear!=='stock') {
     const a=reg('rear'),track=isTrack('rear'),amount=level('rear'), tail=f.rearZ-.035, panel=config.rearFinish==='carbon'?woven:body;
-    if(id==='golf') {
+    if(bumpers) { // full replacement shell over the measured stock bumper
+      const shell=new THREE.Mesh(bumperCoverGeometry(bumpers.rear,true),panel);
+      shell.name='rear-bumper'; shell.castShadow=true; a.add(shell);
+    }
+    if(id==='golf' && !bumpers) {
       const valance=new THREE.Mesh(golfLowerBumper(true,amount),panel);valance.name='rear-valance';a.add(valance);
     } else if(id==='ferrari') {
       // Retain the factory diffuser and its fins. A shallow edge extension
@@ -441,8 +534,8 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
       valance.name='rear-valance';a.add(valance);
       if(amount>=.67) {const diffuser=new THREE.Mesh(taperedBand(THREE.MathUtils.lerp(.40,.46,amount),2.06,.297,.12,.012,0),carbon);diffuser.name='rear-diffuser';a.add(diffuser);}
     } else {
-      const valance=new THREE.Mesh(apron(f.rearW*.98,tail,f.bumperY+.005,THREE.MathUtils.lerp(.11,.16,amount),.20,.16,true),panel);
-      valance.name='rear-valance';a.add(valance);
+      if(!bumpers) { const valance=new THREE.Mesh(apron(f.rearW*.98,tail,f.bumperY+.005,THREE.MathUtils.lerp(.11,.16,amount),.20,.16,true),panel);
+        valance.name='rear-valance';a.add(valance); }
       // Keep the diffuser between the exhaust outlets rather than covering them.
       const diffuserWidth=.48;
       const diffuser=new THREE.Mesh(apron(f.rearW*diffuserWidth,tail+.05,f.bumperY-.005,THREE.MathUtils.lerp(.08,.13,amount),.25,.04,true),carbon);
@@ -476,7 +569,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
   if(config.rear!=='stock' && level('rear')>=.67) {
     const a=g.getObjectByName('custom-rear') as THREE.Group;
     if(a) { const tail=f.rearZ-.035;
-      const surround=box(f.rearW*.86,.17,.02,0,f.tipY+.08,tail+.035,carbon,a,'exhaust-surround'); surround.rotation.x=-.05;
+      const surround=box(f.rearW*.86,.17,.02,0,f.tipY+.08, bumpers ? bumperZ(bumpers.rear,0,f.tipY+.10,true)+.004 : tail+.035,carbon,a,'exhaust-surround'); surround.rotation.x=-.05;
       for(const side of [-1,1]) { const vent=new THREE.Mesh(plateGeometry([[-.09,-.05],[.10,-.04],[.08,.055],[-.07,.055]],.018),dark);
         vent.name='rear-corner-vent'; vent.position.set(side*f.rearW*.76,f.bumperY+.15,tail+.015); vent.rotation.y=side*.30; a.add(vent); }
     }

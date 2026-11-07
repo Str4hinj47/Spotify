@@ -3,9 +3,9 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { CARS, TRUCKS, type CarId, type TrafficId } from './catalog';
 import { indicatorMaterial, isIndicatorMaterial, addFrontIndicator, isFrontIndicatorMaterial, type IndicatorUniforms } from './indicators';
-import { createBodyKit, type WheelArch, type TopLine } from './body-kits';
+import { createBodyKit, type WheelArch, type TopLine, type BumperSet } from './body-kits';
 import { rigWheels } from './wheels';
-import { applyPaintFinish, createCarbonMaterial, customPaintMaterial } from './livery';
+import { applyPaintFinish, createCarbonMaterial } from './livery';
 import { sanitizeCustomization, type Customization } from './customization.mjs';
 
 export interface CarModel {
@@ -146,6 +146,7 @@ export class ModelLibrary {
   private customization = new Map<CarId, Customization>();
   private archCache = new Map<CarId, WheelArch[]>();
   private topCache = new Map<CarId, TopLine[]>();
+  private bumperCache = new Map<CarId, BumperSet>();
 
   constructor() {
     const draco = new DRACOLoader();
@@ -353,6 +354,47 @@ export class ModelLibrary {
     return line;
   }
 
+  /** Front/rear bumper surface grids (min/max paint z per x-bin on five
+   * height rows), so replacement bumpers hug the stock shell exactly. */
+  measureBumpers(id: CarId): BumperSet {
+    const cached = this.bumperCache.get(id);
+    if (cached) return cached;
+    const root = this.get(id).scene;
+    root.updateMatrixWorld(true);
+    const xs: number[] = [];
+    for (let x = -1.02; x <= 1.021; x += .06) xs.push(Math.round(x * 100) / 100);
+    const build = (rowsY: number[], rear: boolean) => rowsY.map(y => {
+      const points = xs.map(x => ({ x, z: rear ? -Infinity : Infinity }));
+      const point = new THREE.Vector3();
+      root.traverse(o => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        if (!mats.some(m => m?.name.startsWith('paint__'))) return;
+        const pos = mesh.geometry.getAttribute('position');
+        if (!pos) return;
+        for (let i = 0; i < pos.count; i++) {
+          point.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+          if (Math.abs(point.y - y) > .055) continue;
+          const cell = points[Math.round((point.x + 1.02) / .06)];
+          if (!cell || Math.abs(point.x - cell.x) > .045) continue;
+          cell.z = rear ? Math.max(cell.z, point.z) : Math.min(cell.z, point.z);
+        }
+      });
+      // fill gaps from nearest measured neighbour so the loft is continuous
+      for (let i = 0; i < points.length; i++) {
+        if (Number.isFinite(points[i].z)) continue;
+        let best = rear ? 0 : 0, dist = 1e9;
+        for (let j = 0; j < points.length; j++) if (Number.isFinite(points[j].z) && Math.abs(j - i) < dist) { dist = Math.abs(j - i); best = points[j].z; }
+        points[i].z = best;
+      }
+      return { y, points };
+    });
+    const set = { front: build([.20, .30, .40, .50, .60], false), rear: build([.34, .44, .54, .64], true) };
+    this.bumperCache.set(id, set);
+    return set;
+  }
+
   get(id: TrafficId): CarModel {
     const m = this.models.get(id);
     if (!m) throw new Error(`Model ${id} not loaded`);
@@ -438,17 +480,12 @@ export class ModelLibrary {
             base = cached;
           }
           if (config && id !== 'semi' && id !== 'kraz' && (config.paintScheme !== 'single' || config.livery !== 'none' || config.paintFinish !== 'gloss')) {
-            if (config.paintScheme === 'single' && config.livery === 'none') {
-              // Finish only: plain PBR clone, no custom shader — finishes can
-              // never black out the body on strict mobile GPUs.
-              const finished = applyPaintFinish(base.clone() as THREE.MeshStandardMaterial, config.paintFinish);
-              customPaintCopies.push(finished);
-              return finished;
-            }
-            const meshToCar = new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
-            const custom = customPaintMaterial(base, meshToCar, id, config);
-            customPaintCopies.push(custom);
-            return custom;
+            // No custom paint shader anywhere: it renders black/transparent on
+            // strict mobile GPUs. Finishes are plain PBR here; livery and
+            // two-tone graphics are real geometry built by the body kit.
+            const finished = applyPaintFinish(base.clone() as THREE.MeshStandardMaterial, config.paintFinish);
+            customPaintCopies.push(finished);
+            return finished;
           }
           return base;
         }
@@ -490,7 +527,7 @@ export class ModelLibrary {
             const finish=createCarbonMaterial();factoryExhaust.material=finish;customPaintCopies.push(finish);
           }
         }
-        wrapper.add(createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080, this.measureArches(id), this.measureTopLine(id)));
+        wrapper.add(createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080, this.measureArches(id), this.measureTopLine(id), this.measureBumpers(id)));
       }
     }
     const wheels: THREE.Group[] = [];
