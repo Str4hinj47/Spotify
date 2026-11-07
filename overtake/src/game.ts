@@ -96,7 +96,7 @@ export interface RunStats {
   mode: RunMode;
   car: CarId;
   topSpeed: number;
-  contractsDone: number; contractsTotal: number; bestTime: number | null;
+  contractsDone: number; contractsTotal: number; bestTime: number | null; devRun: boolean;
   elapsed: number;
   medal: Medal;
   reason: string | null;
@@ -278,6 +278,7 @@ export class OvertakeGame {
 
   private run: RunState = createRun('endless');
   private runMode: RunMode = 'endless';
+  private runUsedDev = false;
   private records: Records = emptyRecords();
   private progression: Progression = emptyProgression();
   private progressionSettled = true;
@@ -1378,6 +1379,7 @@ export class OvertakeGame {
   start(): boolean {
     if ((this.mode !== 'garage' && this.mode !== 'gameover') || !this.canDrive(this.selected)) return false;
     this.progressionSettled = false;
+    this.runUsedDev = this.progression.dev;
     this.clearTraffic();
     this.signal = null; this.signalElapsed = 0;
     this.updatePlayerLights(0);
@@ -1799,6 +1801,7 @@ export class OvertakeGame {
           const { points, events } = registerPass(this.run, 'oncoming', true, spec.bonus);
           this.cb.onEvent({ kind: 'oncoming', text: 'HEAD-ON DODGE', points });
           this.handleRunEvents(events);
+          if (this.run.finished) return;
         }
       }
       if ((t.dir === 1 && t.s < this.playerS - 70) || (t.dir === -1 && t.s < this.playerS - 90)) {
@@ -1837,7 +1840,7 @@ export class OvertakeGame {
     this.setMode('gameover');
     const progress = this.settleProgression();
     const summary = runSummary(this.run, this.selected);
-    const result = recordRun(this.records, summary);
+    const result = this.runUsedDev ? { records: this.records, newBest: false, medal: null } : recordRun(this.records, summary);
     this.records = result.records;
     this.saveRecords();
     this.best = bestFor(this.records, this.runMode);
@@ -1845,7 +1848,7 @@ export class OvertakeGame {
     this.cb.onGameOver({
       score: this.score, distance: this.distance, overtakes: this.overtakes, nearMisses: this.nearMisses,
       best: this.best, newBest: result.newBest, mode: this.run.mode, car: this.selected,
-      topSpeed: this.run.topSpeed, contractsDone: this.run.contractsDone, contractsTotal: this.run.contracts.length, bestTime: this.records.modes.trial.bestTime, elapsed: this.run.elapsed,
+      topSpeed: this.run.topSpeed, contractsDone: this.run.contractsDone, contractsTotal: this.run.contracts.length, bestTime: this.records.modes.trial.bestTime, devRun: this.runUsedDev, elapsed: this.run.elapsed,
       medal: result.medal, reason, moneyGained: progress.gain,
     });
   }

@@ -77,6 +77,11 @@
         <h1 id="d-name">Golf MK4 GTI</h1>
         <div class="class-pill" id="d-class">Hot hatch</div>
         <p id="d-tagline" class="tagline"></p>
+        <div class="garage-tabs" role="tablist" aria-label="Garage sections">
+          <button type="button" role="tab" aria-selected="true" data-garage-tab="drive">01 <span>Drive</span></button>
+          <button type="button" role="tab" aria-selected="false" data-garage-tab="upgrades">02 <span>Performance</span></button>
+          <button type="button" role="tab" aria-selected="false" data-garage-tab="style">03 <span>Style</span></button>
+        </div>
         <section class="progression" aria-label="Car progression">
           <div class="progression-head"><b id="progress-xp">$0</b><button id="dev-toggle" type="button" aria-pressed="false">Dev options: OFF</button></div>
           <div id="progress-next" class="progress-next"></div>
@@ -84,6 +89,7 @@
           <div id="car-requirement" class="car-requirement" aria-live="polite"></div>
           <p class="progress-hint">Money is paid when a run ends or you return to the garage. Each 1,000 points increases your payout per point by 25%, up to 3×. Dev options grant temporary access.</p>
         </section>
+        <div id="garage-upgrades" class="garage-section hidden" role="tabpanel">
         <div class="stats">
           <div class="stat"><span>Top speed</span><div class="dots" id="stat-speed"></div></div>
           <div class="stat"><span>Handling</span><div class="dots" id="stat-handling"></div></div>
@@ -94,6 +100,9 @@
           <p class="upgrade-hint">Per stage: engine +8% acceleration / +4% speed · tires +6% grip · brakes +10% braking. Dev uses max stages temporarily.</p>
           <div id="upgrade-list"></div>
         </div>
+        </div>
+        <div id="garage-drive" class="garage-section" role="tabpanel">
+        <div class="section-kicker">SELECT YOUR DRIVE <span>LOCAL PLAY</span></div>
         <div class="mode-select" role="group" aria-label="Run mode">
           <button class="mode-card active" data-mode="endless" type="button">
             <span class="mode-name">Endless</span>
@@ -105,11 +114,18 @@
             <span class="mode-desc">120-second score attack</span>
             <span class="mode-best">Best <b id="mode-best-rush">0</b></span>
           </button>
+          <button class="mode-card" data-mode="trial" type="button"><span class="mode-name">Time Trial</span><span class="mode-desc">Race to 3 km</span><span class="mode-best">Fastest <b id="mode-best-trial">—</b></span></button>
+          <button class="mode-card" data-mode="near" type="button"><span class="mode-name">Near Miss</span><span class="mode-desc">90 seconds · close passes pay</span><span class="mode-best">Best <b id="mode-best-near">0</b></span></button>
+          <button class="mode-card" data-mode="daily" type="button"><span class="mode-name">Daily Drive</span><span class="mode-desc" id="daily-desc">Rotates daily · UTC</span><span class="mode-best">Today's best <b id="mode-best-daily">0</b></span></button>
+          <button class="mode-card" data-mode="weekly" type="button"><span class="mode-name">Weekly Event</span><span class="mode-desc" id="weekly-desc">Rotates weekly · UTC</span><span class="mode-best">This week's best <b id="mode-best-weekly">0</b></span></button>
         </div>
+        <p class="local-note">Local, unverified runs · Traffic and conditions vary</p>
         <div id="recent-runs" class="recent-runs hidden">
           <div class="paint-head"><span>Recent runs</span><span id="recent-mode" class="count"></span></div>
           <div id="recent-list"></div>
         </div>
+        </div>
+        <div id="garage-style" class="garage-section hidden" role="tabpanel">
         <div class="paint">
           <div class="paint-head">
             <span>Paint</span>
@@ -119,6 +135,7 @@
           <label class="paint-custom">Custom <input id="paint-custom" type="color" value="#9fb0bf" aria-label="Custom paint color" /></label>
         </div>
         <button id="btn-customize" class="customize-open" type="button"><span>✦</span> Customize body & lighting <span>→</span></button>
+        </div>
         <button id="btn-start" class="primary">
           <i data-lucide="play"></i> <span id="start-label">Start engine</span>
         </button>
@@ -303,10 +320,12 @@
           <div><b id="final-dist">0.0</b><span>km</span></div>
           <div><b id="final-top">0</b><span>top km/h</span></div>
           <div><b id="final-contracts">0/3</b><span>contracts</span></div>
-          <div><b id="final-best">0</b><span>best</span></div>
+          <div><b id="final-best">0</b><span id="final-best-label">Personal best</span></div>
         </div>
         <div id="final-progress" class="final-progress" aria-live="polite"></div>
-        <button id="btn-retry" class="primary"><i data-lucide="rotate-ccw"></i> Drive again</button>
+        <button id="btn-share-result" class="secondary" type="button">Share result</button>
+      <p id="share-status" role="status" class="share-status"></p>
+      <button id="btn-retry" class="primary"><i data-lucide="rotate-ccw"></i> Drive again</button>
         <button id="btn-garage" class="ghost"><i data-lucide="home"></i> Change car</button>
       </div>
     </div>
@@ -323,8 +342,8 @@
           <li><b>Two-way road:</b> your lane is the right one. The left lane carries oncoming traffic. Pull out to overtake, then get back in before you meet a car head-on.</li>
           <li><b>Overtake</b> slower cars in your lane for points. Close passes earn a <b>near-miss bonus</b>; dodging oncoming traffic up close earns extra.</li>
           <li>Chain clean passes to build a <b>combo multiplier</b>, up to ×5.</li>
-          <li><b>Modes:</b> Endless is classic survival. Rush is a 120-second score attack. Each mode keeps its own best and recent runs on this device.</li>
-          <li><b>Contracts:</b> every run has three sequential objectives. Completing one pays bonus points.</li>
+          <li><b>Modes:</b> Endless is survival; Rush and Near Miss are timed score attacks; Time Trial ends at 3 km. Daily and weekly local objectives rotate at UTC boundaries. Traffic and conditions vary. Records stay on this device and are not verified.</li>
+          <li><b>Contracts:</b> most runs have three sequential objectives. Daily and weekly runs have one rotating objective and end when it is completed.</li>
           <li><b>Traffic:</b> cars follow slower leaders and brake instead of stacking. The hazard warning shows the nearest closing threat.</li>
           <li>Hit a car or the barrier and the run ends. In Rush, the clock can also end the run. Medals are awarded by score.</li>
           <li>The cars you didn't pick become traffic. Press <kbd>C</kbd> to cycle camera presets (close, chase, far, hood, bumper) or <kbd>V</kbd> for camera settings. In the garage, drag to orbit and scroll to zoom.</li>

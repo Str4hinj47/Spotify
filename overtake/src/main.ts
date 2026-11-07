@@ -2,7 +2,7 @@ import '@fontsource-variable/inter';
 import { createIcons, Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor } from 'lucide';
 import { ModelLibrary } from './models';
 import { OvertakeGame, CAMERA_ORDER, type Mode, type HudState, type RunStats, type CameraPreset } from './game';
-import { RUN_MODES, type RunMode } from './run.mjs';
+import { RUN_MODES, eventFor, type RunMode } from './run.mjs';
 import { bestFor } from './records.mjs';
 import { CAR_PRICES, UPGRADE_PRICES, earnedCar, upgradeLevels, tunePrice, emptyProgression, type Upgrade } from './progression.mjs';
 import { CARS, getCar, PAINT_COLORS, type CarId } from './catalog';
@@ -143,6 +143,8 @@ function applyCustomization(value: Customization) {
   }
   $('tune-message').textContent = game.getProgression().dev ? 'Dev preview is temporary. Paid options remain yours.' : 'Purchased options can be reused free.';
   library.setCustomization(selected, config);
+  const requestedMode = new URLSearchParams(location.search).get('mode');
+  if (requestedMode && Object.hasOwn(RUN_MODES, requestedMode)) game.setRunMode(requestedMode as RunMode);
   game.setSelectedCar(selected);
   syncCustomizationUI(); syncProgressionUI();
 }
@@ -350,6 +352,8 @@ function formatClock(seconds: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
+function formatTime(seconds: number) { return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, '0')}`; }
+
 function syncModeUI() {
   if (!game) return;
   const mode = game.getRunMode();
@@ -361,6 +365,10 @@ function syncModeUI() {
   });
   $('mode-best-endless').textContent = fmt(bestFor(records, 'endless'));
   $('mode-best-rush').textContent = fmt(bestFor(records, 'rush'));
+  for (const key of ['near', 'daily', 'weekly'] as const) $('mode-best-' + key).textContent = fmt(bestFor(records, key));
+  $('mode-best-trial').textContent = records.modes.trial.bestTime === null ? '—' : formatTime(records.modes.trial.bestTime);
+  $('daily-desc').textContent = eventFor('daily').contract.desc + ' · UTC';
+  $('weekly-desc').textContent = eventFor('weekly').contract.desc + ' · UTC';
   const recent = records.modes[mode].recent.slice(0, 3);
   $('recent-runs').classList.toggle('hidden', recent.length === 0);
   $('recent-mode').textContent = RUN_MODES[mode].label;
@@ -370,7 +378,7 @@ function syncModeUI() {
     const row = document.createElement('div');
     row.className = 'recent-row';
     const medal = r.medal ? `<span class="medal-dot ${r.medal}"></span>` : '';
-    row.innerHTML = `${medal}<span>${fmt(r.score)}</span><small>${(r.distance / 1000).toFixed(1)} km · ${r.overtakes} passed</small>`;
+    row.innerHTML = `${medal}<span>${mode === 'trial' && r.reason === 'distance' ? formatTime(r.elapsed) : fmt(r.score)}</span><small>${(r.distance / 1000).toFixed(1)} km · ${r.overtakes} passed</small>`;
     list.appendChild(row);
   }
 }
@@ -484,19 +492,23 @@ function onEvent(e: { kind: 'overtake' | 'near' | 'combo' | 'crash' | 'oncoming'
   setTimeout(() => div.remove(), 1300);
 }
 
+let latestResult: RunStats | null = null;
 function onGameOver(s: RunStats) {
+  latestResult = s;
+  $('share-status').textContent = s.devRun ? 'Dev run · excluded from personal records' : 'Local result · not globally verified';
   $('final-progress').textContent = `+$${fmt(s.moneyGained)} earned`;
   $('final-score').textContent = fmt(s.score);
   $('final-overtakes').textContent = String(s.overtakes);
   $('final-near').textContent = String(s.nearMisses);
   $('final-dist').textContent = (s.distance / 1000).toFixed(1);
   $('final-top').textContent = String(Math.round(s.topSpeed));
-  $('final-contracts').textContent = `${s.contractsDone}/3`;
-  $('final-best').textContent = fmt(s.best);
+  $('final-contracts').textContent = `${s.contractsDone}/${s.contractsTotal}`;
+  $('final-best').textContent = s.mode === 'trial' ? (s.bestTime === null ? '—' : formatTime(s.bestTime)) : fmt(s.best);
+  $('final-best-label').textContent = s.mode === 'trial' ? 'Fastest time' : 'Personal best';
   $('new-best').classList.toggle('hidden', !s.newBest);
   $('best-top').textContent = fmt(s.best);
-  $('final-title').textContent = s.reason === 'time' ? 'Rush complete' : 'Wrecked';
-  $('final-title').classList.toggle('finish-title', s.reason === 'time');
+  $('final-title').textContent = s.reason === 'crash' ? 'Wrecked' : s.reason === 'objective' ? 'Challenge complete' : s.reason === 'distance' ? `Finished · ${formatTime(s.elapsed)}` : 'Time up';
+  $('final-title').classList.toggle('finish-title', s.reason !== 'crash');
   const medal = $('final-medal');
   medal.className = `final-medal ${s.medal ?? ''}`.trim();
   medal.classList.toggle('hidden', !s.medal);
@@ -667,6 +679,27 @@ function bindUI() {
   $('cam-auto-center').addEventListener('change', e => game.setFreeCameraSettings({autoCenter:(e.target as HTMLInputElement).checked}));
   $('btn-resume').addEventListener('click', () => game.resume());
   $('btn-quit').addEventListener('click', () => game.toGarage());
+  document.querySelectorAll<HTMLButtonElement>('[data-garage-tab]').forEach(button => button.addEventListener('click', () => {
+    const tab = button.dataset.garageTab!;
+    document.querySelectorAll<HTMLButtonElement>('[data-garage-tab]').forEach(b => b.setAttribute('aria-selected', String(b === button)));
+    for (const section of ['drive', 'upgrades', 'style']) $('garage-' + section).classList.toggle('hidden', section !== tab);
+  }));
+  $('btn-share-result').addEventListener('click', async () => {
+    if (!latestResult) return;
+    const s = latestResult;
+    const detail = s.mode === 'trial' && s.reason === 'distance' ? `3 km in ${formatTime(s.elapsed)}` : `${fmt(s.score)} points · ${(s.distance / 1000).toFixed(1)} km`;
+    const text = `OVERTAKE · ${RUN_MODES[s.mode].label}\n${detail} · ${s.overtakes} overtakes\n${s.devRun ? 'Dev run, excluded from records' : 'Local result, not globally verified'}\n${location.origin}/`;
+    try {
+      if (navigator.share) { await navigator.share({ title: 'OVERTAKE', text }); $('share-status').textContent = 'Shared'; }
+      else if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); $('share-status').textContent = 'Result copied'; }
+      else throw new Error('Sharing unavailable');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      // Selectable fallback works even on insecure origins or denied clipboard permissions.
+      const box = document.createElement('textarea'); box.value = text; box.readOnly = true; box.className = 'share-fallback';
+      $('share-status').textContent = 'Copy your result:'; $('share-status').appendChild(box); box.focus(); box.select();
+    }
+  });
   $('btn-retry').addEventListener('click', startRun);
   $('btn-garage').addEventListener('click', () => game.toGarage());
   $('btn-sound').addEventListener('click', toggleMute);

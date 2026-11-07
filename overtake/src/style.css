@@ -596,3 +596,23 @@ svg { stroke-width: 1.75; }
 #upgrade-list button { text-align:left; }
 
 .upgrade-hint { margin:0 0 7px; color:var(--muted); font-size:10px; line-height:1.4; }
+
+/* Garage: a focused, tabbed control deck keeps the car in view. */
+.car-detail { width: 380px; background: rgba(10,15,20,.93); border-color: rgba(190,220,225,.19); border-radius: 4px; box-shadow: 0 20px 80px #000a; }
+.car-detail h1 { font-size: 30px; letter-spacing: -.045em; }
+.garage-tabs { display: grid; grid-template-columns: repeat(3,1fr); gap: 0; border-bottom: 1px solid #ffffff26; margin: 16px 0 12px; }
+.garage-tabs button { padding: 10px 2px; color: #788a90; background: transparent; border-bottom: 2px solid transparent; font-size: 10px; letter-spacing:.08em; text-align:left; }
+.garage-tabs button span { display:block; margin-top:5px; font-size:12px; font-weight:700; letter-spacing:0; color:#a7b6b9; }
+.garage-tabs button[aria-selected=true] { color:#b5f54b; border-color:#b5f54b; }
+.garage-tabs button[aria-selected=true] span { color:#f4f8f5; }
+.section-kicker { display:flex; justify-content:space-between; color:#eaf1ed; letter-spacing:.14em; font-size:10px; font-weight:800; margin: 12px 0; }
+.section-kicker span { color:#91a19d; font-weight:500; }
+.mode-card { border-radius:3px; background:#ffffff08; padding:10px; }
+.mode-card.active { background:#b5f54b17; border-color:#b5f54b; }
+.mode-card.active .mode-name { color:#c3ff68; }
+.mode-best b { color:#c3ff68; }
+.local-note { color:#a7b3b0; font-size:10px; line-height:1.4; margin: -5px 0 12px; }
+.site-link { color:#c5d3cb; text-decoration:none; font-size:11px; pointer-events:auto; }
+.share-status { font-size:11px; min-height:1em; }
+.share-fallback { width:100%; min-height:80px; display:block; user-select:text; touch-action:auto; margin-top:6px; padding:8px; background:#101820; color:#fff; border:1px solid #71827c; }
+@media (max-width: 700px) { .car-detail { width:auto; } .garage-tabs { margin:5px 0 4px; } .garage-tabs button { padding:4px 2px; } .garage-tabs button span { display:inline; margin:0 0 0 4px; } .section-kicker { margin:5px 0; } .local-note { margin:2px 0 6px; } .site-link { display:none; } }
