@@ -440,25 +440,29 @@ export class ModelLibrary {
       }
       return { y, points };
     });
-    // Smooth each row (5-bin moving average x2) and blend across rows:
-    // raw per-bin min/max sampling jitters between mesh triangles and the
-    // lofted shell comes out rippled.
+    // The source meshes are low-poly and asymmetric, so raw per-bin
+    // sampling lofts into a lumpy, uneven skin. Smooth hard (weighted
+    // tent filter in x, blended across rows) and average mirrored bins:
+    // real bumper covers are smooth and symmetric.
     const smooth = (set: { y: number; points: { x: number; z: number }[] }[]) => {
-      for (const row of set) for (let pass = 0; pass < 2; pass++) {
+      const W = [1, 2, 3, 2, 1];
+      for (const row of set) for (let pass = 0; pass < 3; pass++) {
         const src = row.points.map(pt => pt.z);
         row.points.forEach((pt, i) => {
-          let sum = 0, n = 0;
-          for (let j = Math.max(0, i - 2); j <= Math.min(src.length - 1, i + 2); j++) { sum += src[j]; n++; }
-          pt.z = sum / n;
+          let sum = 0, wsum = 0;
+          for (let k = -2; k <= 2; k++) { const j = i + k; if (j < 0 || j >= src.length) continue; sum += src[j] * W[k + 2]; wsum += W[k + 2]; }
+          pt.z = sum / wsum;
         });
       }
-      for (let r = 1; r < set.length - 1; r++) {
+      for (const row of set) { const n = row.points.length;
+        row.points.forEach((pt, i) => { pt.z = (pt.z + row.points[n - 1 - i].z) / 2; }); }
+      for (let pass = 0; pass < 2; pass++) for (let r = 1; r < set.length - 1; r++) {
         const prev = set[r - 1].points, next = set[r + 1].points;
         set[r].points.forEach((pt, i) => { pt.z = (prev[i].z + pt.z * 2 + next[i].z) / 4; });
       }
       return set;
     };
-    const set = { front: smooth(build([.16, .22, .28, .34, .40, .46, .52, .58], false)), rear: smooth(build([.26, .32, .38, .44, .50, .56, .62], true)) };
+    const set = { front: smooth(build([.15, .195, .24, .285, .33, .375, .42, .465, .51, .555, .585], false)), rear: smooth(build([.22, .265, .31, .355, .40, .445, .49, .535, .58, .625], true)) };
     this.bumperCache.set(id, set);
     return set;
   }
