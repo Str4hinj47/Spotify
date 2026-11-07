@@ -403,6 +403,7 @@ function syncRankUI() {
   const state = game.getRanked(), info = rankFor(state.points), selectedScenario = game.getRankedScenario();
   const hero = $('rank-hero'); hero.style.setProperty('--rank-color', info.rank.color); hero.style.setProperty('--rank-glow', info.rank.glow);
   $('rank-badge').innerHTML = rankBadge(info.index); $('rank-name').textContent = info.rank.name;
+  $('rank-status').textContent = game.getProgression().dev ? 'DEV PREVIEW · NO RANK POINTS' : 'LOCAL RANKED · TIME ATTACK';
   $('rank-points').textContent = fmt(state.points); $('rank-progress-fill').style.width = `${info.progress * 100}%`;
   $('rank-next').textContent = info.next ? `${fmt(info.next.min - state.points)} RP to ${info.next.name}` : 'Top rank reached';
   const list = $('rank-scenarios'); list.replaceChildren();
