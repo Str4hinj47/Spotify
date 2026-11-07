@@ -3,10 +3,11 @@ import { CAR_PRICES, sanitizeProgression } from './progression.mjs';
 import { sanitizePaints } from './paint.mjs';
 import { sanitizeCustomizations } from './customization.mjs';
 import { emptyRecords, sanitizeRecords } from './records.mjs';
+import { emptyRanked, sanitizeRanked, RANKED_STORAGE_KEY } from './ranked.mjs';
 
 const CARS = Object.keys(CAR_PRICES);
 export const CLOUD_BACKUP_KEY = 'overtake-cloud-restore-backup-v1';
-export const CLOUD_KEYS = Object.freeze(['overtake-progression-v2', 'overtake-paints', 'overtake-customization-v1', 'overtake-car', 'overtake-records-v2', 'overtake-best']);
+export const CLOUD_KEYS = Object.freeze(['overtake-progression-v2', 'overtake-paints', 'overtake-customization-v1', 'overtake-car', 'overtake-records-v2', 'overtake-best', RANKED_STORAGE_KEY]);
 const MAX_BYTES = 100_000;
 const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
 const boundedJson = x => {
@@ -27,6 +28,7 @@ export function normalizeSnapshot(raw) {
       !object(raw.paints) || !object(raw.customizations) || !object(raw.records) || raw.records.version !== 2 || !object(raw.records.modes)) {
     throw new Error('Unsupported or damaged cloud save; nothing was changed.');
   }
+  if (raw.ranked != null && (!object(raw.ranked) || raw.ranked.version !== 1)) throw new Error('Unsupported ranked save; nothing was changed.');
   const progression = sanitizeProgression(raw.progression);
   progression.dev = false; // Never transfer developer access between devices.
   const records = sanitizeRecords(raw.records);
@@ -37,7 +39,8 @@ export function normalizeSnapshot(raw) {
   });
   const result = { schema: 1, progression, paints: sanitizePaints(raw.paints, CARS),
     customizations: sanitizeCustomizations(raw.customizations, CARS),
-    selectedCar: CARS.includes(raw.selectedCar) ? raw.selectedCar : 'golf', records: JSON.parse(text) };
+    selectedCar: CARS.includes(raw.selectedCar) ? raw.selectedCar : 'golf', records: JSON.parse(text),
+    ranked: raw.ranked == null ? null : sanitizeRanked(raw.ranked) };
   boundedJson(result);
   return result;
 }
@@ -53,7 +56,7 @@ export function captureSnapshot(storage) {
   if (Number.isFinite(legacy)) cleanRecords.modes.endless.bestScore = Math.max(cleanRecords.modes.endless.bestScore, legacy);
   return normalizeSnapshot({ schema: 1, progression, records: cleanRecords,
     paints: readJson(storage, 'overtake-paints', {}), customizations: readJson(storage, 'overtake-customization-v1', {}),
-    selectedCar: storage.getItem('overtake-car') || 'golf' });
+    selectedCar: storage.getItem('overtake-car') || 'golf', ranked: readJson(storage, RANKED_STORAGE_KEY, emptyRanked()) });
 }
 
 function currentValues(storage) { return Object.fromEntries(CLOUD_KEYS.map(key => [key, storage.getItem(key)])); }
@@ -76,15 +79,18 @@ export function restoreSnapshot(storage, raw) {
     'overtake-progression-v2': JSON.stringify(s.progression), 'overtake-paints': JSON.stringify(s.paints),
     'overtake-customization-v1': JSON.stringify(s.customizations), 'overtake-car': s.selectedCar,
     'overtake-records-v2': JSON.stringify(s.records), 'overtake-best': String(s.records.modes.endless.bestScore),
+    [RANKED_STORAGE_KEY]: s.ranked === null ? storage.getItem(RANKED_STORAGE_KEY) : JSON.stringify(s.ranked),
   });
 }
 /** Swap current local data with the last pre-restore state. */
 export function undoRestore(storage) {
   const backup = readJson(storage, CLOUD_BACKUP_KEY, null);
   if (!object(backup) || backup.version !== 1 || !object(backup.values) ||
-      CLOUD_KEYS.some(key => !(key in backup.values) || (backup.values[key] !== null && typeof backup.values[key] !== 'string'))) {
+      CLOUD_KEYS.some(key => key !== RANKED_STORAGE_KEY && (!(key in backup.values) || (backup.values[key] !== null && typeof backup.values[key] !== 'string'))) ||
+      (RANKED_STORAGE_KEY in backup.values && backup.values[RANKED_STORAGE_KEY] !== null && typeof backup.values[RANKED_STORAGE_KEY] !== 'string')) {
     throw new Error('No valid local restore backup found.');
   }
   boundedJson(backup);
-  replaceWithBackup(storage, backup.values);
+  const values = { ...backup.values, [RANKED_STORAGE_KEY]: RANKED_STORAGE_KEY in backup.values ? backup.values[RANKED_STORAGE_KEY] : storage.getItem(RANKED_STORAGE_KEY) };
+  replaceWithBackup(storage, values);
 }

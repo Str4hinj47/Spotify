@@ -22,3 +22,11 @@ test('failure to make backup leaves local values untouched; partial write rolls 
  let fail=true;target.setItem=(k,v)=>{if(k==='overtake-paints'&&fail){fail=false;throw Error('quota');}set(k,v);};assert.throws(()=>restoreSnapshot(target,snap),/previous data was restored/);assert.equal(target.getItem('overtake-progression-v2'),'old');
 });
 test('uninitialized device cannot overwrite a cloud save with defaults',()=>assert.throws(()=>captureSnapshot(makeStorage()),/Open the game/));
+test('rank is backed up and restored; older snapshots and backups preserve current rank',()=>{
+ const source=makeStorage({'overtake-progression-v2':JSON.stringify(progression),'overtake-ranked-v1':JSON.stringify({version:1,points:755,attempts:3,scenarios:{}})});
+ const target=makeStorage({'overtake-progression-v2':JSON.stringify(progression),'overtake-ranked-v1':JSON.stringify({version:1,points:50,attempts:1,scenarios:{}})});
+ const snap=captureSnapshot(source);restoreSnapshot(target,snap);assert.equal(JSON.parse(target.getItem('overtake-ranked-v1')).points,755);undoRestore(target);assert.equal(JSON.parse(target.getItem('overtake-ranked-v1')).points,50);
+ const {ranked,...old}=snap;restoreSnapshot(target,old);assert.equal(JSON.parse(target.getItem('overtake-ranked-v1')).points,50);
+ const backup=JSON.parse(target.getItem(CLOUD_BACKUP_KEY));delete backup.values['overtake-ranked-v1'];target.setItem(CLOUD_BACKUP_KEY,JSON.stringify(backup));undoRestore(target);assert.equal(JSON.parse(target.getItem('overtake-ranked-v1')).points,50);
+ assert.throws(()=>restoreSnapshot(target,{...snap,ranked:{version:2}}),/Unsupported ranked/);
+});
