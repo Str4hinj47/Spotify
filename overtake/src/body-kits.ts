@@ -149,8 +149,8 @@ function skirtShell(id:CarId, side:number, level:number) {
   for(let i=0;i<=n;i++) {
     const t=i/n, taper=Math.pow(Math.sin(Math.PI*t),.6), z=THREE.MathUtils.lerp(fit.range[0],fit.range[1],t);
     const rearFlare=(id==='ferrari'||id==='r8') ? Math.pow(t,3)*.035*taper : id==='audi' ? Math.pow(t,2)*.015*taper : 0;
-    const top=samples[1][i]+.005, mid=samples[0][i]+.004+THREE.MathUtils.lerp(.014,.025,level)*taper+rearFlare*.45;
-    const low=samples[0][i]-.025+THREE.MathUtils.lerp(.028,.045,level)*taper+rearFlare;
+    const top=samples[1][i]+.005, mid=samples[0][i]+.004+THREE.MathUtils.lerp(.008,.016,level)*taper+rearFlare*.45;
+    const low=samples[0][i]-.025+THREE.MathUtils.lerp(.016,.030,level)*taper+rearFlare;
     for(const [x,y] of [[top,.38],[mid,.30],[low,.22],[samples[0][i]-.045,.205],[samples[0][i]-.045,.37]] as const) positions.push(side*x,y,z);
     if(i<n) for(let j=0;j<5;j++) {const a=i*5+j,b=i*5+(j+1)%5,c=(i+1)*5+j,d=(i+1)*5+(j+1)%5;
       if(side>0)indices.push(a,c,b,b,c,d);else indices.push(a,b,c,b,d,c);}
@@ -162,7 +162,7 @@ function skirtBlade(id:CarId, side:number, level:number) {
   const positions:number[]=[],indices:number[]=[];
   for(let i=0;i<=n;i++) {
     const t=i/n,taper=Math.pow(Math.sin(Math.PI*t),.7),z=THREE.MathUtils.lerp(fit.range[0],fit.range[1],t),x=samples[i];
-    for(const [xx,y] of [[x-.04,.215],[x+THREE.MathUtils.lerp(.055,.085,level)*taper,.205],[x+THREE.MathUtils.lerp(.055,.085,level)*taper,.188],[x-.04,.198]] as const)positions.push(side*xx,y,z);
+    for(const [xx,y] of [[x-.04,.215],[x+THREE.MathUtils.lerp(.032,.050,level)*taper,.205],[x+THREE.MathUtils.lerp(.032,.050,level)*taper,.188],[x-.04,.198]] as const)positions.push(side*xx,y,z);
     if(i<n)for(let j=0;j<4;j++){const a=i*4+j,b=i*4+(j+1)%4,c=(i+1)*4+j,d=(i+1)*4+(j+1)%4;
       if(side>0)indices.push(a,c,b,b,c,d);else indices.push(a,b,c,b,d,c);}
   }
@@ -242,15 +242,17 @@ function archFlareGeometry(side:number, arch:WheelArch, fallbackX:number, protru
 /** Replacement bumper shell: lofted over the measured stock surface,
  * offset 12 mm proud, wrapping back around both corners. The stock bumper
  * stays underneath but is fully covered — no floating panel, no gap. */
-function bumperCoverGeometry(rows: BumperRow[], rear: boolean) {
+function bumperCoverGeometry(rows: BumperRow[], rear: boolean, offMag = .012, wrapMag = .20) {
   const positions:number[]=[], indices:number[]=[];
   const grid = rows.map(row => {
     const pts = row.points.filter(pt => Number.isFinite(pt.z));
     const first = pts[0], last = pts[pts.length-1];
-    const wrap = rear ? -.20 : .20; // corners sweep back along the flanks
-    return [{x:first.x-.13, y:row.y, z:first.z+wrap}, ...pts.map(pt=>({x:pt.x, y:row.y, z:pt.z})), {x:last.x+.13, y:row.y, z:last.z+wrap}];
+    const wrap = (rear ? -1 : 1) * wrapMag; // corners sweep back along the flanks
+    return wrapMag > 0
+      ? [{x:first.x-.13, y:row.y, z:first.z+wrap}, ...pts.map(pt=>({x:pt.x, y:row.y, z:pt.z})), {x:last.x+.13, y:row.y, z:last.z+wrap}]
+      : pts.map(pt=>({x:pt.x, y:row.y, z:pt.z}));
   });
-  const cols = grid[0].length, off = rear ? .012 : -.012;
+  const cols = grid[0].length, off = (rear ? 1 : -1) * offMag;
   grid.forEach((row,i)=> row.forEach((pt,j)=> {
     positions.push(pt.x, pt.y, pt.z+off);
     if(i<grid.length-1 && j<cols-1) { const a=i*cols+j,b=a+1,c=a+cols,d=c+1;
@@ -258,6 +260,13 @@ function bumperCoverGeometry(rows: BumperRow[], rear: boolean) {
   }));
   const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
   geo.setIndex(indices); geo.computeVertexNormals(); return geo;
+}
+/** A surface patch (intakes, surrounds) lofted on the measured bumper. */
+function bumperPatchGeometry(allRows: BumperRow[], yLo: number, yHi: number, xLo: number, xHi: number, rear: boolean, offMag: number) {
+  const pick = (y:number) => { let row = allRows[0], rd = 1e9;
+    for(const r of allRows) if(Math.abs(r.y-y)<rd) { rd=Math.abs(r.y-y); row=r; }
+    return { y, points: row.points.filter(pt => pt.x>=xLo && pt.x<=xHi) }; };
+  return bumperCoverGeometry([pick(yLo), pick(yHi)], rear, offMag, 0);
 }
 function bumperZ(rows: BumperRow[], x:number, y:number, rear:boolean) {
   let row = rows[0], rd = 1e9;
@@ -334,11 +343,12 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
     for(const pt of topLine) { if(pt.z<=z) lo=pt; if(pt.z>=z) { hi=pt; break; } }
     return hi.z===lo.z ? lo.y : lo.y+(hi.y-lo.y)*((z-lo.z)/(hi.z-lo.z)); };
   // A sheet hugging the measured hood/roof surface (cx/hw in metres, lift off it).
-  const surfaceSheet=(group:THREE.Group, name:string, z0:number, z1:number, cx:number, hw:number, lift:number, bump:number, mat:THREE.Material)=>{
+  const surfaceSheet=(group:THREE.Group, name:string, z0:number, z1:number, cx:number, hw:number, lift:number, bump:number, mat:THREE.Material, taperBump=false)=>{
     const positions:number[]=[], indices:number[]=[], rows=10, cols=4;
     for(let i=0;i<=rows;i++) { const z=z0+(z1-z0)*(i/rows), base=surfaceY(z)+lift;
+      const zTaper=taperBump?Math.pow(Math.sin(Math.PI*(i/rows)),.7):1;
       for(let j=0;j<=cols;j++) { const t=j/cols*2-1, x=cx+t*hw;
-        positions.push(x, base+bump*(1-t*t)-Math.abs(t)*.004, z); }
+        positions.push(x, base+(bump*zTaper)*(1-t*t)-Math.abs(t)*.004, z); }
       if(i<rows) for(let j=0;j<cols;j++){const a=i*(cols+1)+j,b=a+1,c=a+cols+1,d=c+1;indices.push(a,c,b,b,c,d);} }
     const uvs:number[]=[]; for(let i=0;i<=rows;i++) for(let j=0;j<=cols;j++) uvs.push(j/cols, i/rows);
     const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
@@ -354,22 +364,24 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
       for(const pt of topLine) if(pt.z>hz0+.55 && pt.y>baseY+.30) { hz1=Math.min(hz1,pt.z-.10); break; } }
     const darkSheet=new THREE.MeshStandardMaterial({ color:0x0b0e11, roughness:.6, metalness:.3 });
     (g.userData.extraMaterials ??= []).push(darkSheet);
-    if(config.hood==='street') { // twin bonnet vent slits
-      surfaceSheet(a,'hood-vent',hz0+.18,hz1-.05,-f.frontW*.34,.13,.004,0,darkSheet);
-      surfaceSheet(a,'hood-vent',hz0+.18,hz1-.05, f.frontW*.34,.13,.004,0,darkSheet);
+    const extractors=()=>{ // short extractor vents at the rear of the bonnet
+      for(const side of [-1,1]) {
+        surfaceSheet(a,'hood-vent',hz1-.40,hz1-.14,side*f.frontW*.38,.085,.004,0,darkSheet);
+        for(const zz of [hz1-.34,hz1-.25,hz1-.16]) { const slat=box(.17,.008,.028,side*f.frontW*.38,surfaceY(zz)+.010,zz,darkSheet,a,'vent-slat');
+          slat.rotation.x=Math.atan((surfaceY(zz+.06)-surfaceY(zz-.06))/.12)*.6; }
+      } };
+    if(config.hood==='street') { extractors();
     } else if(config.hood==='touring') { // chrome centre spear
       surfaceSheet(a,'hood-spear',hz0+.05,hz1,0,.030,.006,0,metal);
-    } else if(config.hood==='sport') { // power dome with a dark scoop mouth
-      surfaceSheet(a,'power-dome',hz0+.02,hz1,0,f.frontW*.40,.004,.038,panel);
+    } else if(config.hood==='sport') { // power dome (tapered) with a dark scoop mouth
+      surfaceSheet(a,'power-dome',hz0+.02,hz1,0,f.frontW*.34,.004,.030,panel,true);
       surfaceSheet(a,'scoop-mouth',hz0+.10,hz0+.30,0,f.frontW*.22,.030,0,darkSheet);
-    } else if(config.hood==='rally') { // bonnet vents (roof scoop lives in Roof)
-      surfaceSheet(a,'hood-vent',hz0+.15,hz1-.05,-f.frontW*.36,.14,.004,0,darkSheet);
-      surfaceSheet(a,'hood-vent',hz0+.15,hz1-.05, f.frontW*.36,.14,.004,0,darkSheet);
+    } else if(config.hood==='rally') { extractors(); // bonnet vents (roof scoop lives in Roof)
     } else if(config.hood==='gt') { // full carbon bonnet
       surfaceSheet(a,'carbon-hood',hz0,hz1,0,f.frontW*.78,.005,0,woven);
     } else if(config.hood==='track') { // louvred bonnet
-      for(let i=0;i<5;i++) { const z=hz0+.14+i*((hz1-hz0-.2)/4), slat=new THREE.Mesh(new THREE.BoxGeometry(f.frontW*.95,.012,.07),darkSheet);
-        slat.name='hood-louvre'; slat.position.set(0,surfaceY(z)+.012,z); slat.rotation.x=-.5; a.add(slat); }
+      for(let i=0;i<5;i++) { const z=hz0+.14+i*((hz1-hz0-.2)/4), slat=new THREE.Mesh(new THREE.BoxGeometry(f.frontW*.72,.012,.07),darkSheet);
+        slat.name='hood-louvre'; slat.position.set(0,surfaceY(z)+.007,z); slat.rotation.x=Math.atan((surfaceY(z+.06)-surfaceY(z-.06))/.12)*.6-.12; a.add(slat); }
     } else if(config.hood==='wide') { // broad show-car power dome
       surfaceSheet(a,'power-dome',hz0,hz1,0,f.frontW*.55,.004,.05,panel);
       surfaceSheet(a,'hood-vent',hz0+.20,hz1-.04,-f.frontW*.52,.10,.006,0,darkSheet);
@@ -506,10 +518,16 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
   if(config.front!=='stock' && level('front')>=.67) {
     const a=g.getObjectByName('custom-front') as THREE.Group;
     if(a) { const nose=f.frontZ-.015;
-      const iz = bumpers ? bumperZ(bumpers.front,0,f.bumperY+.10,false)-.004 : nose-.01;
-      const intake=box(f.frontW*1.02,.12,.025,0,f.bumperY+.09,iz,dark,a,'front-intake'); intake.rotation.x=.06;
-      for(const side of [-1,1]) { const corner=new THREE.Mesh(plateGeometry([[-.10,-.055],[.11,-.045],[.09,.055],[-.08,.06]],.02),dark);
-        corner.name='front-corner-intake'; corner.position.set(side*f.frontW*.70,f.bumperY+.11, bumpers ? bumperZ(bumpers.front,side*f.frontW*.70,f.bumperY+.11,false)-.004 : nose+.005); corner.rotation.y=side*-.28; a.add(corner); }
+      if(bumpers) { // intakes are surface patches on the shell, never floating plates
+        const intake=new THREE.Mesh(bumperPatchGeometry(bumpers.front,.235,.355,-.44,.44,false,.0165),dark);
+        intake.name='front-intake'; a.add(intake);
+        for(const yy of [.275,.315]) { const slat=new THREE.Mesh(bumperPatchGeometry(bumpers.front,yy-.012,yy+.012,-.40,.40,false,.0195),carbon);
+          slat.name='intake-slat'; a.add(slat); }
+        for(const side of [-1,1]) { const corner=new THREE.Mesh(bumperPatchGeometry(bumpers.front,.24,.36, side<0?-f.frontW*.96:-f.frontW*.66, side<0?f.frontW*.66:f.frontW*.96, false,.0165),dark);
+          corner.name='front-corner-intake'; a.add(corner); }
+      } else {
+        const intake=box(f.frontW*1.02,.12,.025,0,f.bumperY+.09,nose-.01,dark,a,'front-intake'); intake.rotation.x=.06;
+      }
       if(config.front==='wide') for(const side of [-1,1]) { const blade=new THREE.Mesh(plateGeometry([[0,-.02],[.22,-.03],[.20,.035],[0,.03]],.012),carbon);
         blade.name='bumper-blade'; blade.position.set(side*f.frontW*.92,f.bumperY+.03,nose+.06); blade.rotation.y=side*-.5; a.add(blade); }
     }
@@ -543,8 +561,8 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
       const finCount=config.rear==='wide'?7:amount<1?3:5;
       if(amount>=.67) for(let i=0;i<finCount;i++) {
         const x=(i-(finCount-1)/2)*f.rearW*diffuserWidth*1.6/Math.max(1,finCount-1);
-        const fin=new THREE.Mesh(plateGeometry([[-.13,-.045],[.11,-.055],[.13,.035],[-.11,.045]],.011),carbon);
-        fin.name='diffuser-fin'; fin.rotation.y=Math.PI/2; fin.position.set(x,f.bumperY-.01,tail-.03); fin.rotation.x=-.10; a.add(fin);
+        const fin=new THREE.Mesh(plateGeometry([[-.085,-.035],[.075,-.042],[.085,.028],[-.075,.035]],.011),carbon);
+        fin.name='diffuser-fin'; fin.rotation.y=Math.PI/2; fin.position.set(x,f.bumperY+.005,tail-.03); fin.rotation.x=-.10; a.add(fin);
       }
     }
   }
@@ -569,9 +587,14 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
   if(config.rear!=='stock' && level('rear')>=.67) {
     const a=g.getObjectByName('custom-rear') as THREE.Group;
     if(a) { const tail=f.rearZ-.035;
-      const surround=box(f.rearW*.86,.17,.02,0,f.tipY+.08, bumpers ? bumperZ(bumpers.rear,0,f.tipY+.10,true)+.004 : tail+.035,carbon,a,'exhaust-surround'); surround.rotation.x=-.05;
-      for(const side of [-1,1]) { const vent=new THREE.Mesh(plateGeometry([[-.09,-.05],[.10,-.04],[.08,.055],[-.07,.055]],.018),dark);
-        vent.name='rear-corner-vent'; vent.position.set(side*f.rearW*.76,f.bumperY+.15,tail+.015); vent.rotation.y=side*.30; a.add(vent); }
+      if(bumpers) {
+        const surround=new THREE.Mesh(bumperPatchGeometry(bumpers.rear,.215,.345,-.60,.60,true,.0165),carbon);
+        surround.name='exhaust-surround'; a.add(surround);
+        for(const side of [-1,1]) { const vent=new THREE.Mesh(bumperPatchGeometry(bumpers.rear,.25,.37, side<0?-f.rearW*.94:-f.rearW*.62, side<0?f.rearW*.62:f.rearW*.94, true,.0165),dark);
+          vent.name='rear-corner-vent'; a.add(vent); }
+      } else {
+        const surround=box(f.rearW*.86,.17,.02,0,f.tipY+.08,tail+.035,carbon,a,'exhaust-surround'); surround.rotation.x=-.05;
+      }
     }
   }
   if(config.skirts!=='stock') {
@@ -588,7 +611,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
     const a=reg('spoiler'),track=isTrack('spoiler'),amount=level('spoiler'),panel=config.spoilerFinish==='carbon'?woven:body;
     const roof=f.character==='compact'||f.character==='wagon';
     if(roof && (config.spoiler==='gt'||config.spoiler==='track')) { // hatch GT wing on pedestals
-      const h=config.spoiler==='track'?.26:.20, chord=config.spoiler==='track'?.34:.28, w=f.spoilerW*1.30;
+      const h=config.spoiler==='track'?.20:.15, chord=config.spoiler==='track'?.26:.22, w=f.spoilerW*1.02;
       for(const side of [-1,1]) { const support=new THREE.Mesh(wingSupport(side*f.spoilerW*.55,f.spoilerY,f.spoilerZ-.02,h),panel);
         support.name='wing-pedestal'; a.add(support); }
       const blade=new THREE.Mesh(wingProfile(w,f.spoilerZ,f.spoilerY+h,chord),panel); blade.name='roof-gt-wing'; a.add(blade);
@@ -604,7 +627,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
     } else if(amount>=.67 || config.spoiler==='rally') {
       const h=(f.character==='luxury'?.13:f.character==='classic'?.19:.23)*(config.spoiler==='rally'?.62:config.spoiler==='sport'?.72:1);
       const chord=(f.character==='luxury'?.24:.34)*(track?1:.8);
-      const wingWidth=(id==='ferrari'?.82:id==='r8'?.85:id==='challenger'?.85:id==='mustang'?.78:.76)*(track?1:.9);
+      const wingWidth=(id==='ferrari'?.68:id==='r8'?.70:id==='challenger'?.70:id==='mustang'?.64:.63)*(track?1:.9);
       for(const side of [-1,1]) {
         const support=new THREE.Mesh(wingSupport(side*f.spoilerW*.62,f.spoilerY,f.spoilerZ-.015,h),panel);
         support.name='wing-pedestal';a.add(support);
