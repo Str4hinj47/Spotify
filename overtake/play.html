@@ -80,8 +80,9 @@
         <p id="d-tagline" class="tagline"></p>
         <div class="garage-tabs" role="group" aria-label="Garage sections">
           <button type="button" aria-pressed="true" data-garage-tab="drive">01 <span>Drive</span></button>
-          <button type="button" aria-pressed="false" data-garage-tab="upgrades">02 <span>Performance</span></button>
-          <button type="button" aria-pressed="false" data-garage-tab="style">03 <span>Style</span></button>
+          <button type="button" aria-pressed="false" data-garage-tab="ranked">02 <span>Ranked</span></button>
+          <button type="button" aria-pressed="false" data-garage-tab="upgrades">03 <span>Performance</span></button>
+          <button type="button" aria-pressed="false" data-garage-tab="style">04 <span>Style</span></button>
         </div>
         <section class="progression" aria-label="Car progression">
           <div class="progression-head"><b id="progress-xp">$0</b><button id="dev-toggle" type="button" aria-pressed="false">Dev options: OFF</button></div>
@@ -126,6 +127,16 @@
           <div class="paint-head"><span>Recent runs</span><span id="recent-mode" class="count"></span></div>
           <div id="recent-list"></div>
         </div>
+        </div>
+        <div id="garage-ranked" class="garage-section ranked-section hidden">
+          <div class="rank-hero" id="rank-hero">
+            <div id="rank-badge" class="rank-badge"></div>
+            <div class="rank-hero-copy"><span class="rank-eyebrow">LOCAL RANKED · TIME ATTACK</span><h2 id="rank-name">Rookie</h2><div class="rank-points"><b id="rank-points">0</b> RP</div><div class="rank-progress"><i id="rank-progress-fill"></i></div><div id="rank-next" class="rank-next"></div></div>
+          </div>
+          <button type="button" id="rank-road-open" class="rank-road-open">VIEW RANK ROAD <span>↗</span></button>
+          <div class="rank-scenario-heading"><span>CHOOSE YOUR ATTACK</span><span>03 SCENARIOS</span></div>
+          <div id="rank-scenarios" class="rank-scenarios" role="group" aria-label="Ranked scenario"></div>
+          <p class="rank-fineprint">Earn RP by meeting the finish time and objective. Crash, timeout, missed objective or quit: −12 RP (floor 0). Your car, upgrades, traffic and weather vary. Local and unverified; Dev runs earn no RP.</p>
         </div>
         <div id="garage-style" class="garage-section hidden">
         <div class="paint">
@@ -297,6 +308,11 @@
       </div>
     </section>
 
+    <div id="rank-road" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rank-road-title">
+      <div class="modal rank-road-modal"><div class="rank-road-heading"><div><span class="rank-eyebrow">THE ROAD TO THE TOP</span><h2 id="rank-road-title">RANK ROAD<span>.</span></h2></div><button id="rank-road-close" class="icon-btn" type="button" aria-label="Close rank road">✕</button></div>
+        <p>Seven ranks. One road. Win time attacks to earn rank points.</p><div id="rank-road-grid" class="rank-road-grid"></div><p class="rank-fineprint">Rank points are stored on this device and are not globally verified.</p>
+      </div>
+    </div>
     <!-- Pause -->
     <div id="pause" class="overlay hidden">
       <div class="modal">
@@ -321,9 +337,10 @@
           <div><b id="final-near">0</b><span>near misses</span></div>
           <div><b id="final-dist">0.0</b><span>km</span></div>
           <div><b id="final-top">0</b><span>top km/h</span></div>
-          <div><b id="final-contracts">0/3</b><span>contracts</span></div>
+          <div><b id="final-contracts">0/3</b><span id="final-contract-label">contracts</span></div>
           <div><b id="final-best">0</b><span id="final-best-label">Personal best</span></div>
         </div>
+        <div id="final-ranked" class="final-ranked hidden" aria-live="polite"><div id="final-rank-badge" class="final-rank-badge"></div><div><span id="final-rank-label"></span><b id="final-rank-change"></b><small id="final-rank-message"></small></div></div>
         <div id="final-progress" class="final-progress" aria-live="polite"></div>
         <button id="btn-share-result" class="secondary" type="button">Share result</button>
         <button id="btn-download-card" class="ghost" type="button">Download result card</button>

@@ -623,3 +623,24 @@ svg { stroke-width: 1.75; }
 .active-mode-info { display:none; }
 @media (max-width:700px) { #car-detail #progress-next { display:none; } .active-mode-info { display:block; color:#c8d5d0; font-size:10px; margin:4px 0 6px; } }
 @media (max-width:700px) { #car-detail .progression { padding:3px 0; margin-bottom:3px; } }
+
+/* Original automotive ranked insignia and time-attack interface. */
+.garage-tabs { grid-template-columns: repeat(4, 1fr); }
+.garage-tabs button span { font-size:11px; }
+.rank-hero { --rank-color:#c9a17b; --rank-glow:#a96139; display:flex; align-items:center; gap:6px; min-height:148px; margin:4px 0 7px; padding:5px 10px 5px 0; background:radial-gradient(ellipse at 25% 45%,color-mix(in srgb,var(--rank-glow) 34%,transparent),transparent 72%),linear-gradient(135deg,#1d242a,#11171d); border:1px solid color-mix(in srgb,var(--rank-color) 38%,transparent); border-radius:5px; overflow:hidden; }
+.rank-badge { width:144px; flex:0 0 144px; filter:drop-shadow(0 6px 8px #0008); }
+.rank-badge svg, .road-badge svg, .final-rank-badge svg { display:block; width:100%; height:auto; }
+.rank-hero-copy { min-width:0; flex:1; }
+.rank-eyebrow { display:block; color:var(--rank-color,#f2bd71); font-size:9px; font-weight:800; letter-spacing:.12em; }
+.rank-hero h2 { font-size:23px; line-height:1; margin:7px 0; font-style:italic; text-transform:uppercase; letter-spacing:-.05em; }
+.rank-points { font-size:11px; font-weight:800; color:#b9c7cc; }.rank-points b { color:white; font-size:19px; }
+.rank-progress { height:6px; margin:8px 0 5px; background:#0008; border-radius:10px; overflow:hidden; }.rank-progress i { display:block; height:100%; width:0; background:var(--rank-color); border-radius:10px; }
+.rank-next { color:#a7b6b9; font-size:10px; line-height:1.3; }
+.rank-road-open { display:flex; width:100%; justify-content:space-between; background:#ffffff09; border:1px solid #ffffff1c; padding:10px; color:#dfebeb; font-size:10px; font-weight:800; letter-spacing:.09em; }.rank-road-open span { color:#d6fa80; }
+.rank-scenario-heading { display:flex; justify-content:space-between; font-size:10px; letter-spacing:.1em; font-weight:800; margin:15px 0 8px; }.rank-scenario-heading span:last-child { color:#8d9d9c; font-weight:500; }
+.rank-scenarios { display:grid; gap:6px; }.rank-scenario { text-align:left; background:#ffffff08; border:1px solid #ffffff20; border-left:3px solid #526569; padding:9px 10px; border-radius:3px; }.rank-scenario.active { border-color:#b5f54b; background:#b5f54b14; }.rank-scenario:hover { background:#ffffff14; }
+.rank-scenario-top { display:flex; justify-content:space-between; gap:8px; color:#a9b7b6; font-size:9px; letter-spacing:.08em; font-weight:700; }.rank-scenario.active .rank-scenario-top { color:#c3ff68; }.rank-scenario strong { display:block; font-size:13px; margin:4px 0; }.rank-scenario small { display:block; color:#adbbbc; font-size:10px; line-height:1.4; }
+.rank-fineprint { color:#aab7b7; font-size:10px; line-height:1.5; margin:10px 0 12px; }
+.rank-road-modal { width:min(800px,94vw); text-align:left; background:#101820; }.rank-road-heading { display:flex; align-items:start; justify-content:space-between; }.rank-road-heading h2 { font-size:32px; font-style:italic; letter-spacing:-.04em; }.rank-road-heading h2 span { color:#b5f54b; }.rank-road-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:9px; }.road-rank { text-align:center; padding:10px 6px; border:1px solid #ffffff1c; background:linear-gradient(150deg,#1f2b31,#11191f); border-radius:6px; }.road-rank.current { border-color:#b5f54b; background:linear-gradient(150deg,#31402d,#18201c); }.road-rank.locked { opacity:.62; }.road-badge { width:min(135px,100%); margin:auto; }.road-rank b { display:block; font-size:12px; text-transform:uppercase; }.road-rank small { display:block; color:#a9b8ba; font-size:10px; margin-top:4px; }
+.final-ranked { --rank-color:#c9a17b; display:flex; gap:12px; align-items:center; text-align:left; border:1px solid color-mix(in srgb,var(--rank-color) 50%,transparent); background:#ffffff09; border-radius:8px; padding:6px 12px 6px 4px; }.final-rank-badge { width:76px; flex:0 0 76px; }.final-ranked span,.final-ranked small { display:block; font-size:10px; color:#b9c6c8; }.final-ranked b { display:block; color:var(--rank-color); font-size:21px; margin:3px 0; }
+@media(max-width:700px) { .garage-tabs button span { font-size:10px; }.rank-hero { min-height:92px; }.rank-badge { width:92px; flex-basis:92px; }.rank-hero h2 { font-size:18px; }.rank-scenario { padding:7px 9px; }.rank-scenario-heading { margin:9px 0 6px; }.rank-road-grid { grid-template-columns:repeat(2,1fr); }.rank-road-modal { padding:18px; }.ranked-section { padding-bottom:44px; } }
