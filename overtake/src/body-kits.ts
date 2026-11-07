@@ -157,8 +157,9 @@ function skirtShell(id:CarId, side:number, level:number) {
     const rearFlare=(id==='ferrari'||id==='r8') ? Math.pow(t,3)*.035*taper : id==='audi' ? Math.pow(t,2)*.015*taper : 0;
     const top=samples[1][i]+.005, mid=samples[0][i]+.004+THREE.MathUtils.lerp(.008,.016,level)*taper+rearFlare*.45;
     const low=samples[0][i]-.025+THREE.MathUtils.lerp(.016,.030,level)*taper+rearFlare;
-    for(const [x,y] of [[top,.38],[mid,.30],[low,.22],[samples[0][i]-.045,.205],[samples[0][i]-.045,.37]] as const) positions.push(side*x,y,z);
-    if(i<n) for(let j=0;j<5;j++) {const a=i*5+j,b=i*5+(j+1)%5,c=(i+1)*5+j,d=(i+1)*5+(j+1)%5;
+    const crease=samples[0][i]-.002+THREE.MathUtils.lerp(.006,.012,level)*taper+rearFlare*.3;
+    for(const [x,y] of [[top,.38],[mid,.30],[crease,.262],[low,.22],[samples[0][i]-.045,.205],[samples[0][i]-.045,.37]] as const) positions.push(side*x,y,z);
+    if(i<n) for(let j=0;j<6;j++) {const a=i*6+j,b=i*6+(j+1)%6,c=(i+1)*6+j,d=(i+1)*6+(j+1)%6;
       if(side>0)indices.push(a,c,b,b,c,d);else indices.push(a,b,c,b,d,c);}
   }
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
@@ -206,8 +207,8 @@ function wingProfile(width:number,z:number,y:number,chord:number, pitch=.16) {
 // tip reaching the aerofoil. This replaces the previous rectangular posts.
 function wingSupport(x:number,y:number,z:number,height:number, lean=.05) {
   const verts:number[]=[],indices:number[]=[];
-  const profile=[[-.13,y-.035],[.10,y-.035],[.045+lean,y+height],[ -.055+lean,y+height]];
-  for(const dx of [-.027,.027]) for(const [dz,yy] of profile)verts.push(x+dx,yy,z+dz);
+  const profile=[[-.105,y-.035],[.085,y-.035],[.038+lean,y+height],[-.048+lean,y+height]];
+  for(const dx of [-.019,.019]) for(const [dz,yy] of profile)verts.push(x+dx,yy,z+dz);
   indices.push(0,2,1,0,3,2,4,5,6,4,6,7);
   for(let i=0;i<4;i++){let j=(i+1)%4;indices.push(i,j,i+4,j,j+4,i+4);}
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
@@ -318,11 +319,11 @@ function bumperZ(rows: BumperRow[], x:number, y:number, rear:boolean) {
   return best.z + (rear ? .016 : -.016);
 }
 /** Thin shaped plate (canards, fins, endplates, flaps) with a bevelled edge. */
-function plateGeometry(points:[number,number][], thickness:number) {
+function plateGeometry(points:[number,number][], thickness:number, bevel=.0025) {
   const shape=new THREE.Shape();
   points.forEach(([x,y],i)=> i===0?shape.moveTo(x,y):shape.lineTo(x,y));
   shape.closePath();
-  const geo=new THREE.ExtrudeGeometry(shape,{depth:thickness,bevelEnabled:true,bevelThickness:.0025,bevelSize:.0025,bevelSegments:3,steps:1,curveSegments:20});
+  const geo=new THREE.ExtrudeGeometry(shape,{depth:thickness,bevelEnabled:true,bevelThickness:bevel,bevelSize:bevel,bevelSegments:3,steps:1,curveSegments:20});
   geo.translate(0,0,-thickness/2); return geo;
 }
 function rodBetween(a:THREE.Vector3, b:THREE.Vector3, r:number, mat:THREE.Material, name:string) {
@@ -453,7 +454,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
     const glossBlack=new THREE.MeshPhysicalMaterial({ color:0x0d1117, roughness:.22, metalness:.35, clearcoat:.8, envMapIntensity:1.1 });
     (g.userData.extraMaterials ??= []).push(darkSheet, glossBlack);
     const mid=(rz0+rz1)/2, scoop=(tall:boolean)=>{
-      const mesh=new THREE.Mesh(plateGeometry(tall?[[-.25,0],[.25,0],[.17,.115],[-.15,.09]]:[[-.23,0],[.23,0],[.16,.085],[-.14,.07]],.34),panel);
+      const mesh=new THREE.Mesh(plateGeometry(tall?[[-.25,0],[.25,0],[.17,.105],[-.15,.082]]:[[-.23,0],[.23,0],[.16,.078],[-.14,.064]],.30,.006),panel);
       mesh.name='roof-scoop'; mesh.rotation.y=Math.PI/2; mesh.position.set(0,surfaceY(mid)-.014,mid); a.add(mesh);
       const mouth=new THREE.Mesh(plateGeometry([[-.125,0],[.125,0],[.11,.042],[-.11,.042]],.012),darkSheet);
       mouth.name='scoop-mouth'; mouth.rotation.x=-.5; mouth.position.set(0,surfaceY(mid)+.046,mid-.226); a.add(mouth); };
@@ -562,8 +563,8 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
       for(const side of [-1,1]) mudflap(a,side,true);
     }
     if(config.front==='track') { // time-attack: splitter tie rods + stacked dive planes
-      for(const side of [-1,1]) { const topZ=bumpers?bumperZ(bumpers.front,side*f.frontW*.55,f.bumperY+.14,false)+.006:nose+.03;
-        a.add(rodBetween(new THREE.Vector3(side*f.frontW*.55,f.bumperY+.14,topZ),new THREE.Vector3(side*f.frontW*.58,f.bumperY+.005,nose-.10),.005,metal,'splitter-rod'));
+      for(const side of [-1,1]) { const topZ=bumpers?bumperZ(bumpers.front,side*f.frontW*.52,f.bumperY+.075,false)+.004:nose+.02;
+        a.add(rodBetween(new THREE.Vector3(side*f.frontW*.52,f.bumperY+.075,topZ),new THREE.Vector3(side*f.frontW*.55,f.bumperY+.008,nose-.115),.0068,metal,'splitter-rod'));
         const dive=new THREE.Mesh(plateGeometry([[0,0],[.20,.015],[.16,.075],[.02,.055]],.010),carbon); dive.name='dive-plane';
         const diveZ=bumpers?bumperZ(bumpers.front,side*f.frontW*.82,f.bumperY+.20,false)+.02:nose+.05;
         dive.position.set(side*(f.frontW*.88),f.bumperY+.20,diveZ); dive.rotation.set(-.12,side*-.5,-side*.28); a.add(dive); }
