@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type { CarId } from './catalog';
 import type { Customization, BodyPart } from './customization.mjs';
 import { createCarbonMaterial, LIVERIES } from './livery';
@@ -242,14 +243,18 @@ function archFlareGeometry(side:number, arch:WheelArch, fallbackX:number, protru
 /** Replacement bumper shell: lofted over the measured stock surface,
  * offset 12 mm proud, wrapping back around both corners. The stock bumper
  * stays underneath but is fully covered — no floating panel, no gap. */
-function bumperCoverGeometry(rows: BumperRow[], rear: boolean, offMag = .012, wrapMag = .20) {
+function bumperCoverGeometry(rows: BumperRow[], rear: boolean, offMag = .012, wrapMag = .14) {
   const positions:number[]=[], indices:number[]=[];
   const grid = rows.map(row => {
-    const pts = row.points.filter(pt => Number.isFinite(pt.z));
+    let pts = row.points.filter(pt => Number.isFinite(pt.z));
+    // Measurement fills gaps with copied z: a flat z plateau at a row end is
+    // filler past the body's real width — trim it or the shell grows "ears".
+    while(pts.length>6 && pts[0].z===pts[1].z && pts[1].z===pts[2].z) pts=pts.slice(1);
+    while(pts.length>6 && pts[pts.length-1].z===pts[pts.length-2].z && pts[pts.length-2].z===pts[pts.length-3].z) pts=pts.slice(0,-1);
     const first = pts[0], last = pts[pts.length-1];
     const wrap = (rear ? -1 : 1) * wrapMag; // corners sweep back along the flanks
     return wrapMag > 0
-      ? [{x:first.x-.13, y:row.y, z:first.z+wrap}, ...pts.map(pt=>({x:pt.x, y:row.y, z:pt.z})), {x:last.x+.13, y:row.y, z:last.z+wrap}]
+      ? [{x:first.x+.01, y:row.y, z:first.z+wrap}, ...pts.map(pt=>({x:pt.x, y:row.y, z:pt.z})), {x:last.x-.01, y:row.y, z:last.z+wrap}]
       : pts.map(pt=>({x:pt.x, y:row.y, z:pt.z}));
   });
   const cols = grid[0].length, off = (rear ? 1 : -1) * offMag;
@@ -291,7 +296,8 @@ function rodBetween(a:THREE.Vector3, b:THREE.Vector3, r:number, mat:THREE.Materi
   return mesh;
 }
 function box(w:number,h:number,d:number,x:number,y:number,z:number,mat:THREE.Material, group:THREE.Group, name:string) {
-  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat); mesh.position.set(x,y,z); mesh.name=name; mesh.castShadow=true; group.add(mesh);return mesh;
+  const radius=Math.min(.012, Math.min(w,h,d)*.32);
+  const mesh=new THREE.Mesh(new RoundedBoxGeometry(w,h,d,2,radius),mat); mesh.position.set(x,y,z); mesh.name=name; mesh.castShadow=true; group.add(mesh);return mesh;
 }
 function tip(group:THREE.Group, x:number, y:number, z:number, radius:number, metal:THREE.Material, dark:THREE.Material, oval=false) {
   // The dark interior and metal rim make an actual visible exhaust opening.
@@ -504,7 +510,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
       for(const side of [-1,1]) mudflap(a,side,true);
     }
     if(config.front==='track') { // time-attack: splitter tie rods + stacked dive planes
-      for(const side of [-1,1]) { a.add(rodBetween(new THREE.Vector3(side*f.frontW*.55,f.bumperY+.13,nose+.02),new THREE.Vector3(side*f.frontW*.60,f.bumperY-.01,nose-.22),.007,metal,'splitter-rod'));
+      for(const side of [-1,1]) { a.add(rodBetween(new THREE.Vector3(side*f.frontW*.55,f.bumperY+.14,nose+.03),new THREE.Vector3(side*f.frontW*.58,f.bumperY+.005,nose-.10),.005,metal,'splitter-rod'));
         const dive=new THREE.Mesh(plateGeometry([[0,0],[.20,.015],[.16,.075],[.02,.055]],.010),carbon); dive.name='dive-plane';
         dive.position.set(side*(f.frontW*.88),f.bumperY+.20,nose+.05); dive.rotation.set(-.12,side*-.5,-side*.28); a.add(dive); }
     }

@@ -105,17 +105,20 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
 
 /** Subtle dark woven composite for removable bodywork. */
 export function createCarbonMaterial() {
-  const material = new THREE.MeshStandardMaterial({ color:0x252b31, metalness:.28, roughness:.3 });
+  // Canvas-texture weave — deliberately NO custom shader: onBeforeCompile
+  // materials render white/black on strict mobile GPUs (seen in the wild).
+  const cv=document.createElement('canvas'); cv.width=cv.height=64;
+  const ctx=cv.getContext('2d')!;
+  ctx.fillStyle='#22282e'; ctx.fillRect(0,0,64,64);
+  for(let y=0;y<8;y++) for(let x=0;x<8;x++) {
+    ctx.fillStyle=(x+y)%2 ? '#2e363e' : '#171c21';
+    ctx.fillRect(x*8,y*8,8,8);
+    ctx.fillStyle='rgba(255,255,255,.06)'; ctx.fillRect(x*8,y*8,8,2);
+  }
+  const tex=new THREE.CanvasTexture(cv);
+  tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(6,6);
+  tex.colorSpace=THREE.SRGBColorSpace;
+  const material = new THREE.MeshStandardMaterial({ map:tex, metalness:.3, roughness:.42 });
   material.name='custom-carbon';
-  material.onBeforeCompile = shader => {
-    shader.vertexShader=shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vCarbonPos;');
-    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvCarbonPos = position;');
-    shader.fragmentShader=shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vCarbonPos;');
-    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-      vec2 q=vec2(vCarbonPos.x+vCarbonPos.z*.3,vCarbonPos.y+vCarbonPos.z*.23)*140.0;
-      float weave=abs(step(.5,fract(q.x))-step(.5,fract(q.y)));
-      diffuseColor.rgb*=mix(.70,1.12,weave);`);
-  };
-  material.customProgramCacheKey=()=> 'overtake-carbon-weave-v1';
   return material;
 }
