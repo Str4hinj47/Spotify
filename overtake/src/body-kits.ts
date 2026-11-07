@@ -16,13 +16,13 @@ interface Fit {
   labels: Record<BodyPart, [string,string]>;
 }
 export const BODY_FITS: Record<CarId, Fit> = {
-  golf: { frontZ:-2.02,rearZ:2.04,frontW:.77,rearW:.80,sideX:.82,sillFront:-.84,sillRear:.90,sillY:.22,bumperY:.21,spoilerZ:1.61,spoilerY:1.38,spoilerW:.61,tipX:.52,tipY:.21,tipRadius:.055,tipSpacing:.10,character:'compact', labels:{hood:['Hood vents','Vented power dome'],front:['GT lip','Cup splitter'],rear:['Clean valance','Cup diffuser'],skirts:['GT sills','Cup blades'],spoiler:['Roof lip','Cup roof wing'],exhaust:['Twin round','Cup twin']} },
-  mercedes: { frontZ:-2.58,rearZ:2.58,frontW:.91,rearW:.88,sideX:.94,sillFront:-1.17,sillRear:1.18,sillY:.19,bumperY:.20,spoilerZ:2.23,spoilerY:1.07,spoilerW:.67,tipX:.62,tipY:.22,tipRadius:.072,tipSpacing:.13,character:'luxury', labels:{hood:['Hood vents','Vented power dome'],front:['Executive lip','Aero splitter'],rear:['Sport valance','Aero diffuser'],skirts:['Executive sills','Aero blades'],spoiler:['Deck lip','Touring wing'],exhaust:['Polished oval','Quad sport']} },
-  audi: { frontZ:-2.43,rearZ:2.46,frontW:.93,rearW:.92,sideX:.95,sillFront:-1.10,sillRear:1.08,sillY:.19,bumperY:.20,spoilerZ:1.81,spoilerY:1.39,spoilerW:.70,tipX:.62,tipY:.22,tipRadius:.075,tipSpacing:.13,character:'wagon', labels:{hood:['Hood vents','Vented power dome'],front:['Touring lip','Performance splitter'],rear:['Touring valance','Sport diffuser'],skirts:['Touring sills','Extended blades'],spoiler:['Tailgate lip','Touring roof wing'],exhaust:['Oval outlets','Quad outlets']} },
-  mustang: { frontZ:-2.27,rearZ:2.31,frontW:.83,rearW:.82,sideX:.86,sillFront:-.95,sillRear:1.08,sillY:.20,bumperY:.21,spoilerZ:2.12,spoilerY:.958,spoilerW:.69,tipX:.58,tipY:.23,tipRadius:.065,tipSpacing:.12,character:'classic', labels:{hood:['Hood vents','Vented power dome'],front:['Heritage chin','Race chin'],rear:['Heritage valance','Race diffuser'],skirts:['Rocker trim','Race rockers'],spoiler:['Ducktail','Pedestal wing'],exhaust:['Dual round','Side-by-side quad']} },
-  ferrari: { frontZ:-2.03,rearZ:2.00,frontW:.74,rearW:.86,sideX:.91,sillFront:-.90,sillRear:.86,sillY:.16,bumperY:.17,spoilerZ:1.80,spoilerY:.84,spoilerW:.53,tipX:.54,tipY:.24,tipRadius:.055,tipSpacing:.10,character:'supercar', labels:{hood:['Hood vents','Vented power dome'],front:['Road blade','Circuit splitter'],rear:['Road diffuser','Circuit diffuser'],skirts:['Road blades','Circuit skirts'],spoiler:['Low deck lip','Circuit wing'],exhaust:['Center round','Center race']} },
-  r8: { frontZ:-2.17,rearZ:2.18,frontW:.86,rearW:.91,sideX:.94,sillFront:-.88,sillRear:.93,sillY:.17,bumperY:.19,spoilerZ:1.90,spoilerY:.84,spoilerW:.62,tipX:.65,tipY:.22,tipRadius:.07,tipSpacing:.12,character:'midengine', labels:{hood:['Hood vents','Vented power dome'],front:['Road splitter','GT splitter'],rear:['Road diffuser','GT diffuser'],skirts:['Road blades','GT skirts'],spoiler:['Deck lip','GT wing'],exhaust:['Twin oval','Quad titanium']} },
-  challenger: { frontZ:-2.47,rearZ:2.47,frontW:.91,rearW:.89,sideX:.96,sillFront:-1.02,sillRear:1.07,sillY:.22,bumperY:.22,spoilerZ:2.22,spoilerY:1.065,spoilerW:.72,tipX:.61,tipY:.23,tipRadius:.07,tipSpacing:.13,character:'muscle', labels:{hood:['Hood vents','Vented power dome'],front:['Street chin','Wide splitter'],rear:['Street valance','Wide diffuser'],skirts:['Street rockers','Wide rockers'],spoiler:['Ducktail','Drag wing'],exhaust:['Dual round','Quad muscle']} },
+  golf: { frontZ:-2.02,rearZ:2.04,frontW:.77,rearW:.80,sideX:.82,sillFront:-.84,sillRear:.90,sillY:.22,bumperY:.21,spoilerZ:1.61,spoilerY:1.38,spoilerW:.61,tipX:.52,tipY:.21,tipRadius:.055,tipSpacing:.10,character:'compact', labels:{roof:['Roof panel','Roof scoop'],hood:['Hood vents','Vented power dome'],front:['GT lip','Cup splitter'],rear:['Clean valance','Cup diffuser'],skirts:['GT sills','Cup blades'],spoiler:['Roof lip','Cup roof wing'],exhaust:['Twin round','Cup twin']} },
+  mercedes: { frontZ:-2.58,rearZ:2.58,frontW:.91,rearW:.88,sideX:.94,sillFront:-1.17,sillRear:1.18,sillY:.19,bumperY:.20,spoilerZ:2.23,spoilerY:1.07,spoilerW:.67,tipX:.62,tipY:.22,tipRadius:.072,tipSpacing:.13,character:'luxury', labels:{roof:['Roof panel','Roof scoop'],hood:['Hood vents','Vented power dome'],front:['Executive lip','Aero splitter'],rear:['Sport valance','Aero diffuser'],skirts:['Executive sills','Aero blades'],spoiler:['Deck lip','Touring wing'],exhaust:['Polished oval','Quad sport']} },
+  audi: { frontZ:-2.43,rearZ:2.46,frontW:.93,rearW:.92,sideX:.95,sillFront:-1.10,sillRear:1.08,sillY:.19,bumperY:.20,spoilerZ:1.81,spoilerY:1.39,spoilerW:.70,tipX:.62,tipY:.22,tipRadius:.075,tipSpacing:.13,character:'wagon', labels:{roof:['Roof panel','Roof scoop'],hood:['Hood vents','Vented power dome'],front:['Touring lip','Performance splitter'],rear:['Touring valance','Sport diffuser'],skirts:['Touring sills','Extended blades'],spoiler:['Tailgate lip','Touring roof wing'],exhaust:['Oval outlets','Quad outlets']} },
+  mustang: { frontZ:-2.27,rearZ:2.31,frontW:.83,rearW:.82,sideX:.86,sillFront:-.95,sillRear:1.08,sillY:.20,bumperY:.21,spoilerZ:2.12,spoilerY:.958,spoilerW:.69,tipX:.58,tipY:.23,tipRadius:.065,tipSpacing:.12,character:'classic', labels:{roof:['Roof panel','Roof scoop'],hood:['Hood vents','Vented power dome'],front:['Heritage chin','Race chin'],rear:['Heritage valance','Race diffuser'],skirts:['Rocker trim','Race rockers'],spoiler:['Ducktail','Pedestal wing'],exhaust:['Dual round','Side-by-side quad']} },
+  ferrari: { frontZ:-2.03,rearZ:2.00,frontW:.74,rearW:.86,sideX:.91,sillFront:-.90,sillRear:.86,sillY:.16,bumperY:.17,spoilerZ:1.80,spoilerY:.84,spoilerW:.53,tipX:.54,tipY:.24,tipRadius:.055,tipSpacing:.10,character:'supercar', labels:{roof:['Roof panel','Roof scoop'],hood:['Hood vents','Vented power dome'],front:['Road blade','Circuit splitter'],rear:['Road diffuser','Circuit diffuser'],skirts:['Road blades','Circuit skirts'],spoiler:['Low deck lip','Circuit wing'],exhaust:['Center round','Center race']} },
+  r8: { frontZ:-2.17,rearZ:2.18,frontW:.86,rearW:.91,sideX:.94,sillFront:-.88,sillRear:.93,sillY:.17,bumperY:.19,spoilerZ:1.90,spoilerY:.84,spoilerW:.62,tipX:.65,tipY:.22,tipRadius:.07,tipSpacing:.12,character:'midengine', labels:{roof:['Roof panel','Roof scoop'],hood:['Hood vents','Vented power dome'],front:['Road splitter','GT splitter'],rear:['Road diffuser','GT diffuser'],skirts:['Road blades','GT skirts'],spoiler:['Deck lip','GT wing'],exhaust:['Twin oval','Quad titanium']} },
+  challenger: { frontZ:-2.47,rearZ:2.47,frontW:.91,rearW:.89,sideX:.96,sillFront:-1.02,sillRear:1.07,sillY:.22,bumperY:.22,spoilerZ:2.22,spoilerY:1.065,spoilerW:.72,tipX:.61,tipY:.23,tipRadius:.07,tipSpacing:.13,character:'muscle', labels:{roof:['Roof panel','Roof scoop'],hood:['Hood vents','Vented power dome'],front:['Street chin','Wide splitter'],rear:['Street valance','Wide diffuser'],skirts:['Street rockers','Wide rockers'],spoiler:['Ducktail','Drag wing'],exhaust:['Dual round','Quad muscle']} },
 };
 
 function taperedBand(width:number, frontZ:number, y:number, depth:number, height:number, sweep:number) {
@@ -183,22 +183,24 @@ function deckLip(f:Fit,id:CarId,level:number) {
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
 }
 // Horizontal aerodynamic plane with a cambered top, swept tips and a closed edge.
-function wingProfile(width:number,z:number,y:number,chord:number) {
+function wingProfile(width:number,z:number,y:number,chord:number, pitch=.16) {
   const positions:number[]=[],indices:number[]=[], n=32;
+  const cos=Math.cos(pitch), sin=Math.sin(pitch);
   for(let i=0;i<=n;i++) {
     const t=2*i/n-1, edge=t*t, x=t*width, shift=-.075*edge;
     const c=chord*(1-.14*Math.pow(Math.abs(t),4));
-    // Cambered five-point section, rounded leading edge and thin trailing edge.
-    for(const [yy,zz] of [[y-.008,z-c*.52+shift],[y+.024,z-c*.30+shift],[y+.035,z+shift],[y+.017,z+c*.49+shift],[y-.008,z+c*.50+shift],[y-.012,z-c*.30+shift]] as const) positions.push(x,yy,zz);
+    // Cambered section pitched nose-down/back around the blade centre.
+    for(const [yy,zz] of [[y-.008,z-c*.52+shift],[y+.024,z-c*.30+shift],[y+.035,z+shift],[y+.017,z+c*.49+shift],[y-.008,z+c*.50+shift],[y-.012,z-c*.30+shift]] as const)
+      positions.push(x, y+(yy-y)*cos-(zz-z)*sin, z+(yy-y)*sin+(zz-z)*cos);
     if(i<n) for(let j=0;j<6;j++) {const a=i*6+j,b=i*6+(j+1)%6,c=(i+1)*6+j,d=(i+1)*6+(j+1)%6;indices.push(a,b,c,b,d,c);}
   }
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
 }
 // Tapered, swept pedestals with a broad foot buried in the deck and a narrow
 // tip reaching the aerofoil. This replaces the previous rectangular posts.
-function wingSupport(x:number,y:number,z:number,height:number) {
+function wingSupport(x:number,y:number,z:number,height:number, lean=.05) {
   const verts:number[]=[],indices:number[]=[];
-  const profile=[[-.13,y-.035],[.10,y-.035],[.045,y+height],[ -.055,y+height]];
+  const profile=[[-.13,y-.035],[.10,y-.035],[.045+lean,y+height],[ -.055+lean,y+height]];
   for(const dx of [-.027,.027]) for(const [dz,yy] of profile)verts.push(x+dx,yy,z+dz);
   indices.push(0,2,1,0,3,2,4,5,6,4,6,7);
   for(let i=0;i<4;i++){let j=(i+1)%4;indices.push(i,j,i+4,j,j+4,i+4);}
@@ -315,7 +317,10 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
 
   if(config.hood!=='stock') {
     const a=reg('hood'), panel=config.hoodFinish==='carbon'?woven:body, len=f.rearZ-f.frontZ;
-    const hz0=f.frontZ+len*.07, hz1=f.frontZ+len*.35, rz0=f.frontZ+len*.45, rz1=f.frontZ+len*.68;
+    const hz0=f.frontZ+len*.07; let hz1=f.frontZ+len*.35;
+    // Hood ends where the measured centreline climbs onto the windshield.
+    if(topLine.length) { const baseY=surfaceY(hz0+.3);
+      for(const pt of topLine) if(pt.z>hz0+.55 && pt.y>baseY+.30) { hz1=Math.min(hz1,pt.z-.10); break; } }
     const darkSheet=new THREE.MeshStandardMaterial({ color:0x0b0e11, roughness:.6, metalness:.3 });
     (g.userData.extraMaterials ??= []).push(darkSheet);
     if(config.hood==='street') { // twin bonnet vent slits
@@ -326,27 +331,44 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
     } else if(config.hood==='sport') { // power dome with a dark scoop mouth
       surfaceSheet(a,'power-dome',hz0+.02,hz1,0,f.frontW*.40,.004,.038,panel);
       surfaceSheet(a,'scoop-mouth',hz0+.10,hz0+.30,0,f.frontW*.22,.030,0,darkSheet);
-    } else if(config.hood==='rally') { // vents + roof scoop with intake mouth
+    } else if(config.hood==='rally') { // bonnet vents (roof scoop lives in Roof)
       surfaceSheet(a,'hood-vent',hz0+.15,hz1-.05,-f.frontW*.36,.14,.004,0,darkSheet);
       surfaceSheet(a,'hood-vent',hz0+.15,hz1-.05, f.frontW*.36,.14,.004,0,darkSheet);
-      const scoop=new THREE.Mesh(plateGeometry([[-.24,0],[.24,0],[.17,.10],[-.15,.085]],.40),panel);
-      scoop.name='roof-scoop'; scoop.rotation.y=Math.PI/2; scoop.position.set(0,surfaceY((rz0+rz1)/2)-.01,(rz0+rz1)/2); a.add(scoop);
-      const mouth=new THREE.Mesh(plateGeometry([[-.15,0],[.15,0],[.13,.055],[-.13,.055]],.30),darkSheet);
-      mouth.name='scoop-mouth'; // upright intake face at the scoop's front
-      mouth.position.set(0,surfaceY((rz0+rz1)/2)+.015,(rz0+rz1)/2-.245); a.add(mouth);
-    } else if(config.hood==='gt') { // full carbon bonnet + carbon roof panel
+    } else if(config.hood==='gt') { // full carbon bonnet
       surfaceSheet(a,'carbon-hood',hz0,hz1,0,f.frontW*.78,.005,0,woven);
-      surfaceSheet(a,'carbon-roof',rz0,rz1,0,f.frontW*.62,.005,0,woven);
-    } else if(config.hood==='track') { // louvred bonnet + tall roof scoop
-      for(let i=0;i<5;i++) { const z=hz0+.16+i*.13, slat=new THREE.Mesh(new THREE.BoxGeometry(f.frontW*.95,.012,.07),darkSheet);
+    } else if(config.hood==='track') { // louvred bonnet
+      for(let i=0;i<5;i++) { const z=hz0+.14+i*((hz1-hz0-.2)/4), slat=new THREE.Mesh(new THREE.BoxGeometry(f.frontW*.95,.012,.07),darkSheet);
         slat.name='hood-louvre'; slat.position.set(0,surfaceY(z)+.012,z); slat.rotation.x=-.5; a.add(slat); }
-      const scoop=new THREE.Mesh(plateGeometry([[-.26,0],[.26,0],[.18,.14],[-.16,.11]],.44),panel);
-      scoop.name='roof-scoop'; scoop.rotation.y=Math.PI/2; scoop.position.set(0,surfaceY((rz0+rz1)/2)-.01,(rz0+rz1)/2); a.add(scoop);
     } else if(config.hood==='wide') { // broad show-car power dome
       surfaceSheet(a,'power-dome',hz0,hz1,0,f.frontW*.55,.004,.05,panel);
       surfaceSheet(a,'hood-vent',hz0+.20,hz1-.04,-f.frontW*.52,.10,.006,0,darkSheet);
       surfaceSheet(a,'hood-vent',hz0+.20,hz1-.04, f.frontW*.52,.10,.006,0,darkSheet);
     }
+  }
+  if(config.roof!=='stock') {
+    const a=reg('roof'), panel=config.roofFinish==='carbon'?woven:body, len=f.rearZ-f.frontZ;
+    let rz0=f.frontZ+len*.45, rz1=f.frontZ+len*.68;
+    // Roof = the measured high plateau of the centreline, windshield to hatch.
+    if(topLine.length) { const maxY=Math.max(...topLine.map(pt=>pt.y));
+      const plat=topLine.filter(pt=>pt.y>=maxY-.09 && pt.z>f.frontZ+len*.30 && pt.z<f.frontZ+len*.85);
+      if(plat.length>2) { rz0=plat[0].z+.04; rz1=plat[plat.length-1].z-.04; } }
+    const darkSheet=new THREE.MeshStandardMaterial({ color:0x0b0e11, roughness:.55, metalness:.3 });
+    const glossBlack=new THREE.MeshPhysicalMaterial({ color:0x0d1117, roughness:.22, metalness:.35, clearcoat:.8, envMapIntensity:1.1 });
+    (g.userData.extraMaterials ??= []).push(darkSheet, glossBlack);
+    const mid=(rz0+rz1)/2, scoop=(tall:boolean)=>{
+      const mesh=new THREE.Mesh(plateGeometry(tall?[[-.26,0],[.26,0],[.18,.14],[-.16,.11]]:[[-.24,0],[.24,0],[.17,.10],[-.15,.085]],.40),panel);
+      mesh.name='roof-scoop'; mesh.rotation.y=Math.PI/2; mesh.position.set(0,surfaceY(mid)-.01,mid); a.add(mesh);
+      const mouth=new THREE.Mesh(plateGeometry([[-.14,0],[.14,0],[.12,.05],[-.12,.05]],.28),darkSheet);
+      mouth.name='scoop-mouth'; mouth.position.set(0,surfaceY(mid)+.012,mid-.25); a.add(mouth); };
+    const fin=()=>{ const mesh=new THREE.Mesh(plateGeometry([[-.16,0],[.14,0],[.05,.085],[-.06,.075]],.016),panel);
+      mesh.name='roof-fin'; mesh.rotation.y=Math.PI/2; mesh.position.set(0,surfaceY(rz1-.12)-.005,rz1-.12); a.add(mesh); };
+    if(config.roof==='street') surfaceSheet(a,'black-roof',rz0,rz1,0,f.frontW*.60,.005,0,glossBlack);
+    else if(config.roof==='touring') { surfaceSheet(a,'roof-rail',rz0,rz1,-f.frontW*.44,.022,.006,0,metal); surfaceSheet(a,'roof-rail',rz0,rz1,f.frontW*.44,.022,.006,0,metal); }
+    else if(config.roof==='sport') surfaceSheet(a,'carbon-roof',rz0,rz1,0,f.frontW*.62,.005,0,panel);
+    else if(config.roof==='rally') scoop(false);
+    else if(config.roof==='gt') { surfaceSheet(a,'carbon-roof',rz0,rz1,0,f.frontW*.62,.005,0,woven); fin(); }
+    else if(config.roof==='track') { scoop(true); fin(); }
+    else if(config.roof==='wide') { surfaceSheet(a,'black-roof',rz0,rz1,0,f.frontW*.66,.005,0,glossBlack); fin(); }
   }
   if(config.front!=='stock') {
     const a=reg('front'), track=isTrack('front'), amount=level('front'), panel=config.frontFinish==='carbon'?woven:body;

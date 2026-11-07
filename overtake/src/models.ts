@@ -5,7 +5,7 @@ import { CARS, TRUCKS, type CarId, type TrafficId } from './catalog';
 import { indicatorMaterial, isIndicatorMaterial, addFrontIndicator, isFrontIndicatorMaterial, type IndicatorUniforms } from './indicators';
 import { createBodyKit, type WheelArch, type TopLine } from './body-kits';
 import { rigWheels } from './wheels';
-import { createCarbonMaterial, customPaintMaterial } from './livery';
+import { applyPaintFinish, createCarbonMaterial, customPaintMaterial } from './livery';
 import { sanitizeCustomization, type Customization } from './customization.mjs';
 
 export interface CarModel {
@@ -438,6 +438,13 @@ export class ModelLibrary {
             base = cached;
           }
           if (config && id !== 'semi' && id !== 'kraz' && (config.paintScheme !== 'single' || config.livery !== 'none' || config.paintFinish !== 'gloss')) {
+            if (config.paintScheme === 'single' && config.livery === 'none') {
+              // Finish only: plain PBR clone, no custom shader — finishes can
+              // never black out the body on strict mobile GPUs.
+              const finished = applyPaintFinish(base.clone() as THREE.MeshStandardMaterial, config.paintFinish);
+              customPaintCopies.push(finished);
+              return finished;
+            }
             const meshToCar = new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
             const custom = customPaintMaterial(base, meshToCar, id, config);
             customPaintCopies.push(custom);

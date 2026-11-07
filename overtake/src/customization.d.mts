@@ -1,11 +1,11 @@
 export type PartOption = 'stock' | 'street' | 'touring' | 'sport' | 'rally' | 'gt' | 'track' | 'wide' | 'titanium';
 export type PaintFinish = 'gloss' | 'metallic' | 'pearlescent' | 'matte' | 'satin';
 export type LiveryOption = 'none' | 'stripe' | 'race' | 'camo' | 'fade' | 'checker' | 'slash';
-export type BodyPart = 'front' | 'rear' | 'skirts' | 'spoiler' | 'exhaust' | 'hood';
-export type FinishKey = 'frontFinish' | 'rearFinish' | 'skirtsFinish' | 'spoilerFinish' | 'exhaustFinish' | 'hoodFinish';
+export type BodyPart = 'front' | 'rear' | 'skirts' | 'spoiler' | 'exhaust' | 'hood' | 'roof';
+export type FinishKey = 'frontFinish' | 'rearFinish' | 'skirtsFinish' | 'spoilerFinish' | 'exhaustFinish' | 'hoodFinish' | 'roofFinish';
 export interface Customization {
-  front:PartOption; rear:PartOption; skirts:PartOption; spoiler:PartOption; exhaust:PartOption|'flame'|'quadflame'; hood:PartOption;
-  frontFinish:'standard'|'carbon'; rearFinish:'standard'|'carbon'; skirtsFinish:'standard'|'carbon'; spoilerFinish:'standard'|'carbon'; exhaustFinish:'standard'|'carbon'; hoodFinish:'standard'|'carbon';
+  front:PartOption; rear:PartOption; skirts:PartOption; spoiler:PartOption; exhaust:PartOption|'flame'|'quadflame'; hood:PartOption; roof:PartOption;
+  frontFinish:'standard'|'carbon'; rearFinish:'standard'|'carbon'; skirtsFinish:'standard'|'carbon'; spoilerFinish:'standard'|'carbon'; exhaustFinish:'standard'|'carbon'; hoodFinish:'standard'|'carbon'; roofFinish:'standard'|'carbon';
   paintScheme:'single'|'upper'|'lower'; secondaryColor:string; secondaryFinish:'paint'|'carbon';
   paintFinish:PaintFinish; pearlColor:string;
   livery:LiveryOption; liveryColor:string; underglow:boolean; glowColor:string;

@@ -44,7 +44,7 @@ export function buyUpgrade(p, car, key) {
 export function tunePrice(key, value) {
   if (key === 'paint') return TUNE_PRICES.paint;
   if (key === 'underglow') return value === 'on' ? TUNE_PRICES.underglow : 0;
-  if (['front','rear','skirts','spoiler','exhaust','hood','frontFinish','rearFinish','skirtsFinish','spoilerFinish','exhaustFinish','hoodFinish','paintScheme','secondaryFinish','livery','paintFinish'].includes(key)) return TUNE_PRICES[value] ?? 0;
+  if (['front','rear','skirts','spoiler','exhaust','hood','roof','frontFinish','rearFinish','skirtsFinish','spoilerFinish','exhaustFinish','hoodFinish','roofFinish','paintScheme','secondaryFinish','livery','paintFinish'].includes(key)) return TUNE_PRICES[value] ?? 0;
   return 0; // Colors are included once their feature is bought.
 }
 export function buyTune(p, car, key, value) {

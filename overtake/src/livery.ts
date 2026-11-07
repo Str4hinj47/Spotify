@@ -14,6 +14,19 @@ export const LIVERIES: Record<CarId, { labels:string[], stripe:number, offset:nu
   challenger: { labels:['Muscle stripes','Drag graphics'], stripe:.16, offset:.20, belt:.43, doorZ:.05, side:.91, roof:.96 },
 };
 
+/** Paint-finish PBR on any paint material, no custom shader involved.
+ * Finishes alone must never depend on the livery shader path. */
+export function applyPaintFinish(mat: THREE.MeshStandardMaterial, finish: string) {
+  const phys = mat as THREE.MeshPhysicalMaterial;
+  if (finish === 'metallic') { mat.metalness = .48; mat.roughness = .3; mat.envMapIntensity = 1.6; if ('clearcoat' in phys) { phys.clearcoat = .9; phys.clearcoatRoughness = .1; } }
+  else if (finish === 'pearlescent') { mat.metalness = .28; mat.roughness = .3; mat.envMapIntensity = 1.4; if ('clearcoat' in phys) { phys.clearcoat = 1; phys.clearcoatRoughness = .06; } if ('iridescence' in phys) { phys.iridescence = .5; phys.iridescenceIOR = 1.6; } }
+  else if (finish === 'matte') { mat.metalness = 0; mat.roughness = .88; mat.envMapIntensity = .7; if ('clearcoat' in phys) phys.clearcoat = 0; }
+  else if (finish === 'satin') { mat.metalness = .18; mat.roughness = .5; mat.envMapIntensity = 1.05; if ('clearcoat' in phys) { phys.clearcoat = .3; phys.clearcoatRoughness = .35; } }
+  else { mat.metalness = .42; mat.roughness = .34; mat.envMapIntensity = 1.15; }
+  mat.needsUpdate = true;
+  return mat;
+}
+
 /** Clone per mesh because each imported mesh has a different transform into
  * the car's coordinate system. Shared originals and traffic are untouched. */
 export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCar: THREE.Matrix4, id: CarId, config: Customization) {
@@ -25,23 +38,11 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
     : config.livery === 'checker' ? 5 : config.livery === 'slash' ? 6 : 0;
   const secondary = new THREE.Color(config.secondaryColor);
   const livery = new THREE.Color(config.liveryColor);
-  // Paint finish PBR (MeshPhysicalMaterial carries clearcoat/iridescence).
-  const phys = mat as THREE.MeshPhysicalMaterial;
-  // NOTE: metalness near 1.0 erases the diffuse paint colour and leaves only
-  // env reflections — in a dim garage the car reads as black/transparent.
-  // Real metallic paint is a coloured base with flake: keep metalness moderate.
-  if (config.paintFinish === 'metallic') { mat.metalness = .5; mat.roughness = .3; mat.envMapIntensity = 1.6; if ('clearcoat' in phys) { phys.clearcoat = .9; phys.clearcoatRoughness = .1; } }
-  else if (config.paintFinish === 'pearlescent') {
-    mat.metalness = .3; mat.roughness = .3; mat.envMapIntensity = 1.35;
-    if ('clearcoat' in phys) { phys.clearcoat = 1; phys.clearcoatRoughness = .06; }
-    if ('iridescence' in phys) { phys.iridescence = .55; phys.iridescenceIOR = 1.6; }
-    // Pearlescent accent: the livery/secondary tones shift toward the pearl tint.
+  applyPaintFinish(mat, config.paintFinish);
+  if (config.paintFinish === 'pearlescent') { // pearl tint steers the graphics
     livery.lerp(new THREE.Color(config.pearlColor), .45);
     secondary.lerp(new THREE.Color(config.pearlColor), .3);
   }
-  else if (config.paintFinish === 'matte') { mat.metalness = 0; mat.roughness = .88; mat.envMapIntensity = .65; if ('clearcoat' in phys) phys.clearcoat = 0; }
-  else if (config.paintFinish === 'satin') { mat.metalness = .2; mat.roughness = .5; mat.envMapIntensity = 1.0; if ('clearcoat' in phys) { phys.clearcoat = .3; phys.clearcoatRoughness = .35; } }
-  else { mat.envMapIntensity = 1.15; }
   mat.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, {
       kitMatrix:{value:meshToCar}, kitSecondary:{value:secondary}, kitAccent:{value:livery},

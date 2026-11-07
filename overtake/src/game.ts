@@ -1273,6 +1273,11 @@ export class OvertakeGame {
       contacts.count = 0; contacts.frustumCulled = false;
       shadow.userData.tireContacts = contacts;
       this.garageGroup.add(shadow, contacts, new THREE.HemisphereLight(0xdfe8ff, 0x20242c, 1.1));
+      const keyLight = new THREE.DirectionalLight(0xffffff, 1.6);
+      keyLight.position.set(4, 6, 3);
+      const rimLight = new THREE.DirectionalLight(0x88aaff, 0.8);
+      rimLight.position.set(-5, 3, -4);
+      this.garageGroup.add(keyLight, rimLight);
       this.showroomShadow = shadow;
       return;
     }
