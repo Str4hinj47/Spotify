@@ -250,6 +250,8 @@ function syncProgressionUI() {
   $('start-label').textContent = startLabel;
   $('menu-start-label').textContent = startLabel.toUpperCase();
   ($('menu-start') as HTMLButtonElement).disabled = !available;
+  ($('menu-mobile-start') as HTMLButtonElement).disabled = !available;
+  $('menu-mobile-start-label').textContent = startLabel.toUpperCase();
   $('menu-car-name').textContent = `${getCar(selected).maker} ${getCar(selected).name}`;
   $('menu-car-status').textContent = owned ? 'OWNED' : progress.dev ? 'DEV ACCESS' : 'NOT OWNED';
   document.querySelectorAll<HTMLButtonElement>('.car-card').forEach(card => {
@@ -711,6 +713,8 @@ function bindHold(id: string, name: 'throttle' | 'brake' | 'left' | 'right' | 'h
 function bindUI() {
   $('btn-start').addEventListener('click', startRun);
   $('menu-start').addEventListener('click', startRun);
+  $('menu-mobile-start').addEventListener('click', startRun);
+  $('menu-mobile-garage').addEventListener('click', () => showFrontScreen('garage'));
   $('menu-garage').addEventListener('click', () => showFrontScreen('garage'));
   $('garage-back').addEventListener('click', () => showFrontScreen('menu'));
   $('menu-rank-select').addEventListener('click', () => { selectMode('ranked'); $('menu-ranked').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
@@ -924,14 +928,15 @@ function bindUI() {
     if (e.key === 'Escape' && !$('sound-panel').classList.contains('hidden')) {
       e.preventDefault(); closeSoundPanel(); $(game.mode === 'paused' ? 'btn-pause-sound' : 'btn-sound-settings').focus(); return;
     }
-    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable || (target.tagName === 'BUTTON' && e.key === 'Enter'))) return;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable || (['BUTTON', 'A'].includes(target.tagName) && e.key === 'Enter'))) return;
     const name = keyMap[e.key];
-    if (name) { e.preventDefault(); if (game.mode === 'driving') game.setInput(name, true); return; }
+    if (name) { if (game.mode === 'driving') { e.preventDefault(); game.setInput(name, true); } return; }
     if (!e.repeat && (e.key === 'q' || e.key === 'Q')) { e.preventDefault(); game.toggleSignal('left'); return; }
     if (!e.repeat && (e.key === 'e' || e.key === 'E')) { e.preventDefault(); game.toggleSignal('right'); return; }
     switch (e.key) {
       case 'p': case 'P': case 'Escape':
         if (!$('help').classList.contains('hidden')) closeHelp();
+        else if (e.key === 'Escape' && game.mode === 'garage' && frontScreen === 'garage') { if (!$('custom-panel').classList.contains('hidden')) showCustomization(false); else showFrontScreen('menu'); }
         else togglePause();
         break;
       case 'm': case 'M': toggleMute(); break;
