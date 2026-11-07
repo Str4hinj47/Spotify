@@ -20,7 +20,10 @@ const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
 
 const audio = new GameAudio();
 /** Arena live preview host (or ?lite=1): phones skip every garage render. */
-const LITE_PREVIEW = new URLSearchParams(location.search).has('lite') || /(^|\.)e2b\.app$/i.test(location.hostname);
+const LITE_PREVIEW = new URLSearchParams(location.search).has('lite')
+  || /(^|\.)e2b\.app$/i.test(location.hostname)
+  || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  || (navigator.maxTouchPoints > 0 && Math.min(window.screen.width, window.screen.height) <= 1200);
 (window as any).__audio = audio; // test/debug hook
 let game: OvertakeGame;
 let library: ModelLibrary;
@@ -931,7 +934,7 @@ async function boot() {
   try {
     await library.loadAll((done, total, label) => {
       $('load-bar').style.width = `${(done / total) * 90}%`;
-      $('load-label').textContent = LITE_PREVIEW || done < total ? `Loading ${label}…` : 'Building garage…';
+      $('load-label').textContent = LITE_PREVIEW ? `Lite preview · Loading ${label}…` : done < total ? `Loading ${label}…` : 'Building garage…';
     });
   } catch (err) {
     $('load-label').textContent = 'Failed to load models. Please refresh.';
@@ -963,6 +966,9 @@ async function boot() {
     cards.appendChild(btn);
   }
   $('load-bar').style.width = '100%';
+  if (LITE_PREVIEW) $('load-label').textContent = 'Lite preview · Starting…';
+  // Let the final loading paint happen before the heavy scene construction.
+  await new Promise((r) => setTimeout(r, 30));
 
   try {
     const saved = localStorage.getItem('overtake-car') as CarId | null;

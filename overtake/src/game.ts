@@ -315,7 +315,12 @@ export class OvertakeGame {
     this.library = library;
     this.cb = cb;
     const params = new URLSearchParams(location.search);
-    this.liteMode = params.has('lite') || /(^|\.)e2b\.app$/i.test(location.hostname);
+    // Detection must survive Chrome "desktop site" mode and non-e2b preview
+    // hosts: any Android/iOS/touch device gets Lite, plus explicit overrides.
+    this.liteMode = params.has('lite')
+      || /(^|\.)e2b\.app$/i.test(location.hostname)
+      || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+      || (navigator.maxTouchPoints > 0 && Math.min(window.screen.width, window.screen.height) <= 1200);
     try {
       this.graphicsQuality = sanitizeGraphicsQuality(localStorage.getItem('overtake-graphics-quality'));
       this.sceneryQuality = sanitizeSceneryQuality(localStorage.getItem('overtake-scenery-quality'));
@@ -508,7 +513,8 @@ export class OvertakeGame {
 
   private buildEnvironments() {
     this.roadEnv = this.makeEnvTexture('road');
-    this.studioEnv = this.makeEnvTexture('studio');
+    // Lite: one PMREM environment reused — the second bake is pure boot cost.
+    this.studioEnv = this.liteMode ? this.roadEnv : this.makeEnvTexture('studio');
   }
 
   private buildHeadlights() {
