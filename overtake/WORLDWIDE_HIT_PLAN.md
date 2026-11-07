@@ -11,6 +11,15 @@
 - **World rankings dialog**: Global/Weekly/Daily/Friends tabs (latter three disabled until accounts), honest empty state + device best. Wired in `src/main.ts` (open/close/backdrop, focus return). No fake data.
 - Next UI steps: extract tokens to `src/ui/tokens.css`, componentise modals/panels, motion pass.
 
+### Phase 1+2 — shipped (2026-11-07)
+- **Daily Overtake mode**: 90s, UTC `dailySeed()` (FNV-1a of YYYY-MM-DD) — same seed/contracts worldwide; `daily` local records + board. Unit-tested.
+- **Weekly board** (`leaderboard_weekly`), **verified submission** (`submit_score` RPC: score/overtake/distance plausibility vs elapsed, sets `is_verified`), **cloud garage** (`profiles.cloud_save`, snapshot uploaded on game over).
+- **Challenge links** (`?challenge=<seed>&mode=&score=`) + **share card** PNG (1200×630) with clipboard link on the results screen.
+- **Live events**: `public/events.json` remote config → garage event banner (Launch Weekend / Daily Week / Endless Nights).
+- **PWA**: manifest + icon + service worker (app-shell cache, Supabase never cached).
+- **Website**: `website/` static landing + live Supabase leaderboard, deploy at `/`, game at `/play/`.
+- ⚠️ Note: the first `overtake_rankings` migration was recorded during project restore but never applied — replaced by verified `overtake_full_rankings_v3` (tables confirmed via pg_tables).
+
 ### Phase 1 — Supabase LIVE (2026-11-07)
 - Project `ezvavdcntqjzcxpjyfku` (eu-west-2) restored from pause; email auto-confirm ON (frictionless sign-up; turn OFF + custom SMTP before public launch).
 - Migration `overtake_rankings` (repo copy: `supabase/migrations/20261107000000_rankings.sql`): `profiles` + `scores` tables, RLS (public read, insert-own only, plausibility CHECKs), `handle_new_user` trigger, `leaderboard(mode, limit)` RPC = best run per driver.

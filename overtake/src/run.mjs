@@ -13,7 +13,25 @@ export const RUN_MODES = {
     tagline: 'Two minutes. Maximum points. Contracts pay extra.',
     medals: { bronze: 1800, silver: 4000, gold: 7500 },
   },
+  daily: {
+    id: 'daily', label: 'Daily Overtake', duration: 90,
+    tagline: 'One seed for the whole world today. Three contracts, 90 seconds.',
+    medals: { bronze: 1400, silver: 3200, gold: 6000 },
+  },
 };
+
+/** UTC day key, e.g. "2026-11-07" — the Daily board is keyed by this in spirit. */
+export function dailyKey(date = new Date()) {
+  return date.toISOString().slice(0, 10);
+}
+
+/** Everyone, everywhere, gets the same contracts/traffic seed today. */
+export function dailySeed(date = new Date()) {
+  const key = dailyKey(date);
+  let h = 2166136261 >>> 0; // FNV-1a over the day key
+  for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h ^ 0x9e3779b9) >>> 0;
+}
 
 const CONTRACT_POOL = [
   { id: 'pass5', title: 'Clean five', desc: 'Overtake 5 cars', metric: 'overtakes', target: 5, reward: 400 },

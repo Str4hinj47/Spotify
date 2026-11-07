@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>OVERTAKE — Every Pass Counts | Play free in your browser</title>
+<meta name="description" content="The 60-second browser overtake game. Thread two-way traffic, complete contracts, beat the world today. No download."/>
+<style>
+:root{--bg:#07090c;--volt:#d7ff3f;--warm:#ffb02e;--text:#f7f9ec;--muted:#a7b0a0}
+*{box-sizing:border-box;margin:0}body{background:var(--bg);color:var(--text);font-family:Arial,system-ui,sans-serif}
+.wrap{max-width:1080px;margin:0 auto;padding:24px}
+nav{display:flex;justify-content:space-between;align-items:center}.logo{font-size:26px;font-weight:900;font-style:italic}.logo span{color:var(--volt)}
+.btn{background:var(--volt);color:#0a0f05;padding:14px 22px;border-radius:8px;font-weight:900;font-style:italic;text-transform:uppercase;text-decoration:none;display:inline-block}
+.hero{text-align:center;padding:84px 16px 48px}.hero h1{font-size:clamp(52px,10vw,110px);line-height:.9;font-style:italic;font-weight:900}.hero h1 em{color:var(--volt)}
+.hero p{color:var(--muted);margin:20px auto 28px;max-width:560px;line-height:1.6}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:28px 0}
+.card{border:1px solid #ffffff22;border-top:3px solid var(--volt);border-radius:10px;padding:20px;background:#ffffff08}.card b{font-size:18px}.card p{color:var(--muted);line-height:1.55;margin-top:8px;font-size:14px}
+table{width:100%;border-collapse:collapse}td,th{padding:10px;border-bottom:1px solid #ffffff1c;text-align:left}th{color:var(--volt);text-transform:uppercase;font-size:12px;letter-spacing:.1em}
+footer{color:var(--muted);text-align:center;padding:36px;font-size:13px;line-height:1.7}a{color:var(--volt)}
+</style></head><body><div class="wrap">
+<nav><div class="logo">OVER<span>TAKE</span></div><a class="btn" href="/play/">▶ Play now — free</a></nav>
+<section class="hero"><h1>EVERY PASS<br/><em>COUNTS.</em></h1>
+<p>Pick a car. Thread two-way highway traffic. Chain overtakes, finish contracts, and chase the world — right in your browser. No download, no install.</p>
+<a class="btn" href="/play/">Start engine</a></section>
+<div class="grid">
+<div class="card"><b>☀ Daily Overtake</b><p>One seed for the whole world, every day. Same traffic, same contracts — pure skill on the global Daily board.</p></div>
+<div class="card"><b>🏆 Global rankings</b><p>Endless, Rush, Daily and Weekly boards. Create a free account and every finished run submits automatically.</p></div>
+<div class="card"><b>🔧 Your garage</b><p>7 cars, paint, liveries, body kits, underglow and upgrades — saved to your account in the cloud.</p></div>
+<div class="card"><b>⚔ Challenge friends</b><p>Every result makes a share card + challenge link. Friends race your exact road and try to beat your score.</p></div>
+</div>
+<section class="card"><b>🌍 World leaders — Endless</b><p id="board-status">Loading live board…</p>
+<table><thead><tr><th>#</th><th>Driver</th><th>Car</th><th>Score</th></tr></thead><tbody id="board"></tbody></table></section>
+<footer>OVERTAKE · Season 01 World Tour<br/>Deploy: serve this folder at <b>/</b> and the game build (<code>overtake/dist</code>) at <b>/play/</b> on the same domain, then set that domain as Site URL in Supabase Auth.</footer>
+</div><script>
+fetch('https://ezvavdcntqjzcxpjyfku.supabase.co/rest/v1/rpc/leaderboard',{method:'POST',headers:{apikey:'sb_publishable_Xl9xTmw15ERiDGXorK7K1A_9_T5ht1r','Content-Type':'application/json'},body:JSON.stringify({p_mode:'endless',p_limit:10})})
+.then(r=>r.json()).then(rows=>{document.getElementById('board-status').textContent=rows.length?'Best run per driver · live from Supabase':'No world scores yet — be the first.';document.getElementById('board').innerHTML=rows.map(r=>`<tr><td>#${r.rank}</td><td></td><td>${r.car_id}</td><td><b>${r.score.toLocaleString()}</b></td></tr>`).join('');document.querySelectorAll('#board td:nth-child(2)').forEach((td,i)=>td.textContent=rows[i].display_name);})
+.catch(()=>document.getElementById('board-status').textContent='Board waking up — open the game and click World rankings.');
+</script></body></html>

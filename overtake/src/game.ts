@@ -32,7 +32,7 @@ import { biomeParams, biomeWeights, dominantBiome } from './world/biomes.mjs';
 import { snowDriftHeight } from './world/road-snow.mjs';
 import { createWeatherState, stepWeather, weatherGrip, weatherLabel, type WeatherState } from './world/weather.mjs';
 import { createClock, stepClock, formatHour, dayFactor } from './world/clock.mjs';
-import { createRun, tickRun, registerPass, finishRun, runSummary, contractProgress, medalFor, RUN_MODES, type RunMode, type RunState, type RunEvent, type Medal } from './run.mjs';
+import { createRun, tickRun, registerPass, finishRun, runSummary, contractProgress, medalFor, dailySeed, RUN_MODES, type RunMode, type RunState, type RunEvent, type Medal } from './run.mjs';
 import { createTrafficAI, findLeader, stepTraffic, hazardAhead, trafficCruise, chooseTruck, canOvertakeTruck, startOvertake, stepOvertake, type TrafficAI, type Hazard } from './traffic-ai.mjs';
 import { chooseTrafficModel, chooseTrafficPaint } from './traffic-appearance.mjs';
 import { emptyRecords, sanitizeRecords, recordRun, bestFor, type Records } from './records.mjs';
@@ -1376,7 +1376,7 @@ export class OvertakeGame {
     this.updateCamera(0);
   }
 
-  start(): boolean {
+  start(seedOverride?: number): boolean {
     if ((this.mode !== 'garage' && this.mode !== 'gameover') || !this.canDrive(this.selected)) return false;
     this.progressionSettled = false;
     this.clearTraffic();
@@ -1384,7 +1384,10 @@ export class OvertakeGame {
     this.updatePlayerLights(0);
     this.setEnvironment('road');
     this.playerS = 0;
-    this.run = createRun(this.runMode, (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0);
+    const seed = seedOverride !== undefined ? seedOverride >>> 0
+      : this.runMode === 'daily' ? dailySeed()
+      : (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
+    this.run = createRun(this.runMode, seed);
     this.hazard = null;
     this.best = bestFor(this.records, this.runMode);
     this.vehicle = createVehicleState();
@@ -1516,7 +1519,7 @@ export class OvertakeGame {
       const legacy = Number(localStorage.getItem('overtake-best') || 0) || 0;
       if (legacy > this.records.modes.endless.bestScore) this.records.modes.endless.bestScore = legacy;
       const savedMode = localStorage.getItem('overtake-mode');
-      if (savedMode === 'rush' || savedMode === 'endless') this.runMode = savedMode;
+      if (savedMode === 'rush' || savedMode === 'endless' || savedMode === 'daily') this.runMode = savedMode;
     } catch { this.records = emptyRecords(); }
   }
   private saveRecords() {

@@ -1,4 +1,4 @@
-export type RunMode = 'endless' | 'rush';
+export type RunMode = 'endless' | 'rush' | 'daily';
 export type Medal = 'bronze' | 'silver' | 'gold' | null;
 export interface RunContract { id: string; title: string; desc: string; metric: string; target: number; reward: number; }
 export interface RunState {
@@ -13,6 +13,8 @@ export interface RunEvent { type: string; contract?: RunContract; points?: numbe
 export interface RunSummary { mode: RunMode; car: string; score: number; distance: number; overtakes: number; nearMisses: number; oncomingDodges: number; topSpeed: number; contractsDone: number; elapsed: number; medal: Medal; reason: string | null; date: number; }
 export const RUN_MODES: Record<RunMode, { id: RunMode; label: string; duration: number | null; tagline: string; medals: { bronze: number; silver: number; gold: number } }>;
 export function mulberry32(seed: number): () => number;
+export function dailyKey(date?: Date): string;
+export function dailySeed(date?: Date): number;
 export function createRun(mode?: RunMode, seed?: number): RunState;
 export function medalFor(mode: RunMode, score: number): Medal;
 export function contractProgress(run: RunState): { contract: RunContract | null; value: number; target: number; ratio: number };

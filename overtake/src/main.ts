@@ -1,6 +1,6 @@
 import '@fontsource-variable/inter';
-import { createIcons, Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor, Globe, CalendarClock } from 'lucide';
-import { fetchLeaderboard, onAuthChange, signIn, signOut, signUp, submitScore, type OnlineUser } from './online';
+import { createIcons, Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor, Globe, CalendarClock, Share2 } from 'lucide';
+import { fetchLeaderboard, onAuthChange, saveCloudGarage, signIn, signOut, signUp, submitScore, type OnlineUser } from './online';
 import { ModelLibrary } from './models';
 import { OvertakeGame, CAMERA_ORDER, type Mode, type HudState, type RunStats, type CameraPreset } from './game';
 import { RUN_MODES, type RunMode } from './run.mjs';
@@ -13,7 +13,7 @@ import { BODY_FITS } from './body-kits';
 import { LIVERIES } from './livery';
 import { BODY_PARTS, DEFAULT_CUSTOMIZATION, sanitizeCustomization, sanitizeCustomizations, type Customization } from './customization.mjs';
 
-createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor, Globe, CalendarClock } });
+createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor, Globe, CalendarClock, Share2 } });
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
@@ -24,6 +24,7 @@ let game: OvertakeGame;
 let library: ModelLibrary;
 let selected: CarId = 'golf';
 let helpPaused = false;
+let lastRunStats: RunStats | null = null;
 let paints: Record<string, string> = {};
 let customizations: Record<string, Customization> = {};
 
@@ -362,6 +363,7 @@ function syncModeUI() {
   });
   $('mode-best-endless').textContent = fmt(bestFor(records, 'endless'));
   $('mode-best-rush').textContent = fmt(bestFor(records, 'rush'));
+  $('mode-best-daily').textContent = fmt(bestFor(records, 'daily'));
   const recent = records.modes[mode].recent.slice(0, 3);
   $('recent-runs').classList.toggle('hidden', recent.length === 0);
   $('recent-mode').textContent = RUN_MODES[mode].label;
@@ -485,7 +487,34 @@ function onEvent(e: { kind: 'overtake' | 'near' | 'combo' | 'crash' | 'oncoming'
   setTimeout(() => div.remove(), 1300);
 }
 
+async function shareLastRun() {
+  const s = lastRunStats;
+  const link = s ? `${location.origin}${location.pathname}?challenge=${s.seed}&mode=${s.mode}&score=${s.score}` : location.href;
+  const text = s ? `🏁 I scored ${fmt(s.score)} in OVERTAKE (${s.mode}, ${fmt(s.distance / 1000)} km, ${s.overtakes} passes). Beat it on the same road:` : 'Play OVERTAKE:';
+  try { await navigator.clipboard.writeText(`${text} ${link}`); } catch { /* clipboard optional */ }
+  if (!s) return;
+  const c = document.createElement('canvas'); c.width = 1200; c.height = 630;
+  const x = c.getContext('2d'); if (!x) return;
+  x.fillStyle = '#07090c'; x.fillRect(0, 0, 1200, 630);
+  x.fillStyle = '#d7ff3f'; x.fillRect(0, 0, 1200, 14);
+  x.fillStyle = '#f7f9ec'; x.font = 'italic 900 92px Arial'; x.fillText('OVERTAKE', 60, 130);
+  x.fillStyle = '#d7ff3f'; x.font = 'italic 900 150px Arial'; x.fillText(fmt(s.score), 60, 300);
+  x.fillStyle = '#a7b0a0'; x.font = '700 38px Arial';
+  x.fillText(`${s.mode.toUpperCase()} · ${(s.distance / 1000).toFixed(1)} KM · ${s.overtakes} PASSES · TOP ${Math.round(s.topSpeed)} KM/H`, 60, 380);
+  x.fillStyle = '#ffb02e'; x.font = 'italic 900 44px Arial'; x.fillText('EVERY PASS COUNTS — BEAT THIS SCORE', 60, 520);
+  const a = document.createElement('a');
+  a.download = `overtake-${s.score}.png`; a.href = c.toDataURL('image/png'); a.click();
+}
+
 function onGameOver(s: RunStats) {
+  lastRunStats = s;
+  void saveCloudGarage({
+    progression: localStorage.getItem('overtake-progression-v2'),
+    records: localStorage.getItem('overtake-records-v2'),
+    paints: localStorage.getItem('overtake-paints'),
+    customization: localStorage.getItem('overtake-customization-v1'),
+    savedAt: Date.now(),
+  }).catch(() => { /* signed out / offline */ });
   $('final-progress').textContent = `+$${fmt(s.moneyGained)} earned`;
   $('final-score').textContent = fmt(s.score);
   $('final-overtakes').textContent = String(s.overtakes);
@@ -511,7 +540,9 @@ function startRun() {
   closeGraphicsPanel();
   audio.setCar(selected);
   void audio.unlock();
-  game.start();
+  const challenge = (window as unknown as { __overtakeChallenge?: number | null }).__overtakeChallenge;
+  game.start(challenge ?? undefined);
+  if (challenge) (window as unknown as { __overtakeChallenge?: number | null }).__overtakeChallenge = null;
 }
 
 function togglePause() {
@@ -697,7 +728,7 @@ function bindUI() {
   $('btn-help').addEventListener('click', openHelp);
   $('btn-close-help').addEventListener('click', closeHelp);
   // --- Supabase: world rankings + accounts -------------------------------
-  let boardMode: 'endless' | 'rush' | 'daily' = 'endless';
+  let boardMode: 'endless' | 'rush' | 'daily' | 'weekly' = 'endless';
   let onlineUser: OnlineUser | null = null;
   const authMsg = (text: string, ok = false) => {
     const el = $('auth-message'); el.textContent = text; el.classList.toggle('ok', ok);
@@ -711,9 +742,9 @@ function bindUI() {
     const status = $('rankings-status'), list = $('rankings-list');
     status.textContent = 'Loading world board…'; list.innerHTML = '';
     try {
-      const rows = await fetchLeaderboard(boardMode as never, 20);
+      const rows = await fetchLeaderboard(boardMode === 'weekly' ? 'endless' : boardMode, 20, boardMode === 'weekly');
       if (!rows.length) { status.textContent = 'No world scores yet — be the first on this board.'; return; }
-      status.textContent = `${boardMode === 'daily' ? 'Daily' : boardMode === 'rush' ? 'Rush' : 'Endless'} · best run per driver · top ${rows.length}`;
+      status.textContent = `${boardMode === 'weekly' ? 'Weekly (Endless, this week)' : boardMode === 'daily' ? 'Daily Overtake (today\'s seed)' : boardMode === 'rush' ? 'Rush' : 'Endless'} · best run per driver · top ${rows.length}`;
       list.innerHTML = rows.map((r) =>
         `<li class="${onlineUser && r.display_name === (onlineUser.user_metadata?.display_name) ? 'me' : ''}"><span class="rk-rank">#${r.rank}</span><span class="rk-name"></span><span class="rk-car">${r.car_id}</span><span class="rk-score">${fmt(r.score)}</span></li>`).join('');
       list.querySelectorAll('.rk-name').forEach((el, i) => { el.textContent = rows[i].display_name; });
@@ -754,6 +785,30 @@ function bindUI() {
   $('btn-rankings-drive').addEventListener('click', () => { closeRankings(); $('car-detail').scrollTop = 0; $('btn-start').focus(); });
   $('rankings').addEventListener('click', (e) => { if (e.target === $('rankings')) closeRankings(); });
 
+  // --- Challenge links, live events, share card ---------------------------
+  const params = new URLSearchParams(location.search);
+  const challengeSeed = Number(params.get('challenge')) >>> 0;
+  const challengeScore = Number(params.get('score')) || 0;
+  if (params.get('challenge')) {
+    const b = $('challenge-banner');
+    b.classList.remove('hidden');
+    b.innerHTML = `⚔️ <b>Friend challenge</b> — beat <b>${fmt(challengeScore)}</b> on this exact road (seed ${challengeSeed}). Pick a mode & drive!`;
+    try { localStorage.setItem('overtake-challenge', JSON.stringify({ seed: challengeSeed, score: challengeScore })); } catch { /* ignore */ }
+  }
+  (window as unknown as { __overtakeChallenge?: number | null }).__overtakeChallenge = challengeSeed || null;
+  void fetch('/events.json').then((r) => r.json()).then((cfg) => {
+    const now = Date.now();
+    const ev = (cfg.events ?? []).find((e: { start: string; end: string }) => now >= Date.parse(e.start) && now <= Date.parse(e.end))
+      ?? (cfg.events ?? []).find((e: { start: string }) => Date.parse(e.start) > now);
+    if (!ev) return;
+    const b = $('event-banner'); b.classList.remove('hidden');
+    const live = now >= Date.parse(ev.start);
+    b.innerHTML = `${live ? '🔴 LIVE EVENT' : '📅 UPCOMING'} · <b></b> — <span></span>`;
+    (b.querySelector('b') as HTMLElement).textContent = ev.title;
+    (b.querySelector('span') as HTMLElement).textContent = ev.desc;
+  }).catch(() => { /* events are optional */ });
+
+  $('btn-share').addEventListener('click', () => { void shareLastRun(); });
   const swatches = $('paint-swatches');
   for (const p of PAINT_COLORS) {
     const b = document.createElement('button');
@@ -921,6 +976,10 @@ async function boot() {
   setMode('garage');
   $('loading').classList.add('hidden');
   $('topbar').classList.remove('hidden');
+}
+
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => { void navigator.serviceWorker.register('/sw.js').catch(() => {}); });
 }
 
 void boot();

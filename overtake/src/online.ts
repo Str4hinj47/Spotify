@@ -54,8 +54,10 @@ export async function signIn(email: string, password: string) {
 export async function signOut() { await supabase.auth.signOut(); }
 
 /** Top scores: best run per player, per mode. Public read via RLS. */
-export async function fetchLeaderboard(mode: RunMode | 'daily' = 'endless', limit = 20): Promise<BoardRow[]> {
-  const { data, error } = await supabase.rpc('leaderboard', { p_mode: mode, p_limit: limit });
+export async function fetchLeaderboard(mode: RunMode = 'endless', limit = 20, weekly = false): Promise<BoardRow[]> {
+  const { data, error } = weekly
+    ? await supabase.rpc('leaderboard_weekly', { p_mode: mode, p_limit: limit })
+    : await supabase.rpc('leaderboard', { p_mode: mode, p_limit: limit });
   if (error) throw error;
   return (data ?? []) as BoardRow[];
 }
@@ -74,14 +76,30 @@ export async function myBest(mode: RunMode = 'endless'): Promise<number | null> 
 export async function submitScore(s: ScoreSubmission): Promise<boolean> {
   const user = await currentUser();
   if (!user) return false;
-  const { error } = await supabase.from('scores').insert({
-    user_id: user.id, mode: s.mode, car_id: s.car,
-    score: Math.round(s.score), distance_m: Math.round(s.distance),
-    overtakes: s.overtakes, near_misses: s.nearMisses,
-    top_speed_kmh: Math.round(s.topSpeed), contracts_done: s.contractsDone,
-    elapsed_s: Math.round(s.elapsed), medal: s.medal, seed: s.seed ?? null,
-    build: 'web-season01',
+  // Verified path: submit_score() applies plausibility checks server-side and
+  // only marks the row is_verified when the run maths can be real.
+  const { error } = await supabase.rpc('submit_score', {
+    p_mode: s.mode, p_car: s.car, p_score: Math.round(s.score),
+    p_distance: Math.round(s.distance), p_overtakes: s.overtakes,
+    p_near: s.nearMisses, p_top_speed: Math.round(s.topSpeed),
+    p_contracts: s.contractsDone, p_elapsed: Math.round(s.elapsed),
+    p_medal: s.medal, p_seed: s.seed ?? null,
   });
   if (error) throw error;
   return true;
+}
+
+/** Cloud garage snapshot (progression/paints/customization JSON from localStorage). */
+export async function saveCloudGarage(snapshot: Record<string, unknown>): Promise<void> {
+  const user = await currentUser();
+  if (!user) return;
+  await supabase.from('profiles').update({ cloud_save: snapshot }).eq('id', user.id);
+}
+
+export async function loadCloudGarage(): Promise<Record<string, unknown> | null> {
+  const user = await currentUser();
+  if (!user) return null;
+  const { data, error } = await supabase.from('profiles').select('cloud_save').eq('id', user.id).maybeSingle();
+  if (error) throw error;
+  return (data?.cloud_save as Record<string, unknown>) ?? null;
 }

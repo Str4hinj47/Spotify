@@ -74,3 +74,17 @@ test('records retain Challenger and R8 runs on reload', async () => {
   }
   assert.deepEqual(sanitizeRecords(JSON.parse(JSON.stringify(records))).modes.endless.recent.map(run => run.car), ['challenger', 'r8']);
 });
+
+test('daily mode: same UTC day = same seed, 90s timed run, own medals', async () => {
+  const { dailySeed, dailyKey } = await import('../src/run.mjs');
+  const morning = new Date('2026-11-07T01:00:00Z'), night = new Date('2026-11-07T23:00:00Z');
+  assert.equal(dailyKey(morning), '2026-11-07');
+  assert.equal(dailySeed(morning), dailySeed(night));
+  assert.notEqual(dailySeed(morning), dailySeed(new Date('2026-11-08T01:00:00Z')));
+  const a = createRun('daily', dailySeed(morning)), b = createRun('daily', dailySeed(night));
+  assert.deepEqual(a.contracts.map(c => c.id), b.contracts.map(c => c.id));
+  assert.equal(a.timeLeft, 90);
+  for (let i = 0; i < 901; i++) tickRun(a, 0.1, 30);
+  assert.equal(a.finished, true);
+  assert.equal(medalFor('daily', RUN_MODES.daily.medals.gold), 'gold');
+});
