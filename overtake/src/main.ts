@@ -1002,6 +1002,11 @@ async function boot() {
     step = 'sound UI'; syncSoundUI();
     step = 'controls'; bindUI();
     step = 'garage mode'; setMode('garage');
+    if (LITE_PREVIEW) {
+      // Preview-only: developer mode ON so every car, upgrade, paint and
+      // bodywork option can be tried without earning money first.
+      step = 'dev mode'; game.setDeveloperMode(true); syncProgressionUI();
+    }
   } catch (err) {
     console.error(err);
     $('loading').classList.remove('hidden');
