@@ -67,43 +67,20 @@
       <p class="sound-hint">Settings apply immediately and are saved on this device. Lower scenery and resolution if performance is slow; hardware limits may reduce resolution.</p>
     </section>
 
-    <!-- Garage -->
-    <section id="garage" class="hidden">
-      <aside class="car-list panel">
-        <div class="panel-title">Garage <span class="count">7 cars</span></div>
-        <div id="car-cards"></div>
-      </aside>
-      <aside id="car-detail" class="car-detail panel">
-        <div class="maker" id="d-maker">Volkswagen</div>
-        <h1 id="d-name">Golf MK4 GTI</h1>
-        <div class="class-pill" id="d-class">Hot hatch</div>
-        <p id="d-tagline" class="tagline"></p>
-        <div class="garage-tabs" role="group" aria-label="Garage sections">
-          <button type="button" aria-pressed="true" data-garage-tab="drive">01 <span>Drive</span></button>
-          <button type="button" aria-pressed="false" data-garage-tab="ranked">02 <span>Ranked</span></button>
-          <button type="button" aria-pressed="false" data-garage-tab="upgrades">03 <span>Performance</span></button>
-          <button type="button" aria-pressed="false" data-garage-tab="style">04 <span>Style</span></button>
-        </div>
-        <section class="progression" aria-label="Car progression">
-          <div class="progression-head"><b id="progress-xp">$0</b><button id="dev-toggle" type="button" aria-pressed="false">Dev options: OFF</button></div>
-          <div id="progress-next" class="progress-next"></div>
-          <button id="buy-car" class="purchase-button hidden" type="button"></button>
-          <div id="car-requirement" class="car-requirement" aria-live="polite"></div>
-          <p class="progress-hint">Money is paid when a run ends or you return to the garage. Each 1,000 points increases your payout per point by 25%, up to 3×. Dev options grant temporary access.</p>
-        </section>
-        <div id="garage-upgrades" class="garage-section hidden">
-        <div class="stats">
-          <div class="stat"><span>Top speed</span><div class="dots" id="stat-speed"></div></div>
-          <div class="stat"><span>Handling</span><div class="dots" id="stat-handling"></div></div>
-          <div class="stat"><span>Score bonus</span><div class="dots" id="stat-bonus"></div></div>
-        </div>
-        <div class="upgrade-panel" aria-label="Performance upgrades">
-          <div class="paint-head"><span>Performance upgrades</span><span class="count">3 stages</span></div>
-          <p class="upgrade-hint">Per stage: engine +8% acceleration / +4% speed · tires +6% grip · brakes +10% braking. Dev uses max stages temporarily.</p>
-          <div id="upgrade-list"></div>
-        </div>
-        </div>
-        <div id="garage-drive" class="garage-section">
+    <!-- Main menu: navigation, challenges and player overview -->
+    <section id="main-menu" class="main-menu hidden" aria-label="Main menu">
+      <div class="menu-backdrop" aria-hidden="true"></div>
+      <div class="menu-layout">
+        <div class="menu-primary">
+          <div class="menu-intro"><p class="menu-kicker"><span></span> YOUR HIGHWAY. YOUR RULES.</p>
+            <h1>THE ROAD <em>IS YOURS.</em></h1>
+            <p>Pick your drive, build your garage and chase the next great run.</p>
+            <div class="menu-current-car"><span>YOUR RIDE</span><strong id="menu-car-name">Golf MK4 GTI</strong><span id="menu-car-status">OWNED</span></div>
+            <div class="menu-actions"><button id="menu-start" type="button" class="menu-play"><span id="menu-start-label">START ENGINE</span><b>↗</b></button><button id="menu-garage" type="button" class="menu-garage">OPEN GARAGE <span>↗</span></button></div>
+          </div>
+          <div class="menu-section-head"><div><p class="menu-kicker">01 / PICK YOUR CHALLENGE</p><h2>CHOOSE YOUR DRIVE<span>.</span></h2></div><span id="menu-selected-mode" class="menu-selected-mode">ENDLESS</span></div>
+          <div class="menu-mode-wrap">
+        <div id="menu-drive" class="garage-section">
         <div class="section-kicker">SELECT YOUR DRIVE <span>LOCAL PLAY</span></div>
         <p id="active-mode-info" class="active-mode-info" aria-live="polite"></p>
         <div class="mode-select" role="group" aria-label="Run mode">
@@ -121,6 +98,7 @@
           <button class="mode-card" data-mode="near" type="button"><span class="mode-name">Near Miss</span><span class="mode-desc">90 seconds · close passes pay</span><span class="mode-best">Best <b id="mode-best-near">0</b></span></button>
           <button class="mode-card" data-mode="daily" type="button"><span class="mode-name">Daily Drive</span><span class="mode-desc" id="daily-desc">Rotates daily · UTC</span><span class="mode-best">Today's best <b id="mode-best-daily">0</b></span></button>
           <button class="mode-card" data-mode="weekly" type="button"><span class="mode-name">Weekly Event</span><span class="mode-desc" id="weekly-desc">Rotates weekly · UTC</span><span class="mode-best">This week's best <b id="mode-best-weekly">0</b></span></button>
+          <button class="mode-card ranked-mode-card" data-mode="ranked" type="button"><span class="mode-name">Ranked Attack</span><span class="mode-desc">Time attacks · earn rank points</span><span class="mode-best">Local rank <b id="mode-best-ranked">Rookie</b></span></button>
         </div>
         <p class="local-note">Local, unverified runs · Traffic and conditions vary</p>
         <div id="recent-runs" class="recent-runs hidden">
@@ -128,7 +106,7 @@
           <div id="recent-list"></div>
         </div>
         </div>
-        <div id="garage-ranked" class="garage-section ranked-section hidden">
+        <div id="menu-ranked" class="garage-section ranked-section hidden">
           <div class="rank-hero" id="rank-hero">
             <div id="rank-badge" class="rank-badge"></div>
             <div class="rank-hero-copy"><span id="rank-status" class="rank-eyebrow">LOCAL RANKED · TIME ATTACK</span><h2 id="rank-name">Rookie</h2><div class="rank-points"><b id="rank-points">0</b> RP</div><div class="rank-progress"><i id="rank-progress-fill"></i></div><div id="rank-next" class="rank-next"></div></div>
@@ -137,6 +115,59 @@
           <div class="rank-scenario-heading"><span>CHOOSE YOUR ATTACK</span><span>03 SCENARIOS <span class="rank-scroll-hint">· SWIPE ↑</span></span></div>
           <div id="rank-scenarios" class="rank-scenarios" role="group" aria-label="Ranked scenario"></div>
           <p class="rank-fineprint">Earn RP by meeting the finish time and objective. Crash, timeout, missed objective or quit: −12 RP (floor 0). Your car, upgrades, traffic and weather vary. Local and unverified; Dev runs earn no RP.</p>
+        </div>
+          </div>
+        </div>
+        <aside class="menu-sidebar" aria-label="Player overview">
+          <section class="menu-info-card player-overview"><div class="menu-card-head"><span>02 / YOUR STATS</span><span class="menu-chip">THIS DEVICE</span></div><h2>YOUR <em>DRIVE.</em></h2>
+            <p>Every run is a story. Here's yours so far.</p>
+            <div class="menu-stats-grid"><div><b id="menu-best-score">0</b><span>BEST SAVED SCORE</span></div><div><b id="menu-longest">0.0 <small>KM</small></b><span>LONGEST SAVED RUN</span></div><div><b id="menu-runs">0</b><span>RECORDED RUNS</span></div><div><b id="menu-owned">1 / 7</b><span>CARS OWNED</span></div></div>
+            <div class="menu-rank-summary"><div id="menu-rank-badge" class="menu-rank-badge"></div><div><span>LOCAL RANK</span><strong id="menu-rank-name">Rookie</strong><small id="menu-rank-points">0 RP</small></div><button id="menu-rank-select" type="button" aria-label="Select Ranked Attack">↗</button></div>
+            <p class="menu-footnote">Local, unverified stats. Best score and longest run exclude ranked; daily and weekly bests reset. Dev runs and abandoned regular runs aren't recorded.</p>
+          </section>
+          <section class="menu-info-card global-overview"><div class="menu-card-head"><span>03 / GLOBAL STATS</span><span class="menu-chip muted">OFFLINE</span></div><h2>THE <em>GRID.</em></h2>
+            <div class="global-placeholder"><span class="global-icon">◎</span><div><strong>Not connected yet</strong><p>Global stats and verified leaderboards aren't available. Your local results are not submitted.</p></div></div>
+            <a href="/#account">ACCOUNT &amp; SAVE OPTIONS <span>↗</span></a>
+          </section>
+          <div class="menu-note">CONCEPT ART · GAMEPLAY IS RENDERED IN 3D</div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Garage -->
+    <section id="garage" class="hidden">
+      <aside class="car-list panel">
+        <div class="panel-title">Garage <span class="count">7 cars</span></div>
+        <div id="car-cards"></div>
+      </aside>
+      <aside id="car-detail" class="car-detail panel">
+        <button id="garage-back" class="garage-back" type="button">← MAIN MENU</button>
+        <div class="maker" id="d-maker">Volkswagen</div>
+        <h1 id="d-name">Golf MK4 GTI</h1>
+        <div class="class-pill" id="d-class">Hot hatch</div>
+        <p id="d-tagline" class="tagline"></p>
+        <div class="garage-tabs" role="group" aria-label="Garage sections">
+          <button type="button" aria-pressed="true" data-garage-tab="upgrades">01 <span>Performance</span></button>
+          <button type="button" aria-pressed="false" data-garage-tab="style">02 <span>Style</span></button>
+        </div>
+        <section class="progression" aria-label="Car progression">
+          <div class="progression-head"><b id="progress-xp">$0</b><button id="dev-toggle" type="button" aria-pressed="false">Dev options: OFF</button></div>
+          <div id="progress-next" class="progress-next"></div>
+          <button id="buy-car" class="purchase-button hidden" type="button"></button>
+          <div id="car-requirement" class="car-requirement" aria-live="polite"></div>
+          <p class="progress-hint">Money is paid when a run ends or you return to the garage. Each 1,000 points increases your payout per point by 25%, up to 3×. Dev options grant temporary access.</p>
+        </section>
+        <div id="garage-upgrades" class="garage-section">
+        <div class="stats">
+          <div class="stat"><span>Top speed</span><div class="dots" id="stat-speed"></div></div>
+          <div class="stat"><span>Handling</span><div class="dots" id="stat-handling"></div></div>
+          <div class="stat"><span>Score bonus</span><div class="dots" id="stat-bonus"></div></div>
+        </div>
+        <div class="upgrade-panel" aria-label="Performance upgrades">
+          <div class="paint-head"><span>Performance upgrades</span><span class="count">3 stages</span></div>
+          <p class="upgrade-hint">Per stage: engine +8% acceleration / +4% speed · tires +6% grip · brakes +10% braking. Dev uses max stages temporarily.</p>
+          <div id="upgrade-list"></div>
+        </div>
         </div>
         <div id="garage-style" class="garage-section hidden">
         <div class="paint">
@@ -321,7 +352,7 @@
         <button id="btn-resume" class="primary"><i data-lucide="play"></i> Resume</button>
         <button id="btn-pause-graphics" class="ghost" aria-controls="graphics-panel" aria-expanded="false"><i data-lucide="monitor"></i> Graphics settings</button>
         <button id="btn-pause-sound" class="ghost" aria-controls="sound-panel" aria-expanded="false"><i data-lucide="sliders-horizontal"></i> Sound settings</button>
-        <button id="btn-quit" class="ghost"><i data-lucide="home"></i> <span id="quit-label">Back to garage</span></button>
+        <button id="btn-quit" class="ghost"><i data-lucide="home"></i> <span id="quit-label">Back to menu</span></button>
       </div>
     </div>
 
@@ -346,7 +377,8 @@
         <button id="btn-download-card" class="ghost" type="button">Download result card</button>
       <p id="share-status" role="status" class="share-status"></p>
       <button id="btn-retry" class="primary"><i data-lucide="rotate-ccw"></i> Drive again</button>
-        <button id="btn-garage" class="ghost"><i data-lucide="home"></i> Change car</button>
+        <button id="btn-result-menu" class="ghost"><i data-lucide="home"></i> Main menu</button>
+        <button id="btn-garage" class="ghost">Change car</button>
       </div>
     </div>
 

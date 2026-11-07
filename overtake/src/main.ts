@@ -27,6 +27,7 @@ let selected: CarId = 'golf';
 let helpPaused = false;
 let paints: Record<string, string> = {};
 let customizations: Record<string, Customization> = {};
+let frontScreen: 'menu' | 'garage' = 'menu';
 
 // A new economy starts from zero exactly once. Keep a backup of old cosmetics,
 // but do not carry free, already-equipped tuning into the paid economy.
@@ -245,7 +246,12 @@ function syncProgressionUI() {
   document.querySelectorAll<HTMLButtonElement>('.paint-swatch').forEach(button => { button.disabled = !available; });
   ($('paint-custom') as HTMLInputElement).disabled = !available;
   ($('paint-reset') as HTMLButtonElement).disabled = !available;
-  $('start-label').textContent = available ? game.getRunMode() === 'ranked' ? 'Start ranked attack' : 'Start engine' : 'Buy car to drive';
+  const startLabel = available ? game.getRunMode() === 'ranked' ? 'Start ranked attack' : 'Start engine' : 'Buy car to drive';
+  $('start-label').textContent = startLabel;
+  $('menu-start-label').textContent = startLabel.toUpperCase();
+  ($('menu-start') as HTMLButtonElement).disabled = !available;
+  $('menu-car-name').textContent = `${getCar(selected).maker} ${getCar(selected).name}`;
+  $('menu-car-status').textContent = owned ? 'OWNED' : progress.dev ? 'DEV ACCESS' : 'NOT OWNED';
   document.querySelectorAll<HTMLButtonElement>('.car-card').forEach(card => {
     const id = card.dataset.car as CarId, hasCar = earnedCar(progress, id);
     const status = card.querySelector<HTMLElement>('.cc-unlock')!;
@@ -279,10 +285,11 @@ function selectCar(id: CarId) {
 function setMode(m: Mode) {
   audio.setActive(m === 'driving');
   if (m === 'garage') { syncModeUI(); syncProgressionUI(); syncRankUI(); }
-  $('garage').classList.toggle('hidden', m !== 'garage');
+  $('main-menu').classList.toggle('hidden', m !== 'garage' || frontScreen !== 'menu');
+  $('garage').classList.toggle('hidden', m !== 'garage' || frontScreen !== 'garage');
   $('hud').classList.toggle('hidden', m === 'garage');
   $('pause').classList.toggle('hidden', m !== 'paused');
-  $('quit-label').textContent = game.getRunMode() === 'ranked' && !game.getProgression().dev ? 'Quit ranked run · −12 RP' : 'Back to garage';
+  $('quit-label').textContent = game.getRunMode() === 'ranked' && !game.getProgression().dev ? 'Quit ranked run · −12 RP' : 'Back to menu';
   $('gameover').classList.toggle('hidden', m !== 'gameover');
   $('btn-account').classList.toggle('hidden', m !== 'garage');
   $('btn-pause').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
@@ -294,6 +301,13 @@ function setMode(m: Mode) {
     $('camera-panel').classList.add('hidden');
     $('world-panel').classList.add('hidden');
   }
+}
+
+function showFrontScreen(screen: 'menu' | 'garage') {
+  if (game.mode !== 'garage') return;
+  if (screen === 'menu' && !$('custom-panel').classList.contains('hidden')) showCustomization(false);
+  frontScreen = screen;
+  setMode('garage');
 }
 
 function syncCameraUI() {
@@ -362,6 +376,11 @@ function syncModeUI() {
   if (!game) return;
   const mode = game.getRunMode();
   const records = game.getRecords();
+  $('menu-ranked').classList.toggle('hidden', mode !== 'ranked');
+  $('menu-selected-mode').textContent = RUN_MODES[mode].label.toUpperCase();
+  const info = rankFor(game.getRanked().points);
+  $('mode-best-ranked').textContent = info.rank.name;
+  syncMenuStats();
   $('best-top').textContent = fmt(mode === 'ranked' ? game.getRanked().points : game.getBest());
   document.querySelector('.best-pill')?.setAttribute('title', mode === 'ranked' ? 'Local rank points' : 'Personal best score');
   document.querySelectorAll<HTMLButtonElement>('.mode-card').forEach((b) => {
@@ -390,13 +409,21 @@ function syncModeUI() {
   }
 }
 
-let lastUnranked: RunMode = 'endless';
+function syncMenuStats() {
+  if (!game) return;
+  const records = game.getRecords(), buckets = Object.entries(records.modes).filter(([mode]) => mode !== 'ranked').map(([, bucket]) => bucket);
+  const ranked = game.getRanked(), info = rankFor(ranked.points), progress = game.getProgression();
+  $('menu-best-score').textContent = fmt(Math.max(0, ...buckets.map(b => b.bestScore)));
+  $('menu-longest').innerHTML = `${(Math.max(0, ...buckets.map(b => b.bestDistance)) / 1000).toFixed(1)} <small>KM</small>`;
+  $('menu-runs').textContent = fmt(buckets.reduce((sum, b) => sum + b.runs, 0) + ranked.attempts);
+  $('menu-owned').textContent = `${progress.owned.length} / ${CARS.length}`;
+  $('menu-rank-badge').innerHTML = rankBadge(info.index);
+  $('menu-rank-name').textContent = info.rank.name;
+  $('menu-rank-points').textContent = `${fmt(info.points)} RP`;
+}
 function showGarageTab(tab: string) {
-  if (tab === 'ranked' && game.getRunMode() !== 'ranked') { lastUnranked = game.getRunMode(); selectMode('ranked'); }
-  if (tab === 'drive' && game.getRunMode() === 'ranked') selectMode(lastUnranked);
   document.querySelectorAll<HTMLButtonElement>('[data-garage-tab]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.garageTab === tab)));
-  for (const section of ['drive', 'ranked', 'upgrades', 'style']) $('garage-' + section).classList.toggle('hidden', section !== tab);
-  syncRankUI(); syncProgressionUI();
+  for (const section of ['upgrades', 'style']) $('garage-' + section).classList.toggle('hidden', section !== tab);
 }
 function syncRankUI() {
   if (!game) return;
@@ -683,6 +710,10 @@ function bindHold(id: string, name: 'throttle' | 'brake' | 'left' | 'right' | 'h
 
 function bindUI() {
   $('btn-start').addEventListener('click', startRun);
+  $('menu-start').addEventListener('click', startRun);
+  $('menu-garage').addEventListener('click', () => showFrontScreen('garage'));
+  $('garage-back').addEventListener('click', () => showFrontScreen('menu'));
+  $('menu-rank-select').addEventListener('click', () => { selectMode('ranked'); $('menu-ranked').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   $('dev-toggle').addEventListener('click', () => {
     const enabled = !game.getProgression().dev;
     game.setDeveloperMode(enabled);
@@ -738,7 +769,7 @@ function bindUI() {
   $('cam-sensitivity').addEventListener('input', e => { game.setFreeCameraSettings({sensitivity:Number((e.target as HTMLInputElement).value)}); syncCameraUI(); });
   $('cam-auto-center').addEventListener('change', e => game.setFreeCameraSettings({autoCenter:(e.target as HTMLInputElement).checked}));
   $('btn-resume').addEventListener('click', () => game.resume());
-  $('btn-quit').addEventListener('click', () => game.toGarage());
+  $('btn-quit').addEventListener('click', () => { frontScreen = 'menu'; game.toGarage(); });
   document.querySelectorAll<HTMLButtonElement>('[data-garage-tab]').forEach(button => button.addEventListener('click', () => showGarageTab(button.dataset.garageTab!)));
   const rankRoad = $('rank-road') as HTMLDialogElement;
   $('rank-road-open').addEventListener('click', () => { syncRankUI(); rankRoad.showModal(); $('rank-road-close').focus(); });
@@ -789,7 +820,8 @@ function bindUI() {
     }, 'image/png');
   });
   $('btn-retry').addEventListener('click', startRun);
-  $('btn-garage').addEventListener('click', () => game.toGarage());
+  $('btn-garage').addEventListener('click', () => { frontScreen = 'garage'; game.toGarage(); });
+  $('btn-result-menu').addEventListener('click', () => { frontScreen = 'menu'; game.toGarage(); });
   $('btn-sound').addEventListener('click', toggleMute);
   $('btn-sound-settings').addEventListener('click', toggleSoundPanel);
   $('btn-pause-sound').addEventListener('click', toggleSoundPanel);
@@ -984,7 +1016,6 @@ async function boot() {
   syncSoundUI();
 
   bindUI();
-  if (game.getRunMode() === 'ranked') showGarageTab('ranked'); else lastUnranked = game.getRunMode();
   setMode('garage');
   $('loading').classList.add('hidden');
   $('topbar').classList.remove('hidden');
