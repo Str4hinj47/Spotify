@@ -367,6 +367,7 @@ function syncModeUI() {
   $('mode-best-trial').textContent = records.modes.trial.bestTime === null ? '—' : formatTime(records.modes.trial.bestTime);
   $('daily-desc').textContent = eventFor('daily').contract.desc + ' · UTC';
   $('weekly-desc').textContent = eventFor('weekly').contract.desc + ' · UTC';
+  $('active-mode-info').textContent = mode === 'daily' || mode === 'weekly' ? `${RUN_MODES[mode].label} · ${eventFor(mode).contract.desc} · UTC` : RUN_MODES[mode].tagline;
   const recent = records.modes[mode].recent.slice(0, 3);
   $('recent-runs').classList.toggle('hidden', recent.length === 0);
   $('recent-mode').textContent = RUN_MODES[mode].label;

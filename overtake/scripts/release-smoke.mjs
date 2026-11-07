@@ -12,6 +12,7 @@ try {
   await page.goto(base,{waitUntil:'networkidle'});
   assert.equal(await page.locator('h1').innerText(),'THE ROAD\nIS YOURS.');
   assert.equal(await page.locator('.daily-tile').getAttribute('href'),'/play.html?mode=daily');
+  await page.click('#account-open'); assert.match(await page.locator('#account-info').innerText(), /connected yet/i); assert.equal(await page.locator('#account-form').isVisible(),false); await page.locator('.account-close-form button').click();
   await page.screenshot({path:'test-results/landing-desktop.png',fullPage:true});
   await page.goto(`${base}/play.html?test=1&mode=daily`,{waitUntil:'domcontentloaded',timeout:180000});
   await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
@@ -27,8 +28,15 @@ try {
   await page.waitForSelector('#gameover:not(.hidden)',{timeout:10000});
   assert.match(await page.locator('#final-title').innerText(),/Finished/);
   assert.equal(await page.locator('#final-best-label').innerText(),'FASTEST TIME');
-  await page.click('#btn-share-result');assert.match(await page.locator('#share-status').innerText(),/copied|Copy|Shared/i);
+  await page.click('#btn-share-result');await page.waitForFunction(()=>/copied|copy|shared/i.test(document.querySelector('#share-status').innerText),null,{timeout:10000});
   await page.screenshot({path:'test-results/results-desktop.png',timeout:120000});
+  await page.click('#btn-garage');
+  await page.click('#dev-toggle'); await page.click('[data-mode=trial]'); await page.click('#btn-start');
+  const previous = await page.evaluate(()=>window.__overtake.getRecords().modes.trial.bestTime);
+  await page.evaluate(()=>{ const g=window.__overtake; g.run.distance=2999; g.speed=25; g.updateDriving(.1); });
+  await page.waitForSelector('#gameover:not(.hidden)',{timeout:10000});
+  assert.match(await page.locator('#share-status').innerText(), /excluded from personal records/i);
+  assert.equal(await page.evaluate(()=>window.__overtake.getRecords().modes.trial.bestTime),previous);
   assert.deepEqual(errors,[]);
   await page.close();
   const mobile=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});

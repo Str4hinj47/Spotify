@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 const $ = (id: string) => document.getElementById(id)!;
 const dialog = $('account-dialog') as HTMLDialogElement;
@@ -24,15 +24,18 @@ function publicKey(key: string): boolean {
 }
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-let client: SupabaseClient | null = null;
-try {
-  if (url && key && publicKey(key)) {
-    const parsed = new URL(url);
-    if (parsed.protocol === 'https:' || (parsed.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(parsed.hostname))) client = createClient(url, key);
-  }
-} catch { /* misconfiguration: account stays unavailable */ }
-
-if (client) {
+async function initAccount() {
+  let client: SupabaseClient | null = null;
+  try {
+    if (url && key && publicKey(key)) {
+      const parsed = new URL(url);
+      if (parsed.protocol === 'https:' || (parsed.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(parsed.hostname))) {
+        const { createClient } = await import('@supabase/supabase-js');
+        client = createClient(url, key);
+      }
+    }
+  } catch { /* misconfiguration/network: account stays unavailable */ }
+  if (!client) return;
   const auth = client;
   function update(userEmail?: string) {
     $('account-info').textContent = userEmail ? `Signed in as ${userEmail}` : 'Sign in with an email link. No password needed.';
@@ -61,3 +64,5 @@ if (client) {
     signout.disabled = false;
   });
 }
+
+void initAccount();

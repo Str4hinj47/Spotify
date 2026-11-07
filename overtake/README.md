@@ -11,7 +11,14 @@ npm install
 npm run dev      # http://localhost:3000
 npm run build    # production bundle in dist/
 npm test         # gameplay rule unit tests
+# Website: /   |   Game: /play.html
 ```
+
+## Deployment and accounts
+
+See [LAUNCH.md](LAUNCH.md) for Vercel setup, optional Supabase email sign-in,
+security boundaries, and the work still required before global rankings. No
+cloud sync or verified leaderboard is currently enabled.
 
 ## Controls
 
@@ -33,11 +40,17 @@ Touch devices get on-screen steering, throttle and brake buttons.
 
 ## Gameplay
 
-- **Run modes:** Endless (classic survival) and Rush (120-second score attack).
-  Each mode keeps its own personal best and recent-run history in `localStorage`.
-- **Contracts:** every run rolls three sequential objectives (overtakes, near
-  misses, distance, oncoming dodges, combo, sustained speed). Completing one
-  pays bonus points.
+- **Run modes:** Endless (survival), Rush (120-second score attack), Time Trial
+  (race to 3 km), and Near Miss (90 seconds; close passes score more). Daily and
+  weekly objectives rotate at UTC midnight and Monday UTC respectively; each
+  ends on objective completion or timeout. Traffic and conditions vary and the
+  objectives and results are local, not a fair or verified online competition.
+- **Records:** personal bests and recent history are kept in `localStorage`;
+  daily/weekly bests reset per period, and completed Time Trials track fastest
+  time. Dev-option runs are excluded from new records. Existing records are not
+  retroactively verified. Result sharing labels runs local and unverified.
+- **Contracts:** most runs roll three sequential objectives; daily and weekly
+  runs have one rotating objective. Completing objectives pays bonus points.
 - **Smarter traffic:** same-direction cars follow slower leaders and brake
   instead of stacking; rear lights brighten while braking. A time-to-collision hazard
   radar warns about the nearest closing threat. Nearby traffic avoids repeating
@@ -94,7 +107,7 @@ for the road. `tools/repair_truck_normals.mjs` repairs trailer panel shading.
 
 ### Body workshop
 
-Open **Customize body & lighting** in the garage to choose fitted front and
+Select the **Style** tab and open **Customize body & lighting** in the garage to choose fitted front and
 rear bumper add-ons, skirts, spoilers and exhaust tips independently for each
 of the seven cars. Each offers factory, a road-oriented option and a more
 aggressive option; their dimensions and detailing are tailored to the model.
