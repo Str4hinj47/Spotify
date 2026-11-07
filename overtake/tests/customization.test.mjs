@@ -50,7 +50,7 @@ test('expanded tuning options, paint finishes and liveries persist', () => {
     assert.equal(sanitizeCustomization({paintFinish:finish}).paintFinish,finish);
   assert.equal(sanitizeCustomization({paintFinish:'chrome'}).paintFinish,'gloss');
   assert.equal(sanitizeCustomization({pearlColor:'#abc'}).pearlColor,'#aabbcc');
-  for (const livery of ['camo','fade','checker','slash'])
+  for (const livery of ['camo','fade','checker','slash','sunset','aurora','prism','vapor','midnight','flames','inferno','ember','dragon','lightning','waves','stars','tribal'])
     assert.equal(sanitizeCustomization({livery}).livery,livery);
   assert.equal(sanitizeCustomization({livery:'sponsored'}).livery,'none');
   const roundTrip = sanitizeCustomization({front:'gt', exhaust:'titanium', paintFinish:'pearlescent', pearlColor:'#88ccff', livery:'checker'});

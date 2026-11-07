@@ -123,7 +123,7 @@ function syncCustomizationUI() {
   ($('custom-secondary-finish') as HTMLSelectElement).value=config.secondaryFinish;
   ($('custom-secondary-finish') as HTMLSelectElement).disabled=config.paintScheme==='single';
   const livery = $('custom-livery') as HTMLSelectElement;
-  livery.replaceChildren(...[['none','None'],['stripe',LIVERIES[selected].labels[0]],['race',LIVERIES[selected].labels[1]],['camo','Camo wrap'],['fade','Gradient fade'],['checker','Checker flag'],['slash','Voltage blades']].map(([value,label]) => {
+  livery.replaceChildren(...[['none','None'],['stripe',LIVERIES[selected].labels[0]],['race',LIVERIES[selected].labels[1]],['camo','Camo wrap'],['fade','Gradient fade'],['checker','Checker flag'],['slash','Voltage blades'],['sunset','Sunset gradient'],['aurora','Aurora gradient'],['prism','Prism gradient'],['vapor','Vapor gradient'],['midnight','Midnight gradient'],['flames','Hot rod flames'],['inferno','Inferno flames'],['ember','Ember flames'],['dragon','Dragon'],['lightning','Lightning strike'],['waves','Ocean waves'],['stars','Galaxy stars'],['tribal','Tribal blades']].map(([value,label]) => {
     const option=document.createElement('option');option.value=value;option.textContent=label;return option;
   }));
   livery.value=config.livery;

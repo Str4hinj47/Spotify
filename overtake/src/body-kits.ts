@@ -480,6 +480,40 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
     const accent=new THREE.MeshPhysicalMaterial({ color:config.liveryColor, metalness:.3, roughness:.42, clearcoat:.5, envMapIntensity:1.0 });
     const second=new THREE.MeshPhysicalMaterial({ color:config.secondaryColor, metalness:.3, roughness:.42, clearcoat:.5, envMapIntensity:1.0 });
     const secondMat=config.secondaryFinish==='carbon'?woven:second;
+    accent.side=THREE.DoubleSide; second.side=THREE.DoubleSide;
+    const extraMats=(g.userData.extraMaterials ??= []) as THREE.Material[];
+    const physMat=(color:THREE.ColorRepresentation)=>{ const m=new THREE.MeshPhysicalMaterial({ color, metalness:.3, roughness:.42, clearcoat:.5, envMapIntensity:1.0, side:THREE.DoubleSide }); extraMats.push(m); return m; };
+    // n-step gradient materials, livery colour -> secondary colour.
+    const gradMats=(n:number, flip=false)=>{ const out:THREE.Material[]=[];
+      for(let i=0;i<n;i++){ const t=n<2?0:(flip?1-i/(n-1):i/(n-1));
+        out.push(physMat(new THREE.Color(config.liveryColor).lerp(new THREE.Color(config.secondaryColor), t))); } return out; };
+    // Flat graphic cloned onto both flanks; shape +x = towards the nose, +y = up.
+    const sideShape=(name:string, shape:THREE.Shape, mat:THREE.Material, y:number, z:number, xOff=.006)=>{
+      for(const side of [-1,1]) { const geo=new THREE.ShapeGeometry(shape, 8);
+        if(side<0) geo.scale(-1,1,1);
+        const m=new THREE.Mesh(geo, mat); m.name=name; m.rotation.y=side*Math.PI/2;
+        m.position.set(side*(doorX+xOff), y, z); m.castShadow=true; a.add(m); } };
+    // One flame tongue trailing towards the tail (-x), base at the origin.
+    const tongue=(len:number, wid:number, lift:number)=>{ const s=new THREE.Shape();
+      s.moveTo(.06,-wid*.45);
+      s.quadraticCurveTo(-len*.30, wid*.85, -len*.78, lift+wid*.28);
+      s.quadraticCurveTo(-len*1.02, lift+wid*.05, -len*.86, lift-wid*.30);
+      s.quadraticCurveTo(-len*.42, -wid*.62, -.02, -wid*.62);
+      s.quadraticCurveTo(.10, -wid*.55, .06, -wid*.45); return s; };
+    // One flame tongue rising upwards (+y), base at the origin.
+    const vtongue=(h:number, wid:number, sway:number)=>{ const s=new THREE.Shape();
+      s.moveTo(-wid*.5, 0);
+      s.quadraticCurveTo(-wid*.85, h*.4, sway-wid*.2, h*.78);
+      s.quadraticCurveTo(sway, h*1.02, sway+wid*.25, h*.8);
+      s.quadraticCurveTo(wid*.8, h*.45, wid*.5, 0);
+      s.quadraticCurveTo(0, -h*.06, -wid*.5, 0); return s; };
+    // Layered hot-rod flame cluster: accent outer, secondary mid, hot core.
+    const flameCluster=(name:string, y:number, z:number, scale:number)=>{
+      const layers: [number, THREE.Material, number][] = [[1, accent, .004], [.64, second, .007], [.38, physMat(0xffcf4d), .010]];
+      const tongues: [number, number, number, number][] = [ // len, wid, lift, yOff
+        [.72,.105,.15,.26],[.62,.092,.01,.135],[.52,.082,.22,.35],[.42,.07,-.03,.045]];
+      for(const [ls, mat, xo] of layers) for(const [tl,tw,ti,to] of tongues)
+        sideShape(name, tongue(tl*scale*ls, tw*scale, ti*scale), mat, y+to*scale, z, xo); };
     (g.userData.extraMaterials ??= []).push(accent, second);
     // measured hood / roof / trunk spans along the centreline
     const [hz0,hz1]=hoodSpan();
@@ -528,6 +562,139 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
       const mat=new THREE.MeshStandardMaterial({ map:tex, roughness:.5, metalness:.2 });
       (g.userData.extraMaterials as THREE.Material[]).push(mat);
       surfaceSheet(a,'checker-roof',rz0,rz1,0,f.frontW*.58,.006,0,mat,false,.040);
+    }
+    // ---- Gradient pack: five blend directions ------------------------------
+    if(config.livery==='sunset') { // nose -> tail over the whole top
+      const mats=gradMats(14), zA=hz0, zB=f.rearZ-len*.04;
+      for(let i=0;i<mats.length;i++)
+        surfaceSheet(a,'sunset-band',zA+(zB-zA)*(i/mats.length),zA+(zB-zA)*((i+1)/mats.length),0,f.frontW*.62,.006,0,mats[i]);
+    }
+    if(config.livery==='aurora') { // left -> right across hood, roof and trunk
+      const mats=gradMats(9);
+      for(const [z0,z1] of topSpans) for(let i=0;i<mats.length;i++)
+        surfaceSheet(a,'aurora-band',z0,z1,THREE.MathUtils.lerp(-f.frontW*.52,f.frontW*.52,(i+.5)/mats.length),f.frontW*.068,.006,0,mats[i]);
+    }
+    if(config.livery==='prism') { // diagonal sweep across the top
+      const mats=gradMats(11), zA=hz0, zB=f.rearZ-len*.04;
+      for(let i=0;i<mats.length;i++)
+        surfaceSheet(a,'prism-band',zA+(zB-zA)*(i/mats.length),zA+(zB-zA)*((i+1)/mats.length),
+          THREE.MathUtils.lerp(-f.frontW*.20,f.frontW*.20,i/(mats.length-1)),f.frontW*.36,.006,0,mats[i]);
+    }
+    if(config.livery==='vapor') { // bottom -> top up both doors, solid roof
+      const mats=gradMats(4);
+      for(let i=0;i<4;i++) for(const side of [-1,1]) {
+        const band=new THREE.Mesh(plateGeometry([[-.60,-.046],[.60,-.046],[.51,.046],[-.51,.046]],.006),mats[i]);
+        band.name='vapor-band'; band.rotation.y=side*Math.PI/2;
+        band.position.set(side*doorX, f.sillY+.135+i*.104, d.doorZ); band.castShadow=true; a.add(band); }
+      surfaceSheet(a,'vapor-roof',rz0,rz1,0,f.frontW*.60,.006,0,mats[3],false,.034);
+    }
+    if(config.livery==='midnight') { // nose -> tail along both flanks + spine
+      const mats=gradMats(7);
+      for(let i=0;i<7;i++) for(const side of [-1,1]) for(let r=0;r<2;r++) {
+        const seg=new THREE.Mesh(plateGeometry([[-.145,-.070],[.145,-.052],[.145,.070],[-.145,.052]],.006),mats[i]);
+        seg.name='midnight-panel'; seg.rotation.y=side*Math.PI/2;
+        seg.position.set(side*doorX, f.sillY+.29+r*.155, d.doorZ-.78+i*.26+(r?.13:0)); seg.castShadow=true; a.add(seg); }
+      for(let i=0;i<mats.length;i++)
+        surfaceSheet(a,'midnight-spine',hz0+(rz1-hz0)*(i/mats.length),hz0+(rz1-hz0)*((i+1)/mats.length),0,f.frontW*.17,.006,0,mats[i]);
+    }
+    // ---- Fire pack ----------------------------------------------------------
+    if(config.livery==='flames') // classic trailing flames off the front end
+      flameCluster('hotrod-flame', f.sillY+.13, d.doorZ-.55, 1);
+    if(config.livery==='inferno') { // flames rising off the sills
+      for(const side of [-1,1]) {
+        const base=new THREE.Mesh(plateGeometry([[-.78,-.035],[.78,-.035],[.78,.035],[-.78,.035]],.006),accent);
+        base.name='inferno-base'; base.rotation.y=side*Math.PI/2;
+        base.position.set(side*doorX, f.sillY+.10, d.doorZ); a.add(base); }
+      const heights=[.40,.55,.62,.50,.38];
+      for(let i=0;i<5;i++) { const z=d.doorZ-.58+i*.29, h=heights[i];
+        sideShape('inferno-flame', vtongue(h,.15,(i%2?.05:-.05)), accent, f.sillY+.11, z, .005);
+        sideShape('inferno-core', vtongue(h*.58,.09,(i%2?.03:-.03)), physMat(0xff8b2a), f.sillY+.11, z, .008); }
+    }
+    if(config.livery==='ember') { // flames licking up the rear quarters
+      flameCluster('ember-flame', f.sillY+.13, d.doorZ+.02, .62);
+      for(let i=0;i<3;i++)
+        sideShape('ember-lick', vtongue(.17+i*.04,.085,i%2?.03:-.03), i?second:accent, f.sillY+.11, d.doorZ+.50+i*.15, .005);
+    }
+    // ---- Dragon -------------------------------------------------------------
+    if(config.livery==='dragon') {
+      // Composite dragon: thin serpent body + separate jaw, legs, tail spade,
+      // back spikes and a scalloped bat wing — reads at a glance, unlike a blob.
+      const poly=(pts:[number,number][])=>{ const sh=new THREE.Shape();
+        sh.moveTo(pts[0][0],pts[0][1]); for(const [x,y] of pts.slice(1)) sh.lineTo(x,y); sh.closePath(); return sh; };
+      const body=new THREE.Shape();
+      body.moveTo(-.86,.34);
+      body.quadraticCurveTo(-.62,.26, -.40,.29);
+      body.quadraticCurveTo(-.16,.33, .02,.30);
+      body.quadraticCurveTo(.18,.28, .26,.38);
+      body.quadraticCurveTo(.32,.50, .40,.54);
+      body.lineTo(.27,.64); body.lineTo(.435,.575);
+      body.quadraticCurveTo(.56,.53, .63,.50);
+      body.quadraticCurveTo(.655,.465, .58,.45);
+      body.quadraticCurveTo(.50,.43, .44,.44);
+      body.quadraticCurveTo(.36,.45, .33,.38);
+      body.quadraticCurveTo(.28,.28, .16,.235);
+      body.quadraticCurveTo(-.05,.20, -.28,.215);
+      body.quadraticCurveTo(-.50,.23, -.68,.27);
+      body.quadraticCurveTo(-.80,.30, -.86,.34);
+      const wing=new THREE.Shape();
+      wing.moveTo(.16,.235);
+      wing.quadraticCurveTo(.02,.41, -.16,.55);
+      wing.quadraticCurveTo(-.24,.615, -.32,.55);
+      wing.quadraticCurveTo(-.28,.44, -.42,.41);
+      wing.quadraticCurveTo(-.32,.33, -.38,.285);
+      wing.quadraticCurveTo(-.22,.245, -.08,.232);
+      wing.quadraticCurveTo(.05,.228, .16,.235);
+      sideShape('dragon-wing', wing, second, f.sillY+.12, d.doorZ, .004);
+      sideShape('dragon-body', body, accent, f.sillY+.12, d.doorZ, .007);
+      sideShape('dragon-jaw', poly([[.44,.435],[.60,.43],[.585,.395],[.46,.40]]), accent, f.sillY+.12, d.doorZ, .007);
+      sideShape('dragon-leg', poly([[.175,.25],[.24,.24],[.295,.075],[.345,.07],[.30,.035],[.235,.045],[.205,.14]]), accent, f.sillY+.12, d.doorZ, .007);
+      sideShape('dragon-leg', poly([[-.28,.23],[-.215,.225],[-.19,.08],[-.145,.065],[-.20,.03],[-.26,.04],[-.315,.15]]), accent, f.sillY+.12, d.doorZ, .007);
+      sideShape('dragon-tail-spade', poly([[-.845,.375],[-.99,.34],[-.845,.305]]), accent, f.sillY+.12, d.doorZ, .007);
+      for(const [sx,sy] of [[-.30,.30],[-.05,.305],[.17,.29]] as [number,number][])
+        sideShape('dragon-back-spike', poly([[sx-.035,sy],[sx+.035,sy],[sx,sy+.05]]), second, f.sillY+.12, d.doorZ, .006);
+      const eye=new THREE.Shape(); eye.absarc(.52,.475,.015,0,Math.PI*2);
+      sideShape('dragon-eye', eye, second, f.sillY+.12, d.doorZ, .010);
+      for(let i=0;i<5;i++) { const z=rz0+.08+(rz1-rz0-.16)*(i/4), h=.055-i*.006;
+        const tri=new THREE.Mesh(plateGeometry([[-.045,-h*.2],[.045,-h*.2],[0,h]],.007),accent);
+        tri.name='dragon-spine'; tri.rotation.y=Math.PI/2; tri.position.set(0,surfaceY(z)-.004,z); a.add(tri); }
+    }
+    // ---- More graphics --------------------------------------------------------
+    if(config.livery==='lightning') {
+      const boltPts:[number,number][]=[[.17,.52],[-.11,.03],[.01,.03],[-.17,-.52],[.25,-.04],[.07,-.04]];
+      const bolt=new THREE.Shape(); bolt.moveTo(boltPts[0][0],boltPts[0][1]);
+      for(const [x,y] of boltPts.slice(1)) bolt.lineTo(x,y); bolt.closePath();
+      sideShape('lightning-shadow', bolt, second, doorY-.02, d.doorZ+.16, .004);
+      sideShape('lightning-bolt', bolt, accent, doorY, d.doorZ+.10, .007);
+    }
+    if(config.livery==='waves') {
+      for(const side of [-1,1]) for(let r=0;r<2;r++) for(let i=0;i<5;i++) {
+        const arc=new THREE.Mesh(new THREE.TorusGeometry(.15,.031,10,28,Math.PI), r?second:accent);
+        arc.name='wave-arc'; arc.rotation.y=side*Math.PI/2;
+        arc.position.set(side*doorX, f.sillY+.26+r*.17, d.doorZ+.55-i*.26+(r?.13:0)); arc.castShadow=true; a.add(arc); }
+      const foam=new THREE.Shape(); foam.absarc(0,0,.030,0,Math.PI*2);
+      for(let i=0;i<4;i++) sideShape('wave-foam', foam, physMat(0xeef2f5), f.sillY+.40+(i%2)*.17, d.doorZ+.62-i*.34, .006);
+    }
+    if(config.livery==='stars') {
+      const star=(r:number)=>{ const s=new THREE.Shape();
+        for(let i=0;i<10;i++){ const ang=Math.PI/2+i*Math.PI/5, rad=i%2?r*.45:r;
+          const x=Math.cos(ang)*rad, y=Math.sin(ang)*rad;
+          i?s.lineTo(x,y):s.moveTo(x,y); } s.closePath(); return s; };
+      let seed=[...id].reduce((n,c)=>n+c.charCodeAt(0),13);
+      const rnd=()=>{ seed=(seed*16807)%2147483647; return seed/2147483647; };
+      const starMats=[accent, second, physMat(0xeef2f5)];
+      for(let i=0;i<7;i++)
+        sideShape('star', star(.045+rnd()*.05), starMats[i%3], f.sillY+.18+rnd()*.55, d.doorZ-.8+rnd()*1.6, .005);
+      for(let i=0;i<5;i++) { const z=rz0+rnd()*(rz1-rz0);
+        const m=new THREE.Mesh(new THREE.ShapeGeometry(star(.05+rnd()*.05),6), starMats[(i+1)%3]);
+        m.name='star'; m.rotation.x=-Math.PI/2; m.rotation.z=rnd()*Math.PI;
+        m.position.set((rnd()-.5)*.8, surfaceY(z)+.008, z); a.add(m); }
+    }
+    if(config.livery==='tribal') {
+      const blades2:[number,number,number,number][]=[ // len, wid, lift, yOff
+        [1.05,.075,.30,.30],[.88,.062,.17,.155],[.70,.052,.38,.42]];
+      for(const [tl,tw,ti,to] of blades2) {
+        sideShape('tribal-blade', tongue(tl,tw,ti), accent, f.sillY+.10+to, d.doorZ+.62, .005); }
+      sideShape('tribal-spear', tongue(.8,.06,-.16), second, f.sillY+.52, d.doorZ+.55, .005);
     }
     if(config.livery==='slash') for(const side of [-1,1]) for(let i=0;i<3;i++) {
       const blade=new THREE.Mesh(plateGeometry([[-.20,-.026],[.20,-.014],[.20,.026],[-.20,.014]],.008),accent);

@@ -1,6 +1,6 @@
 export type PartOption = 'stock' | 'street' | 'touring' | 'sport' | 'rally' | 'gt' | 'track' | 'wide' | 'titanium';
 export type PaintFinish = 'gloss' | 'metallic' | 'pearlescent' | 'matte' | 'satin';
-export type LiveryOption = 'none' | 'stripe' | 'race' | 'camo' | 'fade' | 'checker' | 'slash';
+export type LiveryOption = 'none' | 'stripe' | 'race' | 'camo' | 'fade' | 'checker' | 'slash' | 'sunset' | 'aurora' | 'prism' | 'vapor' | 'midnight' | 'flames' | 'inferno' | 'ember' | 'dragon' | 'lightning' | 'waves' | 'stars' | 'tribal';
 export type BodyPart = 'front' | 'rear' | 'skirts' | 'spoiler' | 'exhaust' | 'hood' | 'roof';
 export type FinishKey = 'frontFinish' | 'rearFinish' | 'skirtsFinish' | 'spoilerFinish' | 'exhaustFinish' | 'hoodFinish' | 'roofFinish';
 export interface Customization {
