@@ -649,3 +649,6 @@ svg { stroke-width: 1.75; }
 .rank-road-dialog::backdrop { background:rgba(6,8,12,.8); backdrop-filter:blur(10px); }
 
 @media(max-width:700px) { #car-detail:has(#garage-ranked:not(.hidden)) { max-height:min(55dvh,460px); } .rank-badge { width:80px; flex-basis:80px; } .rank-hero { min-height:78px; } }
+
+.rank-scroll-hint { display:none; }
+@media(max-width:700px) { .rank-scroll-hint { display:inline; } }

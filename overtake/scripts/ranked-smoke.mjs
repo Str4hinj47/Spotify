@@ -16,6 +16,8 @@ try {
  await page.click('#rank-road-open');assert.ok(await page.locator('#rank-road').isVisible());assert.equal(await page.locator('.road-rank').count(),7);await page.screenshot({path:'test-results/rank-road.png',timeout:120000});await page.keyboard.press('Escape');assert.equal(await page.locator('#rank-road').isVisible(),false);
  await page.click('[data-scenario=needle]');assert.equal(await page.locator('[data-scenario=needle]').getAttribute('aria-pressed'),'true');await page.click('[data-scenario=slipstream]');
  await page.click('#btn-start');assert.match(await page.locator('#contract-title').textContent(),/Slipstream/);assert.match(await page.locator('#contract-count').textContent(),/0 \/ 4/);
+ await page.evaluate(()=>{const g=window.__overtake;g.clearTraffic();g.setInput('throttle',true);for(let i=0;i<20;i++)g.updateDriving(.1);g.setInput('throttle',false);});
+ assert.ok(await page.evaluate(()=>window.__overtake.run.distance>20));assert.ok(await page.evaluate(()=>window.__overtake.run.timeLeft<60));
  await page.evaluate(()=>{const g=window.__overtake;g.clearTraffic();g.run.distance=1999;g.run.elapsed=45;g.run.timeLeft=15;g.run.overtakes=4;g.vehicle.speed=25;g.speed=25;g.updateDriving(.1);});
  await page.waitForSelector('#gameover:not(.hidden)',{timeout:10000});assert.match(await page.locator('#final-rank-change').innerText(),/\+40 RP/);assert.match(await page.locator('#final-rank-message').innerText(),/PROMOTED TO STREET/);assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('overtake-ranked-v1')).points),150);
  await page.screenshot({path:'test-results/ranked-result.png',timeout:120000});
