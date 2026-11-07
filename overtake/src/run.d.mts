@@ -1,11 +1,11 @@
-export type RunMode = 'endless' | 'rush' | 'trial' | 'near' | 'daily' | 'weekly' | 'ranked';
+export type RunMode = 'endless' | 'rush' | 'trial' | 'near' | 'daily' | 'weekly' | 'ranked' | 'seasonal' | 'convoy' | 'ghost' | 'checkpoint' | 'precision' | 'speed';
 export type Medal = 'bronze' | 'silver' | 'gold' | null;
 export interface RunContract { id: string; title: string; desc: string; metric: string; target: number; reward: number; }
 export interface RunState {
   mode: RunMode; seed: number; elapsed: number; timeLeft: number | null; rankedScenario: import('./ranked.mjs').ScenarioId | null;
   distance: number; score: number; combo: number; bestCombo: number;
   overtakes: number; nearMisses: number; oncomingDodges: number;
-  topSpeed: number; highSpeedTime: number;
+  topSpeed: number; highSpeedTime: number; speedBonusTime: number;
   contracts: RunContract[]; contractIndex: number; contractBaseline: number; contractsDone: number;
   eventPeriod: number | null; allContractsSent?: boolean; finished: boolean; reason: string | null;
 }
@@ -13,12 +13,14 @@ export interface RunEvent { type: string; contract?: RunContract; points?: numbe
 export interface RunSummary { mode: RunMode; car: string; score: number; distance: number; eventPeriod?: number | null; overtakes: number; nearMisses: number; oncomingDodges: number; topSpeed: number; contractsDone: number; elapsed: number; medal: Medal; reason: string | null; date: number; }
 export const RUN_MODES: Record<RunMode, { id: RunMode; label: string; duration: number | null; tagline: string; medals: { bronze: number; silver: number; gold: number } }>;
 export function mulberry32(seed: number): () => number;
-export function eventFor(mode: 'daily' | 'weekly', now?: number): { period: number; contract: RunContract };
+export function eventFor(mode: 'daily' | 'weekly' | 'seasonal', now?: number): { period: number; contract: RunContract };
 export function createRun(mode?: RunMode, seed?: number, now?: number, scenarioId?: import('./ranked.mjs').ScenarioId): RunState;
 export function medalFor(mode: RunMode, score: number): Medal;
 export function contractProgress(run: RunState): { contract: RunContract | null; value: number; target: number; ratio: number };
 export function tickRun(run: RunState, dt: number, speed: number): RunEvent[];
 export const SIGNAL_BONUS: number;
+export const HIGH_SPEED_THRESHOLD: number;
+export const HIGH_SPEED_BONUS: number;
 export function registerPass(run: RunState, kind: 'same' | 'oncoming', near: boolean, carBonus?: number, signaled?: boolean): { points: number; events: RunEvent[] };
 export function finishRun(run: RunState, reason: string): void;
 export function runSummary(run: RunState, carId: string): RunSummary;

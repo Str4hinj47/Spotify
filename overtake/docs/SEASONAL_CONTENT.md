@@ -1,7 +1,8 @@
 # Seasonal content playbook
 
 This is a source-controlled workflow for shipping new content in a game build,
-not a remote CMS or automatic seasonal rotation. Players keep their cars,
+not a remote CMS or automatic rotation of purchasable content. The separate
+in-game Seasonal Challenge rotates its local objective each UTC quarter. Players keep their cars,
 purchases and equipped items when a season ends. Do **not** remove, rename or
 reuse an ID, delete an owned car's model, or change what an existing livery ID
 means. Add rather than replace. There is no expiry, timed store, entitlement
@@ -39,7 +40,7 @@ Add an entry to `LIVERY_OPTIONS`, for example:
 ```
 
 Use a unique stable lowercase ID with letters, digits and hyphens. The existing
-patterns are `stripe`, `race` and `center`; variants reuse the same per-car fitted
+patterns are `stripe`, `race`, `center`, `sprint`, `velocity`, `heritage`, `apex` and `flames`; variants reuse the same per-car fitted
 geometry but can have different suggested colors and prices. A player can
 change the color afterward. `fittedLabel: null` displays the supplied label;
 `0` or `1` uses that car's existing custom label. `defaultColor: null` preserves
@@ -77,6 +78,8 @@ saves retain up to 256 purchased tune tokens per car; revisit that cap and the
    running (set `GAME_URL` to its origin). Merge the resulting entry into the
    JSON rather than overwriting existing profiles. Check wheel pivots and body
    clipping, indicators, brake/rear lamps, exhaust, liveries and audio by hand.
+   Cars without reviewed bodywork can declare `bodywork: false` and omit both
+   BODY_FITS and sill profiles; the workshop disables bodywork for them.
 4. Check garage selection, purchase, paint, every body part and livery, upgrades,
    driving, NPC traffic, thumbnails, desktop and mobile. Confirm new-car
    ownership and recent records survive a reload and backup/restore. Test
@@ -104,6 +107,7 @@ saves retain up to 256 purchased tune tokens per car; revisit that cap and the
    npm run dev
    BASE_URL=http://localhost:3000 node scripts/content-smoke.mjs
    BASE_URL=http://localhost:3000 node scripts/menu-smoke.mjs
+   BASE_URL=http://localhost:3000 node scripts/new-content-smoke.mjs
    ```
 
    Run `scripts/progression-smoke.mjs`, `scripts/showroom-graphics-smoke.mjs`
@@ -115,3 +119,53 @@ saves retain up to 256 purchased tune tokens per car; revisit that cap and the
    fetched dynamically. On rollback, preserve newer users' save data and have
    them update back to a compatible version before restoring. Test backups and
    exports across versions in a staging environment before release.
+
+### Local economy and optional premium track
+
+Coins and credits are separately earned from the same run-score payout, and are
+spent only on performance upgrades and cars respectively. Quests give 5 gems
+(10 in Seasonal Challenge), including after the XP track is complete; gems buy
+cosmetics or the 50-gem seasonal premium track. The free track remains usable
+without spending. Premium awards only cosmetic items, including retroactive tiers,
+never cars, upgrades, boosts or extra XP. Premium access and XP reset at the UTC
+quarter boundary; granted items remain owned. The current reward tracks repeat.
+Legacy money is migrated once to the same number of coins and credits plus one gem
+per 50 old money (rounded up); owned cars, parts and upgrades are retained.
+
+**There is no real-money checkout.** All balances and pass state are local and
+unverified. Do not accept real payments or advertise purchased entitlements until a
+server-authoritative wallet and entitlement ledger, a payment provider with
+verified webhooks/idempotency, fraud/refund handling, account recovery, regional
+price disclosure and applicable consumer protections are in place. Do not allow
+paid gems to convert to coins or credits, or premium rewards to grant performance.
+
+### Car rarity and unlock order
+
+The showroom is ordered from lower to higher **game performance rarity**, not
+real-world production scarcity or market value. A player spends credits to
+unlock one car from every lower numbered tier before buying a higher tier.
+The two Aventador assets are equal, tier-10 alternatives; neither requires the
+other. Existing owned cars, upgrades, cosmetics and selected cars are kept even
+if an older save has gaps. A gap must be filled before a new higher-tier buy,
+but an already-owned car can still be driven. Dev preview doesn't bypass the
+purchase order. The Chiron is tier 11, after either Aventador; the Camry, 560 SEL and Range Rover are traffic-only and are not in the unlock path.
+
+The coarse ordering is an estimate, not an exact comparison: the models don't all
+specify year, engine or trim. It draws on representative 2003 GTI 1.8T,
+Challenger R/T, R34 GT-R, Mustang GT, an E92-based race M3, RS 6, S 63,
+R8 V10, 458 Italia, LP 700-4 Aventador and Chiron. Acceleration, top speed and the race
+car's track capability all influence placement; close entries can overlap.
+In-game speeds and acceleration are deliberately scaled to the game, not exact
+manufacturer specifications. Examples of reference figures:
+
+- [2003 GTI 1.8T](https://www.carspecs.us/cars/2003/volkswagen/golf-gti/42078),
+  [Challenger R/T](https://www.motortrend.com/cars/dodge/challenger),
+  [R34 GT-R](https://www.hotcars.com/2000-2002-nissan-skyline-r34-costs-facts-and-figures/),
+  [Mustang GT](https://www.edmunds.com/ford/mustang/2023/).
+- [E92 M3 GT2 race car](https://www.sportscar2.com/sports-car-bmw-m3-e92-gt2.html)
+  is a proxy, not a verified exact match for the M3 GT3 asset;
+  [RS 6](https://media.audiusa.com/releases/395),
+  [S 63](https://media.mbusa.com/releases/release-f952d79985063c97cd7417b80f0ec079-2018-mercedes-amg-s63-sedan-specifications),
+  [R8 V10](https://www.caranddriver.com/reviews/a15130900/2011-audi-r8-spyder-52-v10-fsi-quattro-review/),
+  [458 Italia](https://www.automobile-catalog.com/performance/2011/1227470/ferrari_458_italia.html),
+  [Aventador LP 700-4](https://www.guideautoweb.com/en/makes/lamborghini/aventador/2012/specifications/lp-700-4/).

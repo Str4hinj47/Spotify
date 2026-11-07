@@ -93,6 +93,34 @@ records and verify them before release.
   file is unconfirmed. Verify commercial rights and provenance, particularly
   for KrAZ, before shipping.
 
+### Additional Drive vehicles
+
+- **Bugatti Chiron**: modeled by Bob Kimani (Kimz Auto), adapted and optimized
+  from the user-provided `bugatti_cgtrader_ready.zip`. The creator asks for
+  credit; the original README is retained in `public/asset-licenses/bugatti-readme.txt`.
+  That README does not specify a redistribution or commercial license. A
+  third-party [Blend Swap-derived listing](https://github.com/1337Impact/bugatti-chiron-showroom)
+  describes a matching 2017 Chiron as CC BY-NC, but the supplied archive's
+  exact license and provenance are not independently verified. Obtain clear
+  rights before distribution or commercial use.
+- **Mercedes-Benz 560 SEL and Range Rover Sport**: adapted from user-provided
+  Drive models; no creator or license was included in the provided archives.
+  Verify provenance, permission and any separate vehicle-design rights before
+  redistribution or commercial use.
+
+### Uploaded Blend Swap vehicles
+
+These models were converted to glTF, rescaled and optimized, with materials
+adapted for this game. The original license notices are preserved in
+`public/asset-licenses/`. These source notices supersede any general assumption
+of commercial permission above; confirm rights before redistribution or release.
+
+- **BMW M3 GT3**, Neubi, [Blend Swap original](http://www.blendswap.com/blends/view/19869), CC0 according to the bundled notice.
+- **Nissan Skyline R34 GT-R**, tikiteyboo, [Blend Swap record](https://blendswap.com/blend/21982), [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+- **Toyota Camry**, abdulsalamnaqeeb, [Blend Swap record](https://blendswap.com/blend/14705), bundled notice states CC BY 3.0 **and a fan-art noncommercial restriction**. The archive is named 2001 but its blend file is named 2002; the game uses no year.
+- **Aventador, game-ready variant**, shadewar, [Blend Swap record](https://blendswap.com/blend/16710), bundled notice states CC BY 3.0 **and a fan-art noncommercial restriction**.
+- **Aventador, detailed variant**, Papa_Dragon, [original record](http://www.blendswap.com/blends/view/72453): bundled notice states CC BY 3.0, while a later [Blend Swap listing](https://blendswap.com/3d/lamborghini) reports CC BY-NC-SA. Verify the applicable license and any separate design/trademark rights before distribution or commercial use.
+
 ## Included software license texts
 
 The following texts and notices cover runtime code and assets distributed in
@@ -618,3 +646,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
+
+### Uploaded wheel collection
+
+The ten custom rim designs are adapted from the user-provided `Wheels++.fbx+.fbx`. The source file did not include creator or license information. Geometry was normalized and simplified for use in the game. Verify ownership, attribution, and redistribution rights before publishing or commercial use.

@@ -1,10 +1,41 @@
 {
-  "revision": 1,
-  "cars": ["golf", "mercedes", "audi", "mustang", "ferrari", "r8", "challenger"],
+  "revision": 8,
+  "cars": [
+    "golf",
+    "mercedes",
+    "audi",
+    "mustang",
+    "ferrari",
+    "r8",
+    "challenger",
+    "bmw-m3",
+    "skyline",
+    "aventador",
+    "aventador-game",
+    "bugatti"
+  ],
   "liveries": {
     "none": "none",
     "stripe": "stripe",
     "race": "race",
-    "sunset-stripe": "center"
-  }
+    "sunset-stripe": "center",
+    "sprint-offset": "sprint",
+    "velocity": "velocity",
+    "heritage": "heritage",
+    "apex": "apex",
+    "flames": "flames"
+  },
+  "rims": [
+    "stock",
+    "rim-1",
+    "rim-2",
+    "rim-3",
+    "rim-4",
+    "rim-5",
+    "rim-6",
+    "rim-7",
+    "rim-8",
+    "rim-9",
+    "rim-10"
+  ]
 }

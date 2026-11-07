@@ -16,6 +16,11 @@ export interface EnginePreset {
 }
 
 export const ENGINE_PRESETS: Record<CarId, EnginePreset> = {
+  bugatti: { engine:'w16', label:'Chiron W16 approximation', turbo:true, engineOverrides:{idleRpm:800,redlineRpm:6700,peakTorque:1600,peakTorqueRpm:2500,gears:7}, vehicle:{label:'Bugatti Chiron',mass:1995,wheelRadius:.36,finalDrive:3.5,gearRatios:[3.1,2.1,1.5,1.2,1,.82,.68],gearbox:'dct',shiftTimeMs:80} },
+  'bmw-m3': { engine:'v8tt', label:'M3 GT3 approximation', turbo:true, engineOverrides:{idleRpm:850,redlineRpm:7200,peakTorque:650,peakTorqueRpm:4500,gears:6}, vehicle:{label:'BMW M3 GT3',mass:1300,wheelRadius:.33,finalDrive:3.7,gearRatios:[3.1,2.1,1.5,1.2,1,.82],gearbox:'dct',shiftTimeMs:80} },
+  skyline: { engine:'i6', label:'Skyline GT-R approximation', turbo:true, engineOverrides:{idleRpm:800,redlineRpm:8000,peakTorque:400,peakTorqueRpm:4400,gears:6}, vehicle:{label:'Skyline R34',mass:1560,wheelRadius:.33,finalDrive:3.5,gearRatios:[3.1,2.1,1.5,1.2,1,.8],gearbox:'manual',shiftTimeMs:130} },
+  aventador: { engine:'v12', label:'Aventador V12 approximation', turbo:false, engineOverrides:{idleRpm:800,redlineRpm:8500,peakTorque:690,peakTorqueRpm:5500,gears:7}, vehicle:{label:'Aventador',mass:1575,wheelRadius:.35,finalDrive:3.5,gearRatios:[3.1,2.1,1.5,1.2,1,.82,.68],gearbox:'dct',shiftTimeMs:80} },
+  'aventador-game': { engine:'v12', label:'Aventador V12 approximation', turbo:false, engineOverrides:{idleRpm:800,redlineRpm:8500,peakTorque:690,peakTorqueRpm:5500,gears:7}, vehicle:{label:'Aventador',mass:1575,wheelRadius:.35,finalDrive:3.5,gearRatios:[3.1,2.1,1.5,1.2,1,.82,.68],gearbox:'dct',shiftTimeMs:80} },
   // VW Golf MK4 GTI: 1.8T 20v EA113 turbo inline-4, 235 Nm @ 1950 rpm.
   golf: {
     engine: 'i4',

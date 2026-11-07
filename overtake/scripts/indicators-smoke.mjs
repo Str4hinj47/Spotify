@@ -16,9 +16,11 @@ try {
   await page.waitForSelector('#topbar:not(.hidden)', { timeout: 180000 });
   await page.evaluate(() => { const g = window.__overtake; cancelAnimationFrame(g.raf); g.garageAuto = false; g.garageZoom = 5.7; g.garagePitch = 0.24; });
   fs.mkdirSync('test-results', { recursive: true });
-  for (const id of (process.env.INDICATOR_CAR ? [process.env.INDICATOR_CAR] : ['golf', 'mercedes', 'audi', 'mustang', 'ferrari', 'r8', 'challenger'])) {
+  for (const id of (process.env.INDICATOR_CAR ? process.env.INDICATOR_CAR.split(',') : ['golf', 'mercedes', 'audi', 'mustang', 'ferrari', 'r8', 'challenger'])) {
     const result = await page.evaluate(async id => {
-      const g = window.__overtake; g.setSelectedCar(id);
+      const g = window.__overtake;
+      if (['camry','mercedes-560','range-rover'].includes(id)) { g.scene.remove(g.player); g.player = g.library.create(id); g.scene.add(g.player); }
+      else g.setSelectedCar(id);
       const indicator = g.player.userData.indicatorState;
       const render = (angle, left, right) => {
         g.garageAngle = angle; g.updateCamera(0); g.updateIndicatorView();
@@ -70,6 +72,9 @@ try {
         lamps: g.player.userData.indicatorMaterials.length, visibleSprites: sprites, challengerWindowDiff, ringCenterDiff, screenshot: left, frontScreenshot: frontOn, frontBase: frontIdle };
     }, id);
     if (id === 'audi') { for (const [key, name] of [['frontBase','front-off'],['frontScreenshot','front-on']]) fs.writeFileSync(`test-results/audi-${name}.png`, Buffer.from(result[key].split(',')[1], 'base64')); }
+    console.log(id, JSON.stringify({left:result.left,right:result.right,front:result.front,frontRight:result.frontRight,frontOff:result.frontOff}));
+    fs.writeFileSync(`test-results/${id}-signal-rear.png`, Buffer.from(result.screenshot.split(',')[1], 'base64'));
+    fs.writeFileSync(`test-results/${id}-signal-front.png`, Buffer.from(result.frontScreenshot.split(',')[1], 'base64'));
     assert.ok(result.lamps > 0, `${id} has no lens materials`);
     assert.ok(result.left.left > 20, `${id} left indicator is not visible: ${JSON.stringify(result.left)}`);
     assert.ok(result.left.right < result.left.left * 0.05 + 4, `${id} left signal changed right side`);

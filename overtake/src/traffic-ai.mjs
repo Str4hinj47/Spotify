@@ -73,7 +73,7 @@ export function hazardAhead(player, traffic) {
 // deliberate; trucks are considerably slower and produce natural queues.
 export const TRAFFIC_CRUISE = Object.freeze({
   ...Object.fromEntries(CAR_CONTENT.map(car => [car.id, car.trafficCruise])),
-  semi: 11.5, kraz: 13,
+  semi: 11.5, kraz: 13, camry: 18, 'mercedes-560': 19, 'range-rover': 20,
 });
 export function isTruck(id) { return id === 'semi' || id === 'kraz'; }
 export function trafficCruise(id, random = Math.random) {

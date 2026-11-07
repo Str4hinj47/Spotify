@@ -98,9 +98,16 @@
           <button class="mode-card" data-mode="near" type="button"><span class="mode-name">Near Miss</span><span class="mode-desc">90 seconds · close passes pay</span><span class="mode-best">Best <b id="mode-best-near">0</b></span></button>
           <button class="mode-card" data-mode="daily" type="button"><span class="mode-name">Daily Drive</span><span class="mode-desc" id="daily-desc">Rotates daily · UTC</span><span class="mode-best">Today's best <b id="mode-best-daily">0</b></span></button>
           <button class="mode-card" data-mode="weekly" type="button"><span class="mode-name">Weekly Event</span><span class="mode-desc" id="weekly-desc">Rotates weekly · UTC</span><span class="mode-best">This week's best <b id="mode-best-weekly">0</b></span></button>
+          <button class="mode-card" data-mode="seasonal" type="button"><span class="mode-name">Seasonal Challenge</span><span class="mode-desc" id="seasonal-desc">Rotates each UTC quarter</span><span class="mode-best">Season best <b id="mode-best-seasonal">0</b></span></button>
+          <button class="mode-card" data-mode="convoy" type="button"><span class="mode-name">Convoy Run</span><span class="mode-desc">150 seconds · pass six cars</span><span class="mode-best">Best <b id="mode-best-convoy">0</b></span></button>
+          <button class="mode-card" data-mode="ghost" type="button"><span class="mode-name">Ghost Trial</span><span class="mode-desc">3 km · race your local ghost</span><span class="mode-best">Fastest <b id="mode-best-ghost">—</b></span></button>
+          <button class="mode-card" data-mode="checkpoint" type="button"><span class="mode-name">Checkpoint Chase</span><span class="mode-desc">35 seconds · +15s every 500 m</span><span class="mode-best">Best <b id="mode-best-checkpoint">0</b></span></button>
+          <button class="mode-card" data-mode="precision" type="button"><span class="mode-name">Precision Challenge</span><span class="mode-desc">120 seconds · 8 near misses</span><span class="mode-best">Best <b id="mode-best-precision">0</b></span></button>
+          <button class="mode-card" data-mode="speed" type="button"><span class="mode-name">Speed Run</span><span class="mode-desc">90 seconds · score above 140 km/h</span><span class="mode-best">Best <b id="mode-best-speed">0</b></span></button>
           <button class="mode-card ranked-mode-card" data-mode="ranked" type="button"><span class="mode-name">Ranked Attack</span><span class="mode-desc">Time attacks · earn rank points</span><span class="mode-best">Local rank <b id="mode-best-ranked">Rookie</b></span></button>
         </div>
         <p class="local-note">Local, unverified runs · Traffic and conditions vary</p>
+        <p id="ghost-menu-note" class="local-note hidden"></p>
         <div id="recent-runs" class="recent-runs hidden">
           <div class="paint-head"><span>Recent runs</span><span id="recent-mode" class="count"></span></div>
           <div id="recent-list"></div>
@@ -123,7 +130,15 @@
             <p>Every run is a story. Here's yours so far.</p>
             <div class="menu-stats-grid"><div><b id="menu-best-score">0</b><span>BEST SAVED SCORE</span></div><div><b id="menu-longest">0.0 <small>KM</small></b><span>LONGEST SAVED RUN</span></div><div><b id="menu-runs">0</b><span>RECORDED RUNS</span></div><div><b id="menu-owned">1 / 7</b><span>CARS OWNED</span></div></div>
             <div class="menu-rank-summary"><div id="menu-rank-badge" class="menu-rank-badge"></div><div><span>LOCAL RANK</span><strong id="menu-rank-name">Rookie</strong><small id="menu-rank-points">0 RP</small></div><button id="menu-rank-select" type="button" aria-label="Select Ranked Attack">↗</button></div>
-            <p class="menu-footnote">Local, unverified stats. Best score and longest run exclude ranked; daily and weekly bests reset. Dev runs and abandoned regular runs aren't recorded.</p>
+            <p class="menu-footnote">Local, unverified stats. Best score and longest run exclude ranked; daily, weekly and seasonal bests reset. Dev runs and abandoned regular runs aren't recorded.</p>
+          </section>
+          <section class="menu-info-card season-pass-card" aria-label="Season pass">
+            <div class="menu-card-head"><span>SEASON PASS</span><span class="menu-chip" id="season-period">UTC QUARTER</span></div>
+            <h2>QUEST <em>REWARDS.</em></h2><p>Complete in-run quests for XP. The seasonal challenge awards 200 XP; other quests award 100 XP.</p>
+            <div class="season-pass-progress"><strong id="season-xp">0 / 800 XP</strong><div class="season-pass-bar"><i id="season-xp-fill"></i></div><small id="season-next"></small></div>
+            <div class="premium-pass"><strong>PREMIUM · COSMETICS ONLY</strong><p>Unlock a second reward track for 50 gems. Earn gems from quests; buy later and receive every premium tier you already reached. No gameplay boosts.</p><span id="season-wallet">0 gems available</span><button id="season-premium-buy" type="button">UNLOCK PREMIUM · 50 GEMS</button></div>
+            <details class="season-rewards"><summary>VIEW FREE &amp; PREMIUM REWARDS</summary><ol id="season-reward-list"></ol><ol id="season-premium-list"></ol></details>
+            <p class="menu-footnote">Local, unverified pass · XP and premium access reset each UTC quarter; unlocked rewards stay yours. This track repeats each quarter. Rewards for unowned cars wait in their garage. Quests award 5 gems (10 in Seasonal). Ranked, Ghost and Dev runs have no quest earnings. Real-money checkout is not available.</p>
           </section>
           <section class="menu-info-card global-overview"><div class="menu-card-head"><span>03 / GLOBAL STATS</span><span class="menu-chip muted">OFFLINE</span></div><h2>THE <em>GRID.</em></h2>
             <div class="global-placeholder"><span class="global-icon">◎</span><div><strong>Not connected yet</strong><p>Global stats and verified leaderboards aren't available. Your local results are not submitted.</p></div></div>
@@ -152,18 +167,22 @@
           <button type="button" aria-pressed="false" data-garage-tab="style">02 <span>Style</span></button>
         </div>
         <section class="progression" aria-label="Car progression">
-          <div class="progression-head"><b id="progress-xp">$0</b><button id="dev-toggle" type="button" aria-pressed="false">Dev options: OFF</button></div>
+          <div class="progression-head"><b id="progress-xp">0 coins · 0 credits · 0 gems</b><button id="dev-toggle" type="button" aria-pressed="false">Dev options: OFF</button></div>
           <div id="progress-next" class="progress-next"></div>
           <button id="buy-car" class="purchase-button hidden" type="button"></button>
           <div id="car-requirement" class="car-requirement" aria-live="polite"></div>
-          <p class="progress-hint">Money is paid when a run ends or you return to the garage. Each 1,000 points increases your payout per point by 25%, up to 3×. Dev options grant temporary access.</p>
+          <p class="progress-hint">Coins and credits are earned when a non-Dev run ends or you return to the garage. Gems come from quests. Cars unlock in tier order; same-tier variants are alternatives. Each 1,000 points increases your payout per point by 25%, up to 3×. Dev options grant temporary access.</p>
         </section>
         <div id="garage-upgrades" class="garage-section">
-        <div class="stats">
-          <div class="stat"><span>Top speed</span><div class="dots" id="stat-speed"></div></div>
-          <div class="stat"><span>Handling</span><div class="dots" id="stat-handling"></div></div>
-          <div class="stat"><span>Score bonus</span><div class="dots" id="stat-bonus"></div></div>
-        </div>
+        <div class="performance-heading"><span>On-road performance</span><span>DRY ROAD</span></div>
+        <dl class="performance-stats" aria-label="In-game performance statistics">
+          <div class="performance-stat"><dt>Top speed</dt><dd><span id="stat-speed">—</span><small>km/h</small></dd></div>
+          <div class="performance-stat"><dt>0–100 km/h</dt><dd><span id="stat-accel">—</span><small>sec</small></dd></div>
+          <div class="performance-stat"><dt>100–0 braking</dt><dd><span id="stat-braking">—</span><small>m</small></dd></div>
+          <div class="performance-stat"><dt>Grip factor</dt><dd><span id="stat-grip">—</span><small>×</small></dd></div>
+          <div class="performance-stat"><dt>Score bonus</dt><dd><span id="stat-bonus">—</span><small>×</small></dd></div>
+        </dl>
+        <p class="performance-note">Estimated in-game values on a dry, straight road. Includes equipped upgrades and tires.</p>
         <div class="upgrade-panel" aria-label="Performance upgrades">
           <div class="paint-head"><span>Performance upgrades</span><span class="count">3 stages</span></div>
           <p class="upgrade-hint">Per stage: engine +8% acceleration / +4% speed · tires +6% grip · brakes +10% braking. Dev uses max stages temporarily.</p>
@@ -179,7 +198,7 @@
           <div id="paint-swatches" class="paint-swatches" role="group" aria-label="Paint colors"></div>
           <label class="paint-custom">Custom <input id="paint-custom" type="color" value="#9fb0bf" aria-label="Custom paint color" /></label>
         </div>
-        <button id="btn-customize" class="customize-open" type="button"><span>✦</span> Customize body & lighting <span>→</span></button>
+        <button id="btn-customize" class="customize-open" type="button"><span>✦</span> Customize body, wheels & lighting <span>→</span></button>
         </div>
         <button id="btn-start" class="primary">
           <i data-lucide="play"></i> <span id="start-label">Start engine</span>
@@ -189,20 +208,21 @@
         </div>
       </aside>
       <aside id="custom-panel" class="car-detail custom-panel panel hidden" aria-label="Car customization">
-        <div class="custom-heading"><div><div class="custom-kicker">PERSONALIZE YOUR RIDE</div><h2>Body workshop</h2></div><button id="custom-close" class="mini-btn" type="button" aria-label="Close customization">✕</button></div>
+        <div class="custom-heading"><div><div class="custom-kicker">PERSONALIZE YOUR RIDE</div><h2>Car workshop</h2></div><button id="custom-close" class="mini-btn" type="button" aria-label="Close customization">✕</button></div>
         <p class="custom-subtitle"><span id="custom-car-name"></span> · <b id="custom-balance"></b></p>
-        <p id="tune-message" class="custom-note" aria-live="polite">Paint $250 per car · Underglow $500 · Purchased options can be reused free.</p>
+        <p id="tune-message" class="custom-note" aria-live="polite">Paint 5 gems per car · Underglow 10 gems · Purchased options can be reused free.</p>
         <div class="custom-views" role="group" aria-label="Preview angle">
           <button type="button" data-custom-view="front">Front</button><button type="button" data-custom-view="side">Side</button><button type="button" data-custom-view="rear">Rear</button>
         </div>
         <div class="workshop-tabs" role="group" aria-label="Workshop category">
-          <button type="button" data-workshop-tab="body" aria-pressed="true">Bodywork</button><button type="button" data-workshop-tab="paint" aria-pressed="false">Paint</button><button type="button" data-workshop-tab="lighting" aria-pressed="false">Lighting</button>
+          <button type="button" data-workshop-tab="body" aria-pressed="true">Bodywork</button><button type="button" data-workshop-tab="paint" aria-pressed="false">Paint</button><button type="button" data-workshop-tab="wheels" aria-pressed="false">Wheels</button><button type="button" data-workshop-tab="lighting" aria-pressed="false">Lighting</button>
         </div>
+        <p id="stock-bodywork-note" class="local-note hidden">Factory bodywork only for this car.</p>
         <div class="workshop-content">
         <section data-workshop-panel="body" aria-label="Bodywork">
           <div class="workshop-intro">Choose a part <span>Changes appear instantly</span></div>
           <div class="workshop-parts" role="group" aria-label="Bodywork part">
-            <button type="button" data-workshop-part="front" aria-pressed="true">Front</button><button type="button" data-workshop-part="rear" aria-pressed="false">Rear</button><button type="button" data-workshop-part="skirts" aria-pressed="false">Skirts</button><button type="button" data-workshop-part="spoiler" aria-pressed="false">Spoiler</button><button type="button" data-workshop-part="exhaust" aria-pressed="false">Exhaust</button>
+            <button type="button" data-workshop-part="front" aria-pressed="true">Front</button><button type="button" data-workshop-part="rear" aria-pressed="false">Rear</button><button type="button" data-workshop-part="skirts" aria-pressed="false">Skirts</button><button type="button" data-workshop-part="spoiler" aria-pressed="false">Spoiler</button><button type="button" data-workshop-part="exhaust" aria-pressed="false">Exhaust</button><button type="button" data-workshop-part="hood" aria-pressed="false">Hood</button><button type="button" data-workshop-part="roof" aria-pressed="false">Roof</button>
           </div>
 <div class="workshop-part" data-part-panel="front">        <label class="custom-row"><span>Front bumper <small>Splitter &amp; fascia</small></span><select id="custom-front" aria-label="Front bumper"></select></label>
         <label class="finish-row"><span>Front bumper finish</span><select id="custom-front-finish" aria-label="Front bumper finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label></div>
@@ -214,6 +234,8 @@
         <label class="finish-row"><span>Spoiler finish</span><select id="custom-spoiler-finish" aria-label="Spoiler finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label></div>
 <div class="workshop-part" data-part-panel="exhaust" hidden>        <label class="custom-row"><span>Exhaust <small>Flames while accelerating</small></span><select id="custom-exhaust" aria-label="Exhaust"></select></label>
         <label class="finish-row"><span>Exhaust finish</span><select id="custom-exhaust-finish" aria-label="Exhaust finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label></div>
+<div class="workshop-part" data-part-panel="hood" hidden><label class="custom-row"><span>Hood <small>Vents and scoops fitted to your car</small></span><select id="custom-hood" aria-label="Hood"></select></label><label class="finish-row"><span>Hood finish</span><select id="custom-hood-finish" aria-label="Hood finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label></div>
+<div class="workshop-part" data-part-panel="roof" hidden><label class="custom-row"><span>Roof <small>Fins and air scoops</small></span><select id="custom-roof" aria-label="Roof"></select></label><label class="finish-row"><span>Roof finish</span><select id="custom-roof-finish" aria-label="Roof finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label></div>
         </section>
         <section data-workshop-panel="paint" aria-label="Paint and livery" hidden>
         <label class="custom-row"><span>Primary color <small>Base body paint</small></span><input id="custom-primary-color" type="color" value="#9fb0bf" aria-label="Primary paint color" /></label>
@@ -222,6 +244,12 @@
         <label class="custom-row"><span>Second finish <small>For the second tone</small></span><select id="custom-secondary-finish" aria-label="Second paint finish"><option value="paint">Paint</option><option value="carbon">Carbon fiber</option></select></label>
         <label class="custom-row"><span>Livery <small>Original graphics, fitted to this car</small></span><select id="custom-livery" aria-label="Livery"></select></label>
         <label class="custom-row"><span>Livery color <small>Choose any color</small></span><input id="custom-livery-color" type="color" value="#f2f5f7" aria-label="Livery color" /></label>
+        </section>
+        <section data-workshop-panel="wheels" aria-label="Wheels and tires" hidden>
+        <label class="custom-row"><span>Rim design <small>Uploaded wheel collection</small></span><select id="custom-rim" aria-label="Rim design"><option value="stock">Factory</option><option value="rim-1">Design 1</option><option value="rim-2">Design 2</option><option value="rim-3">Design 3</option><option value="rim-4">Design 4</option><option value="rim-5">Design 5</option><option value="rim-6">Design 6</option><option value="rim-7">Design 7</option><option value="rim-8">Design 8</option><option value="rim-9">Design 9</option><option value="rim-10">Design 10</option></select></label>
+        <label class="custom-row"><span>Rim color <small>Choose any color</small></span><input id="custom-rim-color" type="color" value="#bbc2cb" aria-label="Rim color" /></label>
+        <label class="custom-row"><span>Tire width <small>Affects grip and steering</small></span><select id="custom-tire-width" aria-label="Tire width"><option value="narrow">Narrow</option><option value="standard">Standard</option><option value="wide">Wide</option></select></label>
+        <p class="custom-note">Narrow: quicker steering, less grip. Wide: more grip, slower steering and acceleration. Standard keeps factory handling.</p>
         </section>
         <section data-workshop-panel="lighting" aria-label="Lighting" hidden>
         <label class="custom-row glow-row"><span>Underglow <small>Color beneath the car</small></span><input id="custom-glow-enabled" type="checkbox" aria-label="Enable underglow" /></label>
@@ -246,8 +274,10 @@
         <span id="run-mode-label">Endless</span>
         <b id="run-time">0:00</b>
       </div>
+      <div id="mode-rule-hud" class="ghost-hud hidden" aria-live="polite"></div>
+      <div id="ghost-hud" class="ghost-hud hidden" aria-live="polite"></div>
       <div id="contract-card" class="contract-card">
-        <div class="contract-top"><span id="contract-index">Contract 1/3</span><span id="contract-reward">+400</span></div>
+        <div class="contract-top"><span id="contract-index">Quest 1/3</span><span id="contract-reward">+400</span></div>
         <div id="contract-title" class="contract-title">Clean five</div>
         <div id="contract-desc" class="contract-desc">Overtake 5 cars</div>
         <div class="contract-bar"><div id="contract-fill"></div></div>
@@ -261,6 +291,7 @@
         <div class="hud-score">
           <div class="hud-label">Score</div>
           <div id="hud-score" class="hud-value">0</div>
+          <div id="speed-bonus-active" class="speed-bonus-active hidden">200+ km/h · +25 / 0.5s</div>
         </div>
         <div id="hud-combo" class="combo hidden">×<span id="hud-mult">1</span> <small>combo <span id="hud-combo-n">0</span></small></div>
       </div>
@@ -383,6 +414,16 @@
       </div>
     </div>
 
+    <!-- A promotion is shown only for an actual ranked increase. -->
+    <section id="rank-promotion" class="rank-promotion hidden" aria-label="Rank promotion">
+      <div class="rank-promotion-stage">
+        <div class="rank-promotion-ring" aria-hidden="true"></div>
+        <div id="promotion-badge" class="promotion-badge"></div>
+        <div class="promotion-copy" role="status" aria-live="polite"><span>RANK UP</span><strong id="promotion-name"></strong><small>LOCAL RANK · UNVERIFIED</small></div>
+        <button id="promotion-close" type="button" aria-label="Dismiss rank promotion">CONTINUE</button>
+      </div>
+    </section>
+
     <!-- Help -->
     <div id="help" class="overlay hidden">
       <div class="modal wide">
@@ -393,8 +434,9 @@
           <li><b>Sound:</b> open Sound settings in the top bar to control score sounds and indicator clicks separately. The speaker button mutes everything.</li>
           <li><b>Indicators:</b> press <kbd>Q</kbd> for left or <kbd>E</kbd> for right; press again to cancel. Finish an overtake with the signal matching your passing side for <b>+50 points</b> (once per car); the signal cancels automatically. Brake lights brighten when braking.</li>
           <li><b>Two-way road:</b> your lane is the right one. The left lane carries oncoming traffic. Pull out to overtake, then get back in before you meet a car head-on.</li>
-          <li><b>Overtake</b> slower cars in your lane for points. Close passes earn a <b>near-miss bonus</b>; dodging oncoming traffic up close earns extra.</li>
+          <li><b>Overtake</b> slower cars in your lane for points. Close completed overtakes earn a <b>near-miss bonus</b>. Oncoming traffic is a hazard, not an overtake.</li>
           <li>Chain clean passes to build a <b>combo multiplier</b>, up to ×5.</li>
+          <li><b>Speed bonus:</b> earn 25 points every half second continuously above 200 km/h. Slowing down resets the partial interval; Speed Run also keeps its separate 140 km/h bonus.</li>
           <li><b>Modes:</b> Endless is survival; Rush and Near Miss are timed score attacks; Time Trial ends at 3 km. Daily and weekly local objectives rotate at UTC boundaries. Traffic and conditions vary. Records stay on this device and are not verified.</li>
           <li><b>Ranked Attack:</b> choose a scenario and reach the finish within its time limit while meeting its overtake or near-miss objective. Faster finishes award more rank points; crashes, missed objectives, timeouts and quitting cost 12 RP, floored at zero. Dev runs do not count. Rank and results are local and unverified; traffic, upgrades, cars and weather vary.</li>
           <li><b>Contracts:</b> most runs have three sequential objectives. Daily and weekly runs have one rotating objective and end when it is completed.</li>

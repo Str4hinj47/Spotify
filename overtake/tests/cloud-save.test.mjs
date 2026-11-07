@@ -5,7 +5,7 @@ const makeStorage = (initial={}) => { const map = new Map(Object.entries(initial
 const progression = {version:2,money:1234,dev:true,owned:['golf','mustang'],upgrades:{},tunes:{}};
 test('snapshot is limited to known game data and never transfers dev mode',()=>{
  const storage=makeStorage({'overtake-progression-v2':JSON.stringify(progression),'overtake-paints':JSON.stringify({golf:'#abc',bad:'#000'}),'overtake-car':'mustang','overtake-best':'123','auth-token':'secret'});
- const snapshot=captureSnapshot(storage);assert.equal(snapshot.progression.dev,false);assert.equal(snapshot.progression.money,1234);assert.equal(snapshot.records.modes.endless.bestScore,123);assert.deepEqual(snapshot.paints,{golf:'#aabbcc'});assert.ok(!JSON.stringify(snapshot).includes('secret'));
+ const snapshot=captureSnapshot(storage);assert.equal(snapshot.progression.dev,false);assert.equal(snapshot.progression.coins,1234);assert.equal(snapshot.records.modes.endless.bestScore,123);assert.deepEqual(snapshot.paints,{golf:'#aabbcc'});assert.ok(!JSON.stringify(snapshot).includes('secret'));
 });
 test('unsupported, oversized or invalid snapshots never change local data',()=>{
  const storage=makeStorage({'overtake-progression-v2':JSON.stringify(progression)});const snap=captureSnapshot(storage);const before=storage.getItem('overtake-progression-v2');
@@ -13,8 +13,8 @@ test('unsupported, oversized or invalid snapshots never change local data',()=>{
 });
 test('restore backs up and undo swaps the previous local data without touching other keys',()=>{
  const source=makeStorage({'overtake-progression-v2':JSON.stringify(progression)}), target=makeStorage({'overtake-progression-v2':JSON.stringify({...progression,money:12}),'unrelated':'ok'});
- restoreSnapshot(target,captureSnapshot(source));assert.equal(JSON.parse(target.getItem('overtake-progression-v2')).money,1234);assert.equal(JSON.parse(target.getItem('overtake-progression-v2')).dev,false);assert.equal(target.getItem('unrelated'),'ok');
- undoRestore(target);assert.equal(JSON.parse(target.getItem('overtake-progression-v2')).money,12);undoRestore(target);assert.equal(JSON.parse(target.getItem('overtake-progression-v2')).money,1234);
+ restoreSnapshot(target,captureSnapshot(source));assert.equal(JSON.parse(target.getItem('overtake-progression-v2')).coins,1234);assert.equal(JSON.parse(target.getItem('overtake-progression-v2')).dev,false);assert.equal(target.getItem('unrelated'),'ok');
+ undoRestore(target);assert.equal(JSON.parse(target.getItem('overtake-progression-v2')).money,12);undoRestore(target);assert.equal(JSON.parse(target.getItem('overtake-progression-v2')).coins,1234);
 });
 test('failure to make backup leaves local values untouched; partial write rolls back',()=>{
  const source=makeStorage({'overtake-progression-v2':JSON.stringify(progression)}), target=makeStorage({'overtake-progression-v2':'old'}), snap=captureSnapshot(source), set=target.setItem;

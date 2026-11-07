@@ -1,13 +1,14 @@
 import { normalizeHex } from './paint.mjs';
-import { LIVERY_OPTIONS } from './content/cosmetics.mjs';
+import { LIVERY_OPTIONS, RIM_OPTIONS } from './content/cosmetics.mjs';
 
-export const BODY_PARTS = ['front', 'rear', 'skirts', 'spoiler', 'exhaust'];
+export const BODY_PARTS = ['front', 'rear', 'skirts', 'spoiler', 'exhaust', 'hood', 'roof'];
 export const PART_OPTIONS = ['stock', 'street', 'touring', 'sport', 'track'];
 export const DEFAULT_CUSTOMIZATION = Object.freeze({
-  front:'stock', rear:'stock', skirts:'stock', spoiler:'stock', exhaust:'stock',
-  frontFinish:'standard', rearFinish:'standard', skirtsFinish:'standard', spoilerFinish:'standard', exhaustFinish:'standard',
+  front:'stock', rear:'stock', skirts:'stock', spoiler:'stock', exhaust:'stock', hood:'stock', roof:'stock',
+  frontFinish:'standard', rearFinish:'standard', skirtsFinish:'standard', spoilerFinish:'standard', exhaustFinish:'standard', hoodFinish:'standard', roofFinish:'standard',
   paintScheme:'single', secondaryColor:'#141b24', secondaryFinish:'paint',
   livery:'none', liveryColor:'#f2f5f7', underglow:false, glowColor:'#00ddff',
+  rim:'stock', rimColor:'', tireWidth:'standard',
 });
 
 /** Sanitize untrusted local storage, including older saved configurations. */
@@ -23,6 +24,9 @@ export function sanitizeCustomization(value) {
   if (LIVERY_OPTIONS.some(option => option.id === raw.livery)) out.livery = raw.livery;
   out.secondaryColor = normalizeHex(raw.secondaryColor) || DEFAULT_CUSTOMIZATION.secondaryColor;
   out.liveryColor = normalizeHex(raw.liveryColor) || DEFAULT_CUSTOMIZATION.liveryColor;
+  if (RIM_OPTIONS.includes(raw.rim)) out.rim = raw.rim;
+  out.rimColor = normalizeHex(raw.rimColor) || '';
+  if (['narrow','standard','wide'].includes(raw.tireWidth)) out.tireWidth = raw.tireWidth;
   out.underglow = raw.underglow === true;
   out.glowColor = normalizeHex(raw.glowColor) || DEFAULT_CUSTOMIZATION.glowColor;
   return out;

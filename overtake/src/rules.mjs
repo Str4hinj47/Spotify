@@ -19,9 +19,16 @@ export function multiplierFor(combo) {
  */
 export function passScore(combo, kind, near, carBonus = 1) {
   const mult = multiplierFor(combo);
-  const base = kind === 'oncoming' ? 75 : 100;
+  if (kind !== 'same') return 0;
+  const base = 100;
   const bonus = near ? 50 : 0;
   return Math.round((base + bonus) * mult * carBonus);
+}
+
+/** Only an actual forward pass of same-direction traffic can score. */
+export function completedOvertake(previousDistance, currentDistance, playerLength, otherLength) {
+  const clear = (playerLength + otherLength) * .5 + 1;
+  return previousDistance >= -clear && currentDistance < -clear && currentDistance < previousDistance;
 }
 
 /** Gentle drag so lifting off the throttle coasts instead of stopping instantly. */

@@ -255,6 +255,18 @@ export const ENGINE_PROFILES = {
     voice: 1.02,
   },
 
+  // Synthetic evenly spaced W16 approximation, not a recording or verified firing order.
+  w16: {
+    label: 'W16 8.0 approximation',
+    cylinders: 16, firingOrder: [1,9,2,10,3,11,4,12,5,13,6,14,7,15,8,16],
+    banks: [[1,2,3,4,5,6,7,8], [9,10,11,12,13,14,15,16]],
+    idleRpm: 800, redlineRpm: 6700, peakTorque: 1600, peakTorqueRpm: 2500, gears: 7,
+    engineInertia: 0.5, gasTempFactor: 1.25,
+    pulse: { attack: 46, decay: 7.4, hardness: 0.78, jitter: 0.5 },
+    exhaust: { bank: 1.05, collector: 1.0, reflection: 0.47, damping: 0.4, muffler: [0.3, 0.2, 0.12] },
+    intake: { helmholtz: 120, q: 7.0, level: 0.4 }, voice: 1.04,
+  },
+
   v12: {
     label: 'V12 6.5',
     cylinders: 12, firingOrder: [1, 7, 5, 11, 3, 9, 6, 12, 2, 8, 4, 10],

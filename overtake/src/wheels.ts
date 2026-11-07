@@ -8,6 +8,14 @@ import type { TrafficId } from './catalog';
 // complete Record makes a missing rule a TypeScript build error, not a silent
 // stationary-wheel regression.
 const WHEEL_RULES: Record<TrafficId, (mesh: THREE.Mesh, material: string) => boolean> = {
+  'bmw-m3': (_mesh, name) => /^(tire__Reifen|chrome__chrome|other__Bremsscheibe)$/.test(name),
+  skyline: (_mesh, name) => /^(tire__RUBBERTYRE\.001|rim__GTR\.alloy.*)$/i.test(name),
+  aventador: (_mesh, name) => /^(tire__pneu.*|rim__jante.*)$/.test(name),
+  'aventador-game': (_mesh, name) => /^(tire__Rubber|chrome__BrushedMetal|brake__DiskBrakeTexture)$/.test(name),
+  bugatti: (_mesh, name) => /^(tire__tyre.*|rim__rim_silver.*|rim__rim blue.*)$/i.test(name),
+  'mercedes-560': (_mesh, name) => /^(tire__Tire_[01]|rim__Rim)$/.test(name),
+  'range-rover': (_mesh, name) => /^(tire__Tire No Sidewall|rim__Glossy Black|rim__Chrome|rim__Blurry Chrome|rim__Diff Plastic)$/i.test(name),
+  camry: (_mesh, name) => /^(tire__opom[ao].*|tire__opona.*|rim__felga)$/.test(name),
   golf: (_mesh, name) => /^(tire__New-Tyre|rim__Alloys|brake__Brake-discs|other__Wheel-nuts)$/.test(name),
   mercedes: (_mesh, name) => /^(tire__W222 - Wheel|rim__W222 - Rims(?:#2)?)$/.test(name),
   audi: (_mesh, name) => /^(tire__tire\.001|rim__RIM BRIGHT|rim__RIM DARK|carbon__carbon disk brake)$/.test(name),
@@ -30,7 +38,7 @@ export function rigWheels(root: THREE.Group, id: TrafficId): void {
   root.traverse(o => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
   const point = new THREE.Vector3();
   const truck = id === 'semi' || id === 'kraz';
-  let centers: THREE.Vector3[], radii: number[];
+  let centers: THREE.Vector3[], radii: number[], halfWidths: number[];
   if (truck) {
     // These models merge wheels with other parts. Axles were measured after
     // normalization; both dual tires on a side rotate about the same axle.
@@ -38,6 +46,7 @@ export function rigWheels(root: THREE.Group, id: TrafficId): void {
     const radius = id === 'semi' ? .397 : .695;
     centers = axles.flatMap(z => [-1, 1].map(side => new THREE.Vector3(side, radius, z)));
     radii = centers.map(() => radius);
+    halfWidths = centers.map(() => .15);
   } else {
     const bounds = Array.from({ length: 4 }, () => new THREE.Box3().makeEmpty());
     for (const mesh of meshes) {
@@ -53,12 +62,14 @@ export function rigWheels(root: THREE.Group, id: TrafficId): void {
     if (bounds.some(b => b.isEmpty())) return;
     centers = bounds.map(b => b.getCenter(new THREE.Vector3()));
     radii = bounds.map(b => (b.max.y - b.min.y) / 2);
+    halfWidths = bounds.map(b => (b.max.x - b.min.x) / 2);
   }
   const pivots = centers.map((center, i) => {
     const pivot = new THREE.Group();
     pivot.name = `wheel_pivot_${i}`;
     pivot.position.copy(center);
     pivot.userData.wheelRadius = radii[i];
+    pivot.userData.wheelHalfWidth = halfWidths[i];
     root.add(pivot);
     return pivot;
   });
@@ -88,12 +99,13 @@ export function rigWheels(root: THREE.Group, id: TrafficId): void {
         wheel = centers.findIndex((c, n) => Math.sign(x) === Math.sign(c.x) && Math.abs(x) > (id === 'semi' ? .58 : .75) &&
           Math.hypot(y - c.y, z - c.z) < radii[n] * 1.035);
       }
-      if (mixedAudi) {
+      const newMixed = (id === 'bmw-m3' || id === 'aventador-game' || id === 'mercedes-560') && !Array.isArray(mesh.material) && !mesh.material.name.startsWith('tire__');
+      if (mixedAudi || newMixed) {
         const center = centers[wheel];
         // The dark alloy lies inside a clear gap before the body wheel arch.
         // Require all three vertices inside it to avoid pulling body triangles.
         if (!vertices.every(v => Math.sign(v.x) === Math.sign(center.x) && Math.abs(v.x) > .65 &&
-          Math.hypot(v.y - center.y, v.z - center.z) < .32)) wheel = -1;
+          Math.hypot(v.y - center.y, v.z - center.z) < (newMixed ? radii[wheel] * 1.05 : .32))) wheel = -1;
       }
       (wheel < 0 ? stationary : triangles[wheel]).push(...indices);
     }
@@ -119,6 +131,11 @@ export function rigWheels(root: THREE.Group, id: TrafficId): void {
   // The Golf source mesh was exported with its front wheels turned left,
   // unlike its straight rear wheels. Correct the baked-in toe at the pivot
   // so the tires, rims, discs and nuts rotate together on a straight axle.
+  // The Camry's front tires are likewise baked in a steering pose.
+  if (id === 'camry') {
+    pivots[0].rotation.y = THREE.MathUtils.degToRad(24.56);
+    pivots[1].rotation.y = THREE.MathUtils.degToRad(24.75);
+  }
   if (id === 'golf') {
     pivots[0].rotation.y = THREE.MathUtils.degToRad(10.89);
     pivots[1].rotation.y = THREE.MathUtils.degToRad(12.70);

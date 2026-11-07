@@ -53,10 +53,11 @@ try {
     const events = []; g.cb.onEvent = e => events.push(e);
     const pass = (signal, side, kind='same') => {
       g.clearTraffic(); if (g.signal) g.toggleSignal(g.signal); if (signal) g.toggleSignal(signal);
-      if (kind === 'same') g.spawnSame(g.playerS - 20, 0); else g.spawnOncoming(g.playerS - 20, 0);
+      if (kind === 'same') g.spawnSame(g.playerS + 10, 0); else g.spawnOncoming(g.playerS + 10, 0);
       const t = g.traffic[g.traffic.length - 1]; t.offset = g.offset + (side === 'left' ? 3 : -3);
-      t.s = g.playerS - (g.playerMeta.length / 2 + t.length / 2 + 1.1);
-      const score = g.run.score, count = events.length; g.updateDriving(0);
+      t.s = g.playerS - (g.playerMeta.length / 2 + t.length / 2 + .5);
+      g.vehicle.speed=20;
+      const score = g.run.score, count = events.length; g.updateDriving(.1);
       const event = events.slice(count).find(e => ['overtake','near','oncoming'].includes(e.kind));
       const result = { points: event?.points, text: event?.text, delta: g.run.score - score, signal: g.signal };
       g.updateDriving(0); result.secondDelta = g.run.score - score; return result;
@@ -77,7 +78,7 @@ try {
   assert.equal(gameplay.left.points, 150); assert.match(gameplay.left.text, /SIGNAL \+50/); assert.equal(gameplay.left.signal,null);
   assert.equal(gameplay.wrong.points, 100); assert.doesNotMatch(gameplay.wrong.text, /SIGNAL/);
   assert.equal(gameplay.right.points, 150); assert.equal(gameplay.none.points,100);
-  assert.equal(gameplay.oncoming.points,250); assert.equal(gameplay.oncoming.signal,'left');
+  assert.equal(gameplay.oncoming.points,undefined); assert.equal(gameplay.oncoming.delta,0); assert.equal(gameplay.oncoming.signal,'left');
   for (const result of [gameplay.left,gameplay.wrong,gameplay.right,gameplay.none,gameplay.oncoming]) assert.equal(result.secondDelta,result.delta);
   assert.ok(gameplay.moving.player < 0 && gameplay.moving.oncoming < 0);
   assert.ok(Math.abs(gameplay.stopped.player) < 1e-9 && Math.abs(gameplay.stopped.traffic) < 1e-9 && gameplay.paused);

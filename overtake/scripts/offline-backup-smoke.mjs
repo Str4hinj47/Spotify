@@ -11,10 +11,10 @@ try {
  await page.goto(`${base}/#account`,{waitUntil:'networkidle'});assert.ok(await page.locator('#account-dialog').isVisible());
  fs.mkdirSync('test-results',{recursive:true});
  const pending=page.waitForEvent('download');await page.click('#backup-export');const download=await pending;assert.equal(download.suggestedFilename(),'overtake-save.json');
- await download.saveAs('test-results/offline-save.json');const snapshot=JSON.parse(fs.readFileSync('test-results/offline-save.json'));assert.equal(snapshot.progression.money,1234);assert.equal(snapshot.progression.dev,false);
+ await download.saveAs('test-results/offline-save.json');const snapshot=JSON.parse(fs.readFileSync('test-results/offline-save.json'));assert.equal(snapshot.progression.coins,1234);assert.equal(snapshot.progression.dev,false);
  await page.evaluate(()=>{const p=JSON.parse(localStorage.getItem('overtake-progression-v2'));p.money=77;localStorage.setItem('overtake-progression-v2',JSON.stringify(p));});
  await page.locator('#backup-import').setInputFiles('test-results/offline-save.json');await page.waitForFunction(()=>document.querySelector('#backup-status').textContent.includes('Save imported'));
- assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('overtake-progression-v2')).money),1234);
+ assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('overtake-progression-v2')).coins),1234);
  await page.click('#cloud-undo');assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('overtake-progression-v2')).money),77);
  await page.locator('#backup-import').setInputFiles({name:'bad.json',mimeType:'application/json',buffer:Buffer.from('{broken')});await page.waitForFunction(()=>document.querySelector('#backup-status').textContent.includes('not valid JSON'));
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('overtake-progression-v2')).money),77);assert.deepEqual(errors,[]);

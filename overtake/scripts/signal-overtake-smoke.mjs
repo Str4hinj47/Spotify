@@ -26,15 +26,15 @@ try {
     g.updateDriving(0);const approaching=state();
     ahead.s=g.playerS-(g.playerMeta.length/2+ahead.length/2+.5);
     g.updateDriving(0);const notYetClear=state();
-    ahead.s=g.playerS-(g.playerMeta.length/2+ahead.length/2+1.1);
-    g.updateDriving(0);const completed=state();
+    g.vehicle.speed=20;
+    g.updateDriving(.1);const completed=state();
     g.clearTraffic();g.toggleSignal('right');
-    const incoming=add('oncoming',-20,3);incoming.s=g.playerS-(g.playerMeta.length/2+incoming.length/2+1.1);
-    g.updateDriving(0);const dodged=state();
+    const incoming=add('oncoming',10,3);incoming.s=g.playerS-(g.playerMeta.length/2+incoming.length/2+.5);
+    g.updateDriving(.1);const dodged=state();
     // A near pass also cancels, even during the unlit half of the cycle.
-    g.clearTraffic();const near=add('same',-20,2.5);near.s=g.playerS-(g.playerMeta.length/2+near.length/2+1.1);
+    g.clearTraffic();const near=add('same',10,2.5);near.s=g.playerS-(g.playerMeta.length/2+near.length/2+.5);
     g.updatePlayerLights(.6);g.emitHud();const unlit=state();
-    g.updateDriving(0);const nearComplete=state();
+    g.updateDriving(.1);const nearComplete=state();
     g.toggleSignal('left');g.toggleSignal('left');const manual=state();
     g.toggleSignal('right');const reactivated=state();
     return {approaching,notYetClear,completed,dodged,unlit,nearComplete,manual,reactivated};
@@ -42,7 +42,7 @@ try {
   assert.equal(result.approaching.signal,'left');assert.equal(result.notYetClear.signal,'left');assert.equal(result.notYetClear.overtakes,0);
   assert.equal(result.completed.overtakes,1);assert.equal(result.completed.signal,null);assert.equal(result.completed.elapsed,0);
   assert.deepEqual(result.completed.lamps,[0,0]);assert.equal(result.completed.left,'false');assert.equal(result.completed.audio,null);
-  assert.equal(result.dodged.oncoming,1);assert.equal(result.dodged.signal,'right');assert.equal(result.dodged.right,'true');
+  assert.equal(result.dodged.oncoming,0);assert.equal(result.dodged.signal,'right');assert.equal(result.dodged.right,'true');
   assert.equal(result.unlit.signal,'right');assert.equal(result.unlit.lamps[1],-1);
   assert.equal(result.nearComplete.overtakes,2);assert.equal(result.nearComplete.signal,null);assert.deepEqual(result.nearComplete.lamps,[0,0]);assert.equal(result.nearComplete.right,'false');assert.equal(result.nearComplete.audio,null);
   assert.equal(result.manual.signal,null);assert.equal(result.reactivated.signal,'right');assert.deepEqual(errors,[]);

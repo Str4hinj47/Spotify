@@ -37,16 +37,16 @@ test('catalog drives purchasing, traffic and saved run car IDs', () => {
  for(const car of CAR_CONTENT) {
   assert.equal(CAR_PRICES[car.id],car.price);assert.equal(TRAFFIC_CRUISE[car.id],car.trafficCruise);
   const record=sanitizeRecords({modes:{endless:{recent:[{car:car.id,score:1}]}}});assert.equal(record.modes.endless.recent[0].car,car.id);
-  if(car.id!=='golf') {const result=buyCar({...emptyProgression(),money:1_000_000_000},car.id);assert.ok(result.ok);assert.ok(sanitizeProgression(result.progress).owned.includes(car.id));}
+  if(car.id!=='golf') {const result=buyCar({...emptyProgression(),credits:1_000_000_000,owned:CAR_CONTENT.filter(c=>c.unlockTier<car.unlockTier).map(c=>c.id)},car.id);assert.ok(result.ok);assert.ok(sanitizeProgression(result.progress).owned.includes(car.id));}
  }
 });
 test('livery variants retain their ID, price, ownership and customization through backup', () => {
  for(const item of LIVERY_OPTIONS) {
   assert.equal(sanitizeCustomization({livery:item.id}).livery,item.id);assert.equal(tunePrice('livery',item.id),item.price);
-  const result=buyTune({...emptyProgression(),money:1_000_000},'golf','livery',item.id);assert.ok(result.ok);assert.equal(result.progress.money,1_000_000-item.price);
-  if(item.price) {const p=sanitizeProgression(result.progress);assert.ok(p.tunes.golf.includes(`livery:${item.id}`));assert.equal(buyTune(p,'golf','livery',item.id).progress.money,p.money);}
+  const result=buyTune({...emptyProgression(),gems:1_000_000},'golf','livery',item.id);assert.ok(result.ok);assert.equal(result.progress.gems,1_000_000-item.price);
+  if(item.price) {const p=sanitizeProgression(result.progress);assert.ok(p.tunes.golf.includes(`livery:${item.id}`));assert.equal(buyTune(p,'golf','livery',item.id).progress.gems,p.gems);}
  }
- const p=buyTune({...emptyProgression(),money:1000},'golf','livery','sunset-stripe').progress;
+ const p=buyTune({...emptyProgression(),gems:1000},'golf','livery','sunset-stripe').progress;
  const src=storage({'overtake-progression-v2':JSON.stringify(p),'overtake-customization-v1':JSON.stringify({golf:{livery:'sunset-stripe',liveryColor:'#ff7a1a'}})}), dst=storage();
  const snap=captureSnapshot(src);restoreSnapshot(dst,snap);assert.equal(JSON.parse(dst.getItem('overtake-customization-v1')).golf.livery,'sunset-stripe');assert.ok(JSON.parse(dst.getItem('overtake-progression-v2')).tunes.golf.includes('livery:sunset-stripe'));
 });

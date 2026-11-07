@@ -86,5 +86,101 @@
     "bytes": 1270948,
     "triangles": 205488,
     "source": "kraz.blend"
+  },
+  "bmw-m3": {
+    "id": "bmw-m3",
+    "file": "models/bmw-m3.glb",
+    "bytes": 480864,
+    "triangles": 88142,
+    "dimensions": [
+      1.916,
+      4.62,
+      1.228
+    ],
+    "source": "bmw_m3_gt3_cycles.blend"
+  },
+  "skyline": {
+    "id": "skyline",
+    "file": "models/skyline.glb",
+    "bytes": 663872,
+    "triangles": 229955,
+    "dimensions": [
+      1.984,
+      4.6,
+      1.303
+    ],
+    "source": "newSKYLINE.blend"
+  },
+  "aventador-game": {
+    "id": "aventador-game",
+    "file": "models/aventador-game.glb",
+    "bytes": 171544,
+    "triangles": 23582,
+    "dimensions": [
+      2.27,
+      4.78,
+      1.141
+    ],
+    "source": "Aventador_Blendswap_Shadman.blend"
+  },
+  "camry": {
+    "id": "camry",
+    "file": "models/camry.glb",
+    "bytes": 1176896,
+    "triangles": 159992,
+    "dimensions": [
+      1.983,
+      4.82,
+      1.37
+    ],
+    "source": "Toyota Camry 2002.blend"
+  },
+  "aventador": {
+    "id": "aventador",
+    "file": "models/aventador.glb",
+    "bytes": 852572,
+    "triangles": 219993,
+    "dimensions": [
+      2.18,
+      4.781,
+      1.154
+    ],
+    "source": "blendswap.blend"
+  },
+  "bugatti": {
+    "id": "bugatti",
+    "file": "models/bugatti.glb",
+    "bytes": 786348,
+    "triangles": 219982,
+    "dimensions": [
+      2.164,
+      4.54,
+      1.144
+    ],
+    "source": "bugatti.blend"
+  },
+  "mercedes-560": {
+    "id": "mercedes-560",
+    "file": "models/mercedes-560.glb",
+    "bytes": 631472,
+    "triangles": 79948,
+    "dimensions": [
+      1.955,
+      5.16,
+      1.56
+    ],
+    "source": "Mercedes Benz 560 SEL.blend"
+  },
+  "range-rover": {
+    "id": "range-rover",
+    "file": "models/range-rover.glb",
+    "bytes": 1862540,
+    "triangles": 139713,
+    "dimensions": [
+      2.307,
+      4.85,
+      1.782
+    ],
+    "source": "'16 C RRS.blend"
   }
 }

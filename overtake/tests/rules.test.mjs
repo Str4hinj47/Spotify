@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  multiplierFor, passScore, coastSpeed, steerRate, vehiclesOverlap, hitsRoadBarrier, blockedTrafficGap,
+  multiplierFor, passScore, completedOvertake, coastSpeed, steerRate, vehiclesOverlap, hitsRoadBarrier, blockedTrafficGap,
   canSpawnSame, canSpawnOncoming, findOncomingSpawn, sameSpawnInterval, oncomingSpawnInterval,
   ROAD_HALF, PLAYER_LANE, ONCOMING_LANE, BARRIER_OFFSET,
 } from '../src/rules.mjs';
@@ -14,12 +14,12 @@ test('multiplier grows every 5 passes and caps at 5', () => {
   assert.equal(multiplierFor(100), 5);
 });
 
-test('pass scoring rewards overtakes, near misses and oncoming dodges', () => {
+test('pass scoring rewards only overtakes and close overtakes', () => {
   assert.equal(passScore(1, 'same', false, 1), 100);
   assert.equal(passScore(1, 'same', true, 1), 150);
   assert.equal(passScore(5, 'same', false, 1), 200);
-  assert.equal(passScore(1, 'oncoming', true, 1), 125);
-  assert.equal(passScore(5, 'oncoming', true, 1.2), 300);
+  assert.equal(passScore(1, 'oncoming', true, 1), 0);
+  assert.equal(passScore(5, 'oncoming', true, 1.2), 0);
 });
 
 test('coasting slows the car without an instant stop', () => {
@@ -107,4 +107,11 @@ test('two abreast cars do not form an unrealistically usable center lane', () =>
   assert.equal(blockedTrafficGap(player, [left, { ...right, s: 115 }]), false);
   assert.equal(blockedTrafficGap(player, [{ ...left, offset: -4 }, { ...right, offset: 4 }]), false);
   assert.equal(blockedTrafficGap({ ...player, offset: 3 }, [left, right]), false);
+});
+
+test('completed pass requires a forward crossing of the clearance boundary', () => {
+  assert.equal(completedOvertake(-5.4,-5.6,4.5,4.5),true);
+  assert.equal(completedOvertake(-6,-6.1,4.5,4.5),false);
+  assert.equal(completedOvertake(-6,-5.4,4.5,4.5),false);
+  assert.equal(completedOvertake(20,19,4.5,4.5),false);
 });

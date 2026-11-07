@@ -5,6 +5,14 @@ import type { TrafficId } from './catalog';
 // Front is -Z; rear is +Z. No red road beams are created.
 type Lamps = { front: [number,number,number]; rear: [number,number,number] };
 export const LAMP_POSITIONS: Record<TrafficId, Lamps> = {
+  'bmw-m3': {front:[.56,.50,-1.94],rear:[.60,.67,2.08]},
+  skyline: {front:[.63,.64,-2.16],rear:[.62,.86,2.20]},
+  aventador: {front:[.68,.59,-2.05],rear:[.68,.79,2.24]},
+  'aventador-game': {front:[.68,.59,-2.02],rear:[.68,.78,2.22]},
+  bugatti: {front:[.72,.56,-1.92],rear:[.62,.64,2.19]},
+  'mercedes-560': {front:[.68,.69,-2.35],rear:[.69,.71,2.38]},
+  'range-rover': {front:[.68,.88,-2.12],rear:[.68,1.10,2.20]},
+  camry: {front:[.68,.62,-2.20],rear:[.68,.70,2.20]},
   golf:       {front:[.54,.67,-1.93],rear:[.67,.76,1.94]},
   mercedes:   {front:[.68,.72,-2.39],rear:[.72,.68,2.49]},
   audi:       {front:[.69,.67,-2.25],rear:[.70,.87,2.32]},

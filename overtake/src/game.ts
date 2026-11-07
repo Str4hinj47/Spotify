@@ -1,11 +1,13 @@
+import { vehicleParameters } from './car-performance.mjs';
+import { loadGhost, saveGhost, ghostAt, MAX_GHOST_SAMPLES, type GhostReplay, type GhostSample } from './ghost.mjs';
 import { spinWheels } from './wheels';
 import { addVehicleLights, updateVehicleLights, conformTrafficBeam, disposeVehicleLights, LAMP_POSITIONS } from './vehicle-lights';
 import * as THREE from 'three';
 import { ModelLibrary } from './models';
-import { CARS, getCar, TRAFFIC_COLORS, type CarId, type TrafficId } from './catalog';
+import { CARS, getCar, TRAFFIC_COLORS, TRAFFIC_ONLY, isPlayableCar, type CarId, type TrafficId } from './catalog';
 import {
   ROAD_HALF, PLAYER_LANE, ONCOMING_LANE,
-  multiplierFor, passScore, vehiclesOverlap, hitsRoadBarrier, blockedTrafficGap,
+  multiplierFor, completedOvertake, vehiclesOverlap, hitsRoadBarrier, blockedTrafficGap,
   canSpawnSame, findOncomingSpawn, sameSpawnInterval, oncomingSpawnInterval,
 } from './rules.mjs';
 import { createVehicleState, stepVehicle } from './physics.mjs';
@@ -37,7 +39,7 @@ import { createTrafficAI, findLeader, stepTraffic, hazardAhead, trafficCruise, c
 import { chooseTrafficModel, chooseTrafficPaint } from './traffic-appearance.mjs';
 import { emptyRecords, sanitizeRecords, recordRun, bestFor, type Records } from './records.mjs';
 import { emptyRanked, sanitizeRanked, getScenario, applyRankedResult, RANKED_STORAGE_KEY, type RankedState, type ScenarioId, type RankChange, type RankedScenario } from './ranked.mjs';
-import { emptyProgression, sanitizeProgression, canDriveCar, awardProgress, buyCar, buyUpgrade, buyTune, effectiveUpgrades, type Progression, type Upgrade } from './progression.mjs';
+import { emptyProgression, sanitizeProgression, canDriveCar, awardProgress, buyCar, buyUpgrade, buyTune, buyPremiumPass, awardQuestXp, effectiveUpgrades, type Progression, type Upgrade } from './progression.mjs';
 
 export type Mode = 'garage' | 'driving' | 'paused' | 'gameover';
 export type CameraPreset = 'close' | 'chase' | 'far' | 'hood' | 'bumper' | 'free';
@@ -86,6 +88,7 @@ export interface HudState {
   signal: 'left' | 'right' | null;
   signalLit: boolean;
   hazard: Hazard | null;
+  ghostGap: number | null;
 }
 
 export interface RunStats {
@@ -102,7 +105,9 @@ export interface RunStats {
   elapsed: number;
   medal: Medal;
   reason: string | null;
-  moneyGained: number;
+  ghostNewBest: boolean;
+  coinsGained: number;
+  creditsGained: number;
   ranked: { change: RankChange; scenario: RankedScenario; newBest: boolean } | null;
 }
 
@@ -122,6 +127,7 @@ interface Traffic {
   offset: number;
   speed: number;
   passed: boolean;
+  seenAhead: boolean;
   length: number;
   width: number;
   ai: TrafficAI;
@@ -279,6 +285,9 @@ export class OvertakeGame {
   private offset = PLAYER_LANE;
   private vehicle = createVehicleState();
 
+  private ghostReplay: GhostReplay | null = null;
+  private ghostSamples: GhostSample[] = [];
+  private ghostModel: THREE.Group | null = null;
   private run: RunState = createRun('endless');
   private runMode: RunMode = 'endless';
   private runUsedDev = false;
@@ -299,6 +308,23 @@ export class OvertakeGame {
   private oncomingTimer = 2.0;
   private input = { throttle: false, brake: false, left: false, right: false, handbrake: false };
 
+  getGhost(): GhostReplay | null { try { return loadGhost(localStorage, this.selected); } catch { return null; } }
+  private clearGhost() {
+    if (this.ghostModel) {
+      this.scene.remove(this.ghostModel);
+      this.ghostModel.traverse(o => { if (o instanceof THREE.Mesh) { o.geometry.dispose(); (o.material as THREE.Material).dispose(); } });
+      this.ghostModel = null;
+    }
+    this.ghostReplay = null;
+    this.ghostSamples = [];
+  }
+  private updateGhost() {
+    if (!this.ghostModel || !this.ghostReplay) return;
+    const [, s, offset] = ghostAt(this.ghostReplay, this.run.elapsed);
+    this.ghostModel.position.copy(centerAt(s)).addScaledVector(rightAt(s), offset);
+    this.ghostModel.rotation.y = roadYaw(s);
+    this.ghostModel.visible = Math.abs(s - this.playerS) < 220;
+  }
   get distance() { return this.run.distance; }
   get score() { return this.run.score; }
   get combo() { return this.run.combo; }
@@ -1394,6 +1420,18 @@ export class OvertakeGame {
     this.setEnvironment('road');
     this.playerS = 0;
     this.run = createRun(this.runMode, (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0, Date.now(), this.rankedScenario);
+    this.clearGhost();
+    if (this.runMode === 'ghost') {
+      this.ghostReplay = this.getGhost();
+      this.ghostSamples = [[0, 0, PLAYER_LANE, 0]];
+      if (this.ghostReplay) {
+        const ghost = new THREE.Group();
+        const material = () => new THREE.MeshBasicMaterial({ color: 0x7ff6ff, transparent: true, opacity: .3, depthWrite: false });
+        const body = new THREE.Mesh(new THREE.BoxGeometry(this.playerMeta.width, .65, this.playerMeta.length), material()); body.position.y = .55; ghost.add(body);
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(this.playerMeta.width * .75, .55, this.playerMeta.length * .45), material()); cabin.position.y = 1.13; ghost.add(cabin);
+        this.ghostModel = ghost; this.scene.add(ghost); this.updateGhost();
+      }
+    }
     this.hazard = null;
     this.best = bestFor(this.records, this.runMode);
     this.vehicle = createVehicleState();
@@ -1407,7 +1445,8 @@ export class OvertakeGame {
     if (this.player) { this.player.position.copy(this.pos); this.player.rotation.set(0, this.yaw, 0); }
     // Seed a busy two-way road: slower traffic ahead and a steady stream of
     // oncoming cars, spaced so there is always a visible overtaking window.
-    this.spawnSame(55, 16); this.spawnSame(120, 19); this.spawnSame(195, 15); this.spawnSame(280, 21);
+    if (this.runMode === 'convoy') { for (let i = 0; i < 7; i++) this.spawnSame(65 + i * 55, 13); }
+    else { this.spawnSame(55, 16); this.spawnSame(120, 19); this.spawnSame(195, 15); this.spawnSame(280, 21); }
     this.spawnOncoming(230, 26); this.spawnOncoming(390, 29); this.spawnOncoming(550, 27);
     this.updateRoad();
     this.setMode('driving');
@@ -1424,6 +1463,7 @@ export class OvertakeGame {
   resume() { if (this.mode === 'paused') this.setMode('driving'); }
 
   toGarage() {
+    this.clearGhost();
     if (this.mode === 'driving' || this.mode === 'paused') { this.settleProgression(); if (this.run.mode === 'ranked') { finishRun(this.run, 'quit'); this.settleRank(); } }
     this.clearTraffic();
     this.setEnvironment('garage');
@@ -1516,6 +1556,11 @@ export class OvertakeGame {
     const result = buyTune(this.progression, id, key, value); this.progression = result.progress;
     if (result.ok) this.saveProgression(); return result.ok;
   }
+  purchasePremiumPass(): boolean {
+    if (this.mode !== 'garage') return false;
+    const result=buyPremiumPass(this.progression);this.progression=result.progress;
+    if (result.ok) this.saveProgression();return result.ok;
+  }
   getMaxSpeed(): number { return getCar(this.selected).maxSpeed * (1 + effectiveUpgrades(this.progression, this.selected).engine * .04); }
   private loadProgression() {
     try {
@@ -1527,13 +1572,14 @@ export class OvertakeGame {
   private saveProgression() {
     try { localStorage.setItem('overtake-progression-v2', JSON.stringify(this.progression)); } catch { /* in-memory progress still works */ }
   }
-  private settleProgression(): { gain: number } {
-    if (this.progressionSettled) return { gain: 0 };
+  private settleProgression(): { coinsGained: number; creditsGained: number } {
+    if (this.progressionSettled) return { coinsGained: 0, creditsGained: 0 };
     this.progressionSettled = true;
+    if (this.runUsedDev) return {coinsGained:0,creditsGained:0};
     const result = awardProgress(this.progression, this.run);
     this.progression = result.progress;
     this.saveProgression();
-    return { gain: result.gain };
+    return { coinsGained:result.coinsGained, creditsGained:result.creditsGained };
   }
 
   private loadRecords() {
@@ -1576,9 +1622,9 @@ export class OvertakeGame {
   }
 
   private spawnSame(s: number, speed: number) {
-    const ids = CARS.filter(c => c.id !== this.selected).map(c => c.id);
+    const ids: TrafficId[] = [...CARS.filter(c => c.id !== this.selected).map(c => c.id), ...TRAFFIC_ONLY.map(c => c.id)];
     const id: TrafficId = chooseTruck(this.score, this.traffic, s) ?? chooseTrafficModel(ids, this.traffic, s);
-    const preferred = id === 'semi' || id === 'kraz' ? undefined : this.library.getPaint(id);
+    const preferred = isPlayableCar(id) ? this.library.getPaint(id) : undefined;
     const paint = chooseTrafficPaint(TRAFFIC_COLORS, this.traffic, s, preferred);
     const group = this.library.create(id, { paint });
     addVehicleLights(group, id, true);
@@ -1587,20 +1633,20 @@ export class OvertakeGame {
     const brakeGlow = this.makeBrakeGlow();
     brakeGlow.position.set(0, 0.62, meta.length / 2 + 0.05);
     group.add(brakeGlow);
-    const cruise = trafficCruise(id);
-    this.traffic.push({ group, id, paint, dir: 1, s, offset: PLAYER_LANE, speed: Math.min(speed, cruise), passed: false, length: meta.length, width: meta.width, ai: createTrafficAI(cruise), braking: false, brakeGlow });
+    const cruise = this.runMode === 'convoy' && s <= 400 ? 13 : trafficCruise(id);
+    this.traffic.push({ group, id, paint, dir: 1, s, offset: PLAYER_LANE, speed: Math.min(speed, cruise), passed: false, seenAhead: s > this.playerS, length: meta.length, width: meta.width, ai: createTrafficAI(cruise), braking: false, brakeGlow });
   }
 
   private spawnOncoming(s: number, speed: number) {
-    const ids = CARS.filter(c => c.id !== this.selected).map(c => c.id);
-    const spec = getCar(chooseTrafficModel(ids, this.traffic, s));
-    const paint = chooseTrafficPaint(TRAFFIC_COLORS, this.traffic, s, this.library.getPaint(spec.id));
-    const group = this.library.create(spec.id, { paint });
-    addVehicleLights(group, spec.id, true);
-    const meta = this.library.get(spec.id);
+    const ids: TrafficId[] = [...CARS.filter(c => c.id !== this.selected).map(c => c.id), ...TRAFFIC_ONLY.map(c => c.id)];
+    const id = chooseTrafficModel(ids, this.traffic, s);
+    const paint = chooseTrafficPaint(TRAFFIC_COLORS, this.traffic, s, isPlayableCar(id) ? this.library.getPaint(id) : undefined);
+    const group = this.library.create(id, { paint });
+    addVehicleLights(group, id, true);
+    const meta = this.library.get(id);
     this.scene.add(group);
-    const cruise = trafficCruise(spec.id);
-    this.traffic.push({ group, id: spec.id, paint, dir: -1, s, offset: ONCOMING_LANE, speed: speed === 0 ? 0 : cruise, passed: false, length: meta.length, width: meta.width, ai: createTrafficAI(cruise), braking: false });
+    const cruise = trafficCruise(id);
+    this.traffic.push({ group, id, paint, dir: -1, s, offset: ONCOMING_LANE, speed: speed === 0 ? 0 : cruise, passed: false, seenAhead: s > this.playerS, length: meta.length, width: meta.width, ai: createTrafficAI(cruise), braking: false });
   }
 
   private makeBrakeGlow() {
@@ -1698,15 +1744,21 @@ export class OvertakeGame {
       signal: this.signal,
       signalLit: !!this.signal && (this.signalElapsed % 1.0) < 0.5,
       hazard: this.hazard,
+      ghostGap: this.ghostReplay ? ghostAt(this.ghostReplay, this.run.elapsed)[3] - this.run.distance : null,
     });
   }
 
   private handleRunEvents(events: RunEvent[]) {
     for (const e of events) {
       if (e.type === 'contract' && e.contract) {
-        this.cb.onEvent({ kind: 'contract', text: `CONTRACT · ${e.contract.title.toUpperCase()}`, points: e.points });
+        const earned=awardQuestXp(this.progression,this.run.mode,this.runUsedDev);
+        this.progression=earned.progress;
+        if (earned.gained || earned.gemsGained) this.saveProgression();
+        this.cb.onEvent({ kind: 'contract', text: `QUEST · ${e.contract.title.toUpperCase()}${earned.gained ? ` · +${earned.gained} XP` : ''}${earned.gemsGained ? ` · +${earned.gemsGained} GEMS` : ''}`, points: e.points });
       } else if (e.type === 'allContracts') {
         this.cb.onEvent({ kind: 'contract', text: 'ALL CONTRACTS COMPLETE' });
+      } else if (e.type === 'checkpoint') {
+        this.cb.onEvent({ kind:'contract', text:'CHECKPOINT · +15 SECONDS', points:e.points });
       } else if (e.type === 'combo') {
         this.cb.onEvent({ kind: 'combo', text: `COMBO ×${e.mult}` });
       } else if (e.type === 'finish') {
@@ -1719,10 +1771,7 @@ export class OvertakeGame {
     this.updatePlayerLights(dt);
     const spec = getCar(this.selected);
     const upgrades = effectiveUpgrades(this.progression, this.selected);
-    const grip = spec.physics.grip * (1 + upgrades.tires * .06) * weatherGrip(this.weather);
-    const params = {
-      ...spec.physics, brake: spec.physics.brake * (1 + upgrades.brakes * .10), accel: spec.accel * (1 + upgrades.engine * .08), maxSpeed: this.getMaxSpeed(), grip, surfaceGrip: weatherGrip(this.weather),
-    };
+    const params = vehicleParameters(spec, upgrades, this.library.getCustomization(this.selected).tireWidth, weatherGrip(this.weather));
     const previousS = this.vehicle.s, previousOffset = this.vehicle.offset;
     const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
     const h = dt / steps;
@@ -1771,10 +1820,11 @@ export class OvertakeGame {
         break;
       }
     }
-    const pHalfL = this.playerMeta.length / 2;
     const trafficGrip = weatherGrip(this.weather);
     for (let i = this.traffic.length - 1; i >= 0; i--) {
       const t = this.traffic[i];
+      const previousDistance = t.s - previousS;
+      if (previousDistance > 0) t.seenAhead = true;
       if (t.dir === 1) {
         const passing = !!t.ai.pass;
         if (passing) stepOvertake(t, dt, PLAYER_LANE, ONCOMING_LANE);
@@ -1796,7 +1846,18 @@ export class OvertakeGame {
       conformTrafficBeam(t.group, t.s, t.dir, centerY);
       if (t.brakeGlow) (t.brakeGlow.material as THREE.SpriteMaterial).opacity = t.braking && !t.group.userData.brakeMaterials?.length ? 0.9 : 0;
       for (const m of (t.group.userData.brakeMaterials ?? []) as THREE.MeshStandardMaterial[]) m.emissiveIntensity = t.braking && !m.userData.selectiveBrake ? 2.8 : 0.55;
-      if (t.group.userData.indicatorState) t.group.userData.indicatorState.brake.value = t.braking ? 1 : 0;
+      const signal = t.group.userData.indicatorState;
+      if (signal) {
+        signal.brake.value = t.braking ? 1 : 0;
+        // NPCs signal only during their actual lane changes. The off phase is
+        // independent of the player; no signal is shown while cruising.
+        const phase = t.ai.pass?.phase;
+        const lit = (this.run.elapsed % 1) < .5 ? 1 : -1;
+        signal.left.value = phase === 'out' ? lit : 0;
+        signal.right.value = phase === 'back' ? lit : 0;
+        t.group.updateWorldMatrix(true, false);
+        signal.viewZ.value = t.group.worldToLocal(this.tmpC.copy(this.camera.position)).z;
+      }
 
       const ds = t.s - this.playerS;
       const dOff = t.offset - this.offset;
@@ -1804,7 +1865,7 @@ export class OvertakeGame {
         this.crash(t.dir === -1 ? 'Head-on collision' : 'You rear-ended traffic');
         return;
       }
-      if (t.dir === 1 && !t.passed && ds < -(pHalfL + t.length / 2 + 1)) {
+      if (t.dir === 1 && !t.passed && t.seenAhead && completedOvertake(previousDistance, ds, this.playerMeta.length, t.length)) {
         t.passed = true;
         const near = Math.abs(dOff) < 2.6;
         const signaled = this.signal === (dOff > 0 ? 'left' : 'right');
@@ -1820,16 +1881,6 @@ export class OvertakeGame {
         this.handleRunEvents(events);
         if (this.run.finished) return;
       }
-      if (t.dir === -1 && !t.passed && ds < -(pHalfL + t.length / 2 + 1)) {
-        t.passed = true;
-        const near = Math.abs(dOff) < 3.4;
-        if (near) {
-          const { points, events } = registerPass(this.run, 'oncoming', true, spec.bonus);
-          this.cb.onEvent({ kind: 'oncoming', text: 'HEAD-ON DODGE', points });
-          this.handleRunEvents(events);
-          if (this.run.finished) return;
-        }
-      }
       if ((t.dir === 1 && t.s < this.playerS - 70) || (t.dir === -1 && t.s < this.playerS - 90)) {
         this.scene.remove(t.group);
         this.disposeCarLights(t.group);
@@ -1844,6 +1895,17 @@ export class OvertakeGame {
     this.hazard = hazardAhead({ s: this.playerS, offset: this.offset, speed: this.speed, width: this.playerMeta.width, length: this.playerMeta.length }, this.traffic);
 
     const events = tickRun(this.run, dt, this.speed);
+    if (this.run.mode === 'ghost') {
+      const samples = this.ghostSamples, last = samples[samples.length - 1];
+      if (this.run.elapsed - last[0] >= .25 || this.run.finished) {
+        if (samples.length >= MAX_GHOST_SAMPLES - 1) {
+          const kept = samples.filter((_sample, i) => i % 2 === 0 || i === samples.length - 1);
+          samples.splice(0, samples.length, ...kept);
+        }
+        samples.push([this.run.elapsed, this.playerS, this.offset, Math.min(3000, this.run.distance)]);
+      }
+      this.updateGhost();
+    }
     this.handleRunEvents(events);
     if (this.run.finished) return;
 
@@ -1863,6 +1925,10 @@ export class OvertakeGame {
   private endRun(reason: string) {
     if (this.mode === 'gameover') return;
     finishRun(this.run, reason);
+    let ghostNewBest = false;
+    if (this.run.mode === 'ghost' && reason === 'distance' && !this.runUsedDev && this.ghostSamples.length < MAX_GHOST_SAMPLES) {
+      try { ghostNewBest = saveGhost(localStorage, this.selected, { version: 1, time: this.run.elapsed, samples: this.ghostSamples }); } catch { /* storage unavailable */ }
+    }
     this.setMode('gameover');
     const progress = this.settleProgression();
     const summary = runSummary(this.run, this.selected);
@@ -1876,7 +1942,7 @@ export class OvertakeGame {
       score: this.score, distance: this.distance, overtakes: this.overtakes, nearMisses: this.nearMisses,
       best: this.best, newBest: result.newBest, mode: this.run.mode, car: this.selected,
       topSpeed: this.run.topSpeed, contractsDone: this.run.contractsDone, contractsTotal: this.run.contracts.length, bestTime: this.records.modes.trial.bestTime, devRun: this.runUsedDev, elapsed: this.run.elapsed,
-      medal: result.medal, reason, moneyGained: progress.gain, ranked,
+      medal: result.medal, reason, ghostNewBest, coinsGained: progress.coinsGained, creditsGained: progress.creditsGained, ranked,
     });
   }
 

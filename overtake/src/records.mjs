@@ -43,9 +43,9 @@ export function recordRun(records, summary) {
   const rec = sanitizeRecords(records);
   const mode = MODES.includes(summary.mode) ? summary.mode : 'endless';
   const bucket = rec.modes[mode];
-  if ((mode === 'daily' || mode === 'weekly') && Number.isInteger(summary.eventPeriod) && bucket.period !== summary.eventPeriod) { bucket.bestScore = 0; bucket.bestDistance = 0; bucket.period = summary.eventPeriod; }
-  const newBest = mode === 'trial' ? summary.reason === 'distance' && summary.elapsed > 0 && (bucket.bestTime === null || summary.elapsed < bucket.bestTime) : summary.score > bucket.bestScore;
-  if (mode === 'trial' && newBest) bucket.bestTime = summary.elapsed;
+  if ((mode === 'daily' || mode === 'weekly' || mode === 'seasonal') && Number.isInteger(summary.eventPeriod) && bucket.period !== summary.eventPeriod) { bucket.bestScore = 0; bucket.bestDistance = 0; bucket.period = summary.eventPeriod; }
+  const newBest = (mode === 'trial' || mode === 'ghost') ? summary.reason === 'distance' && summary.elapsed > 0 && (bucket.bestTime === null || summary.elapsed < bucket.bestTime) : summary.score > bucket.bestScore;
+  if ((mode === 'trial' || mode === 'ghost') && newBest) bucket.bestTime = summary.elapsed;
   bucket.bestScore = Math.max(bucket.bestScore, summary.score);
   bucket.bestDistance = Math.max(bucket.bestDistance, summary.distance);
   bucket.runs++;
@@ -56,6 +56,6 @@ export function recordRun(records, summary) {
 
 export function bestFor(records, mode, now = Date.now()) {
   const rec = sanitizeRecords(records);
-  if ((mode === 'daily' || mode === 'weekly') && rec.modes[mode].period !== eventFor(mode, now).period) return 0;
+  if ((mode === 'daily' || mode === 'weekly' || mode === 'seasonal') && rec.modes[mode].period !== eventFor(mode, now).period) return 0;
   return rec.modes[mode]?.bestScore ?? 0;
 }

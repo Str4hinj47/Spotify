@@ -2,16 +2,18 @@ import '@fontsource-variable/inter';
 import { createIcons, Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, Cloud, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor } from 'lucide';
 import { ModelLibrary } from './models';
 import { OvertakeGame, CAMERA_ORDER, type Mode, type HudState, type RunStats, type CameraPreset } from './game';
-import { RUN_MODES, eventFor, type RunMode } from './run.mjs';
+import { RUN_MODES, eventFor, HIGH_SPEED_THRESHOLD, type RunMode } from './run.mjs';
 import { bestFor } from './records.mjs';
 import { RANKS, SCENARIOS, rankFor, type ScenarioId } from './ranked.mjs';
 import { rankBadge } from './rank-badges';
-import { CAR_PRICES, UPGRADE_PRICES, earnedCar, upgradeLevels, tunePrice, emptyProgression, type Upgrade } from './progression.mjs';
+import { SEASON_TIERS, PREMIUM_TIERS, PREMIUM_PASS_PRICE, currentSeasonPass, seasonLabel } from './season-pass.mjs';
+import { CAR_PRICES, UPGRADE_PRICES, earnedCar, missingCarPrerequisite, upgradeLevels, effectiveUpgrades, tunePrice, emptyProgression, type Upgrade } from './progression.mjs';
 import { CARS, getCar, PAINT_COLORS, type CarId } from './catalog';
 import { GameAudio } from './audio';
 import { hexToNumber, sanitizePaints } from './paint.mjs';
 import { BODY_FITS } from './body-kits';
 import { LIVERIES } from './livery';
+import { performanceStats } from './car-performance.mjs';
 import { LIVERY_OPTIONS } from './content/cosmetics.mjs';
 import { BODY_PARTS, DEFAULT_CUSTOMIZATION, sanitizeCustomization, sanitizeCustomizations, type Customization } from './customization.mjs';
 
@@ -91,7 +93,7 @@ function syncWorkshopChoices() {
       const option = options.find(o => o.value === value)!;
       const price = tunePrice(key, value);
       const owned = progress.tunes[selected]?.includes(`${key}:${value}`);
-      button.textContent = `${option.text}${price ? progress.dev ? ' · DEV' : owned ? ' · Owned' : ` · $${fmt(price)}` : ''}`;
+      button.textContent = `${option.text}${price ? progress.dev ? ' · DEV' : owned ? ' · Owned' : ` · ${fmt(price)} gems` : ''}`;
       button.disabled = select.disabled;
       button.setAttribute('aria-pressed', String(button.dataset.value === select.value));
     });
@@ -100,10 +102,15 @@ function syncWorkshopChoices() {
 function syncCustomizationUI() {
   const config = currentCustomization();
   $('custom-car-name').textContent = `${getCar(selected).maker} ${getCar(selected).name}`;
-  $('custom-balance').textContent = `$${fmt(game.getProgression().money)}`;
+  $('custom-balance').textContent = `${fmt(game.getProgression().gems)} gems`;
+  const bodywork = !!BODY_FITS[selected];
+  const bodyTab = document.querySelector<HTMLButtonElement>('[data-workshop-tab="body"]')!;
+  bodyTab.disabled = !bodywork;
+  $('stock-bodywork-note').classList.toggle('hidden', bodywork);
+  if (!bodywork && bodyTab.getAttribute('aria-pressed') === 'true') document.querySelector<HTMLButtonElement>('[data-workshop-tab="paint"]')!.click();
   for (const part of BODY_PARTS) {
     const select = $(`custom-${part}`) as HTMLSelectElement;
-    const labels = BODY_FITS[selected].labels[part];
+    const labels = part === 'hood' ? ['Street vents','Race scoop'] : part === 'roof' ? ['Shark fin','Race fins'] : BODY_FITS[selected]?.labels[part] ?? ['Stock only', 'Stock only'];
     const options = [['stock','Factory'], ['street',labels[0]], ['touring','Touring'], ['sport','Sport'], ['track',labels[1]]];
     if (part === 'exhaust') options.push(['flame','Afterfire flames']);
     select.replaceChildren(...options.map(([value,label]) => {
@@ -128,6 +135,9 @@ function syncCustomizationUI() {
   livery.value=config.livery;
   const liveryColor=$('custom-livery-color') as HTMLInputElement;
   liveryColor.value=config.liveryColor;liveryColor.disabled=config.livery==='none';
+  ($('custom-rim') as HTMLSelectElement).value=config.rim;
+  ($('custom-rim-color') as HTMLInputElement).value=config.rimColor || '#bbc2cb';
+  ($('custom-tire-width') as HTMLSelectElement).value=config.tireWidth;
   ($('custom-glow-enabled') as HTMLInputElement).checked = config.underglow;
   const color = $('custom-glow-color') as HTMLInputElement;
   color.value = config.glowColor; color.disabled = !config.underglow;
@@ -135,11 +145,12 @@ function syncCustomizationUI() {
 }
 function applyCustomization(value: Customization) {
   const config = sanitizeCustomization(value), current = currentCustomization();
+  if (!BODY_FITS[selected]) for (const part of BODY_PARTS) config[part] = 'stock';
   for (const key of Object.keys(config) as (keyof Customization)[]) {
     if (config[key] === current[key]) continue;
     const option = key === 'underglow' ? (config[key] ? 'on' : 'off') : String(config[key]);
     if (!game.purchaseTune(selected, key, option)) {
-      $('tune-message').textContent = `Not enough money. This option costs $${fmt(tunePrice(key, option))}.`;
+      $('tune-message').textContent = `Not enough gems. This option costs ${fmt(tunePrice(key, option))} gems.`;
       syncCustomizationUI(); return;
     }
   }
@@ -184,8 +195,8 @@ async function refreshThumbnail(id: CarId) {
 
 function applyPaint(hex: string | null) {
   if (hex !== null && hex !== (paints[selected] ?? getCar(selected).color) && !game.purchaseTune(selected, 'paint', 'paint')) {
-    $('car-requirement').textContent = 'Paint costs $250. Earn more money first.';
-    $('tune-message').textContent = 'Paint costs $250. Earn more money first.';
+    $('car-requirement').textContent = 'Paint costs 5 gems. Complete quests to earn gems.';
+    $('tune-message').textContent = 'Paint costs 5 gems. Complete quests to earn gems.';
     syncPaintUI(selected); syncCustomizationUI(); return;
   }
   if (hex === null) {
@@ -203,24 +214,13 @@ function applyPaint(hex: string | null) {
   audio.click();
 }
 
-function renderDots(el: HTMLElement, n: number) {
-  el.innerHTML = '';
-  for (let i = 0; i < 5; i++) {
-    const dot = document.createElement('i');
-    if (i < n) dot.className = 'on';
-    el.appendChild(dot);
-  }
-}
-
 function updateDetail(id: CarId) {
   const c = getCar(id);
   $('d-maker').textContent = c.maker;
   $('d-name').textContent = c.name;
-  $('d-class').textContent = c.klass;
+  $('d-class').textContent = `${c.klass} · ${c.rarity.toUpperCase()} · TIER ${c.unlockTier}`;
+  $('d-class').dataset.rarity = c.rarity.toLowerCase();
   $('d-tagline').textContent = c.tagline;
-  renderDots($('stat-speed'), c.stats.speed);
-  renderDots($('stat-handling'), c.stats.handling);
-  renderDots($('stat-bonus'), c.stats.bonus);
   document.querySelectorAll<HTMLButtonElement>('.car-card').forEach((b) => {
     const active = b.dataset.car === id;
     b.classList.toggle('active', active);
@@ -233,17 +233,25 @@ function updateDetail(id: CarId) {
 function syncProgressionUI() {
   if (!game) return;
   const progress = game.getProgression();
-  $('progress-xp').textContent = `$${fmt(progress.money)}`;
-  $('progress-next').textContent = 'Money earned from your score';
+  const stats = performanceStats(getCar(selected), effectiveUpgrades(progress, selected), library.getCustomization(selected).tireWidth);
+  $('stat-speed').textContent = String(Math.round(stats.topSpeed * 3.6));
+  $('stat-accel').textContent = stats.sprint === null ? '—' : stats.sprint.toFixed(1);
+  $('stat-braking').textContent = stats.brakingDistance.toFixed(1);
+  $('stat-grip').textContent = stats.grip.toFixed(2);
+  $('stat-bonus').textContent = stats.bonus.toFixed(2);
+  $('progress-xp').textContent = `${fmt(progress.coins)} coins · ${fmt(progress.credits)} credits · ${fmt(progress.gems)} gems`;
+  $('progress-next').textContent = 'Coins: upgrades · Credits: cars · Gems: cosmetics & premium pass';
   const dev = $('dev-toggle') as HTMLButtonElement;
   dev.textContent = `Dev options: ${progress.dev ? 'ON' : 'OFF'}`;
   dev.setAttribute('aria-pressed', String(progress.dev));
   const owned = earnedCar(progress, selected), available = game.canDrive(selected);
-  $('car-requirement').textContent = owned ? 'Owned' : progress.dev ? `Dev access · purchase for $${fmt(CAR_PRICES[selected])}` : `Not owned · $${fmt(CAR_PRICES[selected])}`;
+  const prerequisite = owned ? null : missingCarPrerequisite(progress, selected);
+  const requirement = prerequisite ? `Unlock ${getCar(prerequisite).maker} ${getCar(prerequisite).name} first` : `${fmt(CAR_PRICES[selected])} credits`;
+  $('car-requirement').textContent = owned ? 'Owned' : progress.dev ? `Dev preview · ${requirement}` : prerequisite ? requirement : `Ready to unlock · ${requirement}`;
   const buy = $('buy-car') as HTMLButtonElement;
   buy.classList.toggle('hidden', owned);
-  buy.textContent = `Buy car · $${fmt(CAR_PRICES[selected])}`;
-  buy.disabled = progress.money < CAR_PRICES[selected];
+  buy.textContent = `Buy car · ${fmt(CAR_PRICES[selected])} credits`;
+  buy.disabled = prerequisite !== null || progress.credits < CAR_PRICES[selected];
   ($('btn-start') as HTMLButtonElement).disabled = !available;
   ($('btn-customize') as HTMLButtonElement).disabled = !available;
   document.querySelectorAll<HTMLButtonElement>('.paint-swatch').forEach(button => { button.disabled = !available; });
@@ -260,18 +268,20 @@ function syncProgressionUI() {
   document.querySelectorAll<HTMLButtonElement>('.car-card').forEach(card => {
     const id = card.dataset.car as CarId, hasCar = earnedCar(progress, id);
     const status = card.querySelector<HTMLElement>('.cc-unlock')!;
-    status.textContent = hasCar ? 'Owned' : progress.dev ? `Dev · $${fmt(CAR_PRICES[id])}` : `$${fmt(CAR_PRICES[id])}`;
+    const missing=hasCar ? null : missingCarPrerequisite(progress,id), spec=getCar(id);
+    status.textContent = hasCar ? 'Owned' : missing ? `Unlock ${getCar(missing).name} first` : `${fmt(CAR_PRICES[id])} credits`;
+    const rarity=card.querySelector<HTMLElement>('.cc-rarity')!;rarity.textContent=`${spec.rarity} · T${spec.unlockTier}`;rarity.dataset.rarity=spec.rarity.toLowerCase();
     card.classList.toggle('locked', !hasCar);
-    card.setAttribute('aria-label', `${getCar(id).maker} ${getCar(id).name}, ${status.textContent}`);
+    card.setAttribute('aria-label', `${getCar(id).maker} ${getCar(id).name}, ${spec.rarity}, tier ${spec.unlockTier}, ${status.textContent}`);
   });
   const levels = upgradeLevels(progress, selected);
   const list = $('upgrade-list'); list.replaceChildren();
   for (const [key, name, effect] of [['engine','Engine','+8% acceleration, +4% top speed'],['tires','Tires','+6% grip'],['brakes','Brakes','+10% braking']] as [Upgrade,string,string][]) {
     const level = levels[key], price = UPGRADE_PRICES[key][level];
     const button = document.createElement('button'); button.type = 'button'; button.dataset.upgrade = key;
-    button.textContent = `${name} ${level}/3 · ${price === undefined ? 'MAX' : `$${fmt(price)}`}`;
+    button.textContent = `${name} ${level}/3 · ${price === undefined ? 'MAX' : `${fmt(price)} coins`}`;
     button.title = `${effect} per stage${progress.dev ? ' · Dev uses maximum stages temporarily' : ''}`;
-    button.disabled = !owned || price === undefined || progress.money < price;
+    button.disabled = !owned || price === undefined || progress.coins < price;
     button.addEventListener('click', () => { if (game.purchaseUpgrade(selected, key)) { syncProgressionUI(); audio.click(); } });
     list.appendChild(button);
   }
@@ -288,8 +298,9 @@ function selectCar(id: CarId) {
 }
 
 function setMode(m: Mode) {
+  if (m !== 'gameover') hidePromotion();
   audio.setActive(m === 'driving');
-  if (m === 'garage') { syncModeUI(); syncProgressionUI(); syncRankUI(); }
+  if (m === 'garage') { syncModeUI(); syncProgressionUI(); syncRankUI(); syncSeasonPassUI(); }
   $('main-menu').classList.toggle('hidden', m !== 'garage' || frontScreen !== 'menu');
   $('garage').classList.toggle('hidden', m !== 'garage' || frontScreen !== 'garage');
   $('hud').classList.toggle('hidden', m === 'garage');
@@ -395,11 +406,16 @@ function syncModeUI() {
   });
   $('mode-best-endless').textContent = fmt(bestFor(records, 'endless'));
   $('mode-best-rush').textContent = fmt(bestFor(records, 'rush'));
-  for (const key of ['near', 'daily', 'weekly'] as const) $('mode-best-' + key).textContent = fmt(bestFor(records, key));
+  for (const key of ['near', 'daily', 'weekly', 'seasonal', 'convoy', 'checkpoint', 'precision', 'speed'] as const) $('mode-best-' + key).textContent = fmt(bestFor(records, key));
   $('mode-best-trial').textContent = records.modes.trial.bestTime === null ? '—' : formatTime(records.modes.trial.bestTime);
+  const ghost = game.getGhost();
+  $('mode-best-ghost').textContent = ghost ? formatTime(ghost.time) : '—';
+  $('seasonal-desc').textContent = eventFor('seasonal').contract.desc + ' · UTC quarter';
+  $('ghost-menu-note').classList.toggle('hidden', mode !== 'ghost');
+  $('ghost-menu-note').textContent = ghost ? `Your local ${getCar(selected).name} ghost: ${formatTime(ghost.time)} · traffic and conditions vary · not included in backups` : 'No ghost for this car yet. Finish 3 km to record one locally; replays are not included in backups.';
   $('daily-desc').textContent = eventFor('daily').contract.desc + ' · UTC';
   $('weekly-desc').textContent = eventFor('weekly').contract.desc + ' · UTC';
-  $('active-mode-info').textContent = mode === 'daily' || mode === 'weekly' ? `${RUN_MODES[mode].label} · ${eventFor(mode).contract.desc} · UTC` : RUN_MODES[mode].tagline;
+  $('active-mode-info').textContent = mode === 'daily' || mode === 'weekly' || mode === 'seasonal' ? `${RUN_MODES[mode].label} · ${eventFor(mode).contract.desc} · UTC` : RUN_MODES[mode].tagline;
   const recent = records.modes[mode].recent.slice(0, 3);
   $('recent-runs').classList.toggle('hidden', recent.length === 0);
   $('recent-mode').textContent = RUN_MODES[mode].label;
@@ -409,7 +425,7 @@ function syncModeUI() {
     const row = document.createElement('div');
     row.className = 'recent-row';
     const medal = r.medal ? `<span class="medal-dot ${r.medal}"></span>` : '';
-    row.innerHTML = `${medal}<span>${mode === 'trial' && r.reason === 'distance' ? formatTime(r.elapsed) : fmt(r.score)}</span><small>${(r.distance / 1000).toFixed(1)} km · ${r.overtakes} passed</small>`;
+    row.innerHTML = `${medal}<span>${(mode === 'trial' || mode === 'ghost') && r.reason === 'distance' ? formatTime(r.elapsed) : fmt(r.score)}</span><small>${(r.distance / 1000).toFixed(1)} km · ${r.overtakes} passed</small>`;
     list.appendChild(row);
   }
 }
@@ -418,7 +434,7 @@ function syncMenuStats() {
   if (!game) return;
   const records = game.getRecords(), entries = Object.entries(records.modes).filter(([mode]) => mode !== 'ranked');
   const buckets = entries.map(([, bucket]) => bucket);
-  const currentBests = entries.filter(([mode, bucket]) => mode !== 'daily' && mode !== 'weekly' || bucket.period === eventFor(mode).period).map(([, bucket]) => bucket);
+  const currentBests = entries.filter(([mode, bucket]) => mode !== 'daily' && mode !== 'weekly' && mode !== 'seasonal' || bucket.period === eventFor(mode).period).map(([, bucket]) => bucket);
   const ranked = game.getRanked(), info = rankFor(ranked.points), progress = game.getProgression();
   $('menu-best-score').textContent = fmt(Math.max(0, ...currentBests.map(b => b.bestScore)));
   $('menu-longest').innerHTML = `${(Math.max(0, ...currentBests.map(b => b.bestDistance)) / 1000).toFixed(1)} <small>KM</small>`;
@@ -432,6 +448,32 @@ function showGarageTab(tab: string) {
   document.querySelectorAll<HTMLButtonElement>('[data-garage-tab]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.garageTab === tab)));
   for (const section of ['upgrades', 'style']) $('garage-' + section).classList.toggle('hidden', section !== tab);
 }
+function syncSeasonPassUI() {
+  const pass=currentSeasonPass(game.getProgression().seasonPass), max=SEASON_TIERS[SEASON_TIERS.length-1].xp;
+  $('season-period').textContent=seasonLabel(pass.period);
+  $('season-xp').textContent=`${fmt(pass.xp)} / ${fmt(max)} XP`;
+  $('season-xp-fill').style.width=`${Math.min(100,pass.xp/max*100)}%`;
+  const upcoming=SEASON_TIERS.find(t=>t.xp>pass.xp);
+  $('season-next').textContent=upcoming ? `Next: ${upcoming.label} · ${fmt(upcoming.xp-pass.xp)} XP to go` : 'Reward track complete';
+  const progress=game.getProgression();
+  $('season-wallet').textContent=`${fmt(progress.gems)} gems available`;
+  const buy=$('season-premium-buy') as HTMLButtonElement;
+  buy.textContent=pass.premium ? 'PREMIUM ACTIVE THIS SEASON' : `UNLOCK PREMIUM · ${PREMIUM_PASS_PRICE} GEMS`;
+  buy.disabled=pass.premium || progress.gems<PREMIUM_PASS_PRICE;
+  const list=$('season-reward-list');list.replaceChildren(...SEASON_TIERS.map((tier,i)=>{
+    const item=document.createElement('li');item.className=tier.xp<=pass.xp?'earned':'';
+    const title=document.createElement('span');title.textContent=`${String(i+1).padStart(2,'0')} / FREE · ${tier.label}`;
+    const status=document.createElement('b');status.textContent=tier.xp<=pass.xp?'UNLOCKED':`${tier.xp} XP`;
+    item.append(title,status);return item;
+  }));
+  const premium=$('season-premium-list');premium.replaceChildren(...PREMIUM_TIERS.map((tier,i)=>{
+    const item=document.createElement('li');item.className=pass.premium && tier.xp<=pass.xp?'earned':'';
+    const title=document.createElement('span');title.textContent=`${String(i+1).padStart(2,'0')} / PREMIUM · ${tier.label}`;
+    const status=document.createElement('b');status.textContent=pass.premium && tier.xp<=pass.xp?'UNLOCKED':tier.xp<=pass.xp?'NEEDS PREMIUM':`${tier.xp} XP`;
+    item.append(title,status);return item;
+  }));
+}
+
 function syncRankUI() {
   if (!game) return;
   const state = game.getRanked(), info = rankFor(state.points), selectedScenario = game.getRankedScenario();
@@ -467,6 +509,7 @@ function selectMode(mode: RunMode) {
 
 function onHud(h: HudState) {
   $('hud-score').textContent = fmt(h.score);
+  $('speed-bonus-active').classList.toggle('hidden', h.speed <= HIGH_SPEED_THRESHOLD * 3.6);
   $('hud-speed').textContent = String(Math.round(h.speed));
   const maxSpeed = game.getMaxSpeed() * 3.6;
   $('speed-max').textContent = String(Math.round(maxSpeed));
@@ -498,6 +541,10 @@ function onHud(h: HudState) {
   }
   $('run-mode-label').textContent = h.runLabel;
   $('run-time').textContent = h.timeLeft !== null ? (h.runMode === 'ranked' ? formatRankCountdown(h.timeLeft) : formatClock(h.timeLeft)) : formatClock(h.elapsed);
+  $('ghost-hud').classList.toggle('hidden', h.runMode !== 'ghost');
+  $('ghost-hud').textContent = h.ghostGap === null ? 'LOCAL GHOST · FIRST RUN' : `LOCAL GHOST · ${h.ghostGap >= 0 ? 'AHEAD' : 'BEHIND'} ${Math.abs(Math.round(h.ghostGap))} m`;
+  $('mode-rule-hud').classList.toggle('hidden', h.runMode !== 'speed');
+  $('mode-rule-hud').textContent = h.speed >= 140 ? 'SPEED BONUS · +50 POINTS / SEC' : 'REACH 140 KM/H · +50 POINTS / SEC';
   $('run-clock').classList.toggle('rush', h.runMode === 'rush');
   $('run-clock').classList.toggle('urgent', h.timeLeft !== null && h.timeLeft <= 15);
   const card = $('contract-card');
@@ -508,9 +555,18 @@ function onHud(h: HudState) {
     $('contract-desc').textContent = `${scenario.objective} · ${(h.distance / 1000).toFixed(2)} / ${(scenario.distance / 1000).toFixed(1)} km`;
     $('contract-fill').style.width = `${Math.min(100, h.distance / scenario.distance * 100)}%`;
     $('contract-count').textContent = `${Math.min(value, scenario.target)} / ${scenario.target} ${scenario.metric === 'overtakes' ? 'overtakes' : 'near misses'}`;
+  } else if (h.runMode === 'checkpoint') {
+    const progress = h.distance % 500;
+    card.classList.remove('hidden');
+    $('contract-index').textContent = `CHECKPOINT ${Math.floor(h.distance / 500) + 1}`;
+    $('contract-reward').textContent = '+15s · +250';
+    $('contract-title').textContent = 'Race the clock';
+    $('contract-desc').textContent = 'Reach the next 500 m before time runs out';
+    $('contract-fill').style.width = `${Math.min(100, progress / 500 * 100)}%`;
+    $('contract-count').textContent = `${Math.floor(progress)} / 500 m`;
   } else if (h.contract) {
     card.classList.remove('hidden');
-    $('contract-index').textContent = `Contract ${h.contract.index}/${h.contract.total}`;
+    $('contract-index').textContent = `Quest ${h.contract.index}/${h.contract.total}`;
     $('contract-reward').textContent = `+${fmt(h.contract.reward)}`;
     $('contract-title').textContent = h.contract.title;
     $('contract-desc').textContent = h.contract.desc;
@@ -574,11 +630,30 @@ function onEvent(e: { kind: 'overtake' | 'near' | 'combo' | 'crash' | 'oncoming'
   setTimeout(() => div.remove(), 1300);
 }
 
+let promotionTimer: ReturnType<typeof setTimeout> | undefined;
+function hidePromotion() {
+  clearTimeout(promotionTimer);
+  $('rank-promotion').classList.add('hidden');
+}
+function showPromotion(index: number) {
+  hidePromotion();
+  const rank=RANKS[index], panel=$('rank-promotion');
+  panel.style.setProperty('--rank-color',rank.color);
+  panel.style.setProperty('--rank-glow',rank.glow);
+  $('promotion-badge').innerHTML=rankBadge(index);
+  $('promotion-name').textContent=rank.name.toUpperCase();
+  panel.classList.remove('hidden');
+  promotionTimer=setTimeout(hidePromotion, 5500);
+}
+$('promotion-close').addEventListener('click',hidePromotion);
+document.addEventListener('keydown',event=>{if(event.key==='Escape' && !$('rank-promotion').classList.contains('hidden')) {event.preventDefault();event.stopImmediatePropagation();hidePromotion();}},true);
+
 let latestResult: RunStats | null = null;
 function onGameOver(s: RunStats) {
   latestResult = s;
+  hidePromotion();
   $('share-status').textContent = s.devRun ? 'Dev run · excluded from personal records' : 'Local result · not globally verified';
-  $('final-progress').textContent = `+$${fmt(s.moneyGained)} earned`;
+  $('final-progress').textContent = `+${fmt(s.coinsGained)} coins · +${fmt(s.creditsGained)} credits earned`;
   $('final-score').textContent = fmt(s.score);
   $('final-overtakes').textContent = String(s.overtakes);
   $('final-near').textContent = String(s.nearMisses);
@@ -594,12 +669,14 @@ function onGameOver(s: RunStats) {
     $('final-rank-badge').innerHTML = rankBadge(current.index);
     $('final-rank-label').textContent = `${ranked.scenario.title} · ${current.rank.name.toUpperCase()}`;
     $('final-rank-change').textContent = s.devRun ? '0 RP · DEV PREVIEW' : `${change.delta > 0 ? '+' : ''}${change.delta} RP`;
+    if (!s.devRun && current.index > change.before.index) showPromotion(current.index);
     $('final-rank-message').textContent = s.devRun ? 'Dev runs do not affect rank' : current.index > change.before.index ? `PROMOTED TO ${current.rank.name.toUpperCase()}!` : current.index < change.before.index ? `Rank changed to ${current.rank.name}` : `${fmt(current.points)} RP · local, unverified`;
   }
   const rankedBest = ranked ? game.getRanked().scenarios[ranked.scenario.id]?.bestTime ?? null : null;
-  $('final-best').textContent = ranked ? (rankedBest === null ? '—' : formatTime(rankedBest)) : s.mode === 'trial' ? (s.bestTime === null ? '—' : formatTime(s.bestTime)) : fmt(s.best);
-  $('final-best-label').textContent = ranked || s.mode === 'trial' ? 'Fastest time' : 'Personal best';
-  $('new-best').classList.toggle('hidden', !s.newBest);
+  const ghostBest = s.mode === 'ghost' ? game.getGhost()?.time ?? null : null;
+  $('final-best').textContent = s.mode === 'ghost' ? (ghostBest === null ? '—' : formatTime(ghostBest)) : ranked ? (rankedBest === null ? '—' : formatTime(rankedBest)) : s.mode === 'trial' ? (s.bestTime === null ? '—' : formatTime(s.bestTime)) : fmt(s.best);
+  $('final-best-label').textContent = ranked || s.mode === 'trial' || s.mode === 'ghost' ? 'Fastest time' : 'Personal best';
+  $('new-best').classList.toggle('hidden', !(s.mode === 'ghost' ? s.ghostNewBest : s.newBest));
   $('best-top').textContent = fmt(ranked ? ranked.change.after.points : s.best);
   $('final-title').textContent = s.reason === 'crash' ? 'Wrecked' : s.reason === 'objective' ? 'Challenge complete' : s.reason === 'distance' ? `Finished · ${formatTime(s.elapsed)}` : s.reason === 'objective_failed' ? 'Objective missed' : 'Time up';
   $('final-title').classList.toggle('finish-title', s.reason !== 'crash');
@@ -787,7 +864,7 @@ function bindUI() {
   $('btn-share-result').addEventListener('click', async () => {
     if (!latestResult) return;
     const s = latestResult;
-    const detail = s.ranked ? `${s.ranked.scenario.title} · ${s.reason === 'distance' ? formatTime(s.elapsed) : 'unfinished'} · ${s.ranked.change.delta > 0 ? '+' : ''}${s.ranked.change.delta} RP` : s.mode === 'trial' && s.reason === 'distance' ? `3 km in ${formatTime(s.elapsed)}` : `${fmt(s.score)} points · ${(s.distance / 1000).toFixed(1)} km`;
+    const detail = s.ranked ? `${s.ranked.scenario.title} · ${s.reason === 'distance' ? formatTime(s.elapsed) : 'unfinished'} · ${s.ranked.change.delta > 0 ? '+' : ''}${s.ranked.change.delta} RP` : (s.mode === 'trial' || s.mode === 'ghost') && s.reason === 'distance' ? `3 km in ${formatTime(s.elapsed)}` : `${fmt(s.score)} points · ${(s.distance / 1000).toFixed(1)} km`;
     const text = `OVERTAKE · ${RUN_MODES[s.mode].label}\n${detail} · ${s.overtakes} overtakes\n${s.devRun ? 'Dev run, excluded from records' : 'Local result, not globally verified'}\n${location.origin}/`;
     try {
       if (navigator.share) { await navigator.share({ title: 'OVERTAKE', text }); $('share-status').textContent = 'Shared'; }
@@ -812,10 +889,10 @@ function bindUI() {
     c.fillStyle = '#f4f7f3'; c.font = 'bold 38px sans-serif'; c.fillText('OVERTAKE', 72, 82);
     c.fillStyle = '#ff713d'; c.font = 'bold 24px sans-serif'; c.fillText(RUN_MODES[s.mode].label.toUpperCase(), 72, 170);
     c.fillStyle = '#f4f7f3'; c.font = 'bold 100px sans-serif';
-    const primary = (s.mode === 'trial' || s.ranked) && s.reason === 'distance' ? formatTime(s.elapsed) : s.ranked ? `${s.ranked.change.delta > 0 ? '+' : ''}${s.ranked.change.delta} RP` : fmt(s.score);
+    const primary = (s.mode === 'trial' || s.mode === 'ghost' || s.ranked) && s.reason === 'distance' ? formatTime(s.elapsed) : s.ranked ? `${s.ranked.change.delta > 0 ? '+' : ''}${s.ranked.change.delta} RP` : fmt(s.score);
     c.fillText(primary, 72, 290, 700);
     c.fillStyle = '#a9bab6'; c.font = 'bold 24px sans-serif';
-    c.fillText(s.ranked ? (s.reason === 'distance' ? `${s.ranked.scenario.title.toUpperCase()} · TIME` : 'RANKED ATTACK') : s.mode === 'trial' && s.reason === 'distance' ? '3 KM TIME' : 'POINTS', 76, 330, 700);
+    c.fillText(s.ranked ? (s.reason === 'distance' ? `${s.ranked.scenario.title.toUpperCase()} · TIME` : 'RANKED ATTACK') : (s.mode === 'trial' || s.mode === 'ghost') && s.reason === 'distance' ? '3 KM TIME' : 'POINTS', 76, 330, 700);
     c.fillStyle = '#f4f7f3'; c.font = 'bold 27px sans-serif'; c.fillText(`${s.overtakes} OVERTAKES   /   ${s.nearMisses} NEAR MISSES   /   ${(s.distance / 1000).toFixed(1)} KM`, 72, 423, 720);
     c.fillStyle = '#ff9b76'; c.font = 'bold 22px sans-serif'; c.fillText(s.devRun ? 'DEV RUN · EXCLUDED FROM RECORDS' : 'LOCAL RESULT · NOT GLOBALLY VERIFIED', 72, 535, 720);
     c.fillStyle = '#9cafaa'; c.font = '20px sans-serif'; c.fillText(location.origin, 72, 575, 720);
@@ -906,6 +983,7 @@ function bindUI() {
     const suggestedColor = key === 'livery' ? LIVERY_OPTIONS.find(item => item.id === value)?.defaultColor : null;
     applyCustomization({ ...currentCustomization(), [key]:value, ...(suggestedColor ? { liveryColor:suggestedColor } : {}) } as Customization);
   });
+  for (const [id,key,event] of [['custom-rim','rim','change'],['custom-rim-color','rimColor','change'],['custom-tire-width','tireWidth','change']] as const) $(id).addEventListener(event, e => applyCustomization({ ...currentCustomization(), [key]:(e.target as HTMLInputElement | HTMLSelectElement).value } as Customization));
   $('custom-glow-enabled').addEventListener('change', event => applyCustomization({ ...currentCustomization(), underglow:(event.target as HTMLInputElement).checked }));
   $('custom-glow-color').addEventListener('input', event => applyCustomization({ ...currentCustomization(), glowColor:(event.target as HTMLInputElement).value }));
   document.querySelectorAll<HTMLButtonElement>('[data-custom-view]').forEach(button => {
@@ -1006,6 +1084,7 @@ async function boot() {
         <div class="cc-maker">${c.maker}</div>
         <div class="cc-name">${c.name}</div>
         <div class="cc-class">${c.klass}</div>
+        <div class="cc-rarity" data-rarity="${c.rarity.toLowerCase()}">${c.rarity} · T${c.unlockTier}</div>
         <div class="cc-unlock"></div>
       </div>`;
     btn.addEventListener('click', () => selectCar(c.id));
@@ -1037,3 +1116,5 @@ async function boot() {
 }
 
 void boot();
+
+$('season-premium-buy').addEventListener('click',()=>{ if(game.purchasePremiumPass()){syncSeasonPassUI();syncProgressionUI();audio.click();} });

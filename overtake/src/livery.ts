@@ -6,6 +6,11 @@ import { LIVERY_OPTIONS } from './content/cosmetics.mjs';
 // Each car gets different stripe widths, placement and flank graphics; these
 // are original procedural designs, not imported logos or branded decals.
 export const LIVERIES: Record<CarId, { labels:[string,string], stripe:number, offset:number, belt:number, doorZ:number, side:number, roof:number }> = {
+  bugatti: { labels:['Grand touring stripes','Hypercar circuit'], stripe:.09, offset:.20, belt:.40, doorZ:0, side:.94, roof:.76 },
+  'bmw-m3': { labels:['Circuit stripes','GT racing'], stripe:.10, offset:.20, belt:.40, doorZ:0, side:.85, roof:.85 },
+  skyline: { labels:['Street stripes','Touring racing'], stripe:.10, offset:.20, belt:.40, doorZ:0, side:.85, roof:.90 },
+  aventador: { labels:['Road stripes','Circuit racing'], stripe:.09, offset:.20, belt:.35, doorZ:0, side:.95, roof:.75 },
+  'aventador-game': { labels:['Road stripes','Circuit racing'], stripe:.09, offset:.20, belt:.35, doorZ:0, side:.95, roof:.75 },
   golf: { labels:['Club stripes','Cup rally'], stripe:.105, offset:.17, belt:.43, doorZ:0, side:.79, roof:.92 },
   mercedes: { labels:['Touring pinstripes','Grand touring'], stripe:.065, offset:.22, belt:.39, doorZ:.10, side:.90, roof:.97 },
   audi: { labels:['Avant stripes','Touring circuit'], stripe:.09, offset:.20, belt:.40, doorZ:-.10, side:.90, roof:.98 },
@@ -22,21 +27,43 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
   const d = LIVERIES[id];
   const upper = config.paintScheme === 'upper' ? 1 : config.paintScheme === 'lower' ? 2 : 0;
   const style = LIVERY_OPTIONS.find(option => option.id === config.livery)?.pattern;
-  const pattern = style === 'stripe' ? 1 : style === 'race' ? 2 : style === 'center' ? 3 : 0;
+  const pattern = ({ none:0, stripe:1, race:2, center:3, sprint:4, velocity:5, heritage:6, apex:7, flames:8 } as const)[style ?? 'none'];
   const secondary = new THREE.Color(config.secondaryColor);
   const livery = new THREE.Color(config.liveryColor);
   mat.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, {
-      kitMatrix:{value:meshToCar}, kitSecondary:{value:secondary}, kitAccent:{value:livery},
+      kitMatrix:{value:meshToCar}, kitNormalMatrix:{value:new THREE.Matrix3().getNormalMatrix(meshToCar)}, kitSecondary:{value:secondary}, kitAccent:{value:livery},
       kitScheme:{value:upper}, kitPattern:{value:pattern}, kitCarbon:{value:config.secondaryFinish==='carbon'?1:0},
       kitStripe:{value:d.stripe}, kitOffset:{value:d.offset}, kitBelt:{value:d.belt}, kitDoor:{value:d.doorZ}, kitSide:{value:d.side}, kitRoof:{value:d.roof},
     });
-    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nuniform mat4 kitMatrix; varying vec3 vKitPos;');
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nuniform mat4 kitMatrix; uniform mat3 kitNormalMatrix; varying vec3 vKitPos; varying vec3 vKitNormal;');
+    shader.vertexShader = shader.vertexShader.replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvKitNormal = normalize(kitNormalMatrix * objectNormal);');
     shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvKitPos = (kitMatrix * vec4(transformed, 1.0)).xyz;');
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
-      varying vec3 vKitPos; uniform vec3 kitSecondary; uniform vec3 kitAccent;
+      varying vec3 vKitPos; varying vec3 vKitNormal; uniform vec3 kitSecondary; uniform vec3 kitAccent;
       uniform float kitScheme, kitPattern, kitCarbon, kitStripe, kitOffset, kitBelt, kitDoor, kitSide, kitRoof;
-      float kitBand(float d,float w) { return 1.0-smoothstep(w,w+0.018,abs(d)); }
+      float kitBand(float d,float w) { return 1.0-smoothstep(w,w+0.008,abs(d)); }
+      float kitBox(vec2 p,vec2 b,float r) {
+        vec2 q=abs(p)-b+vec2(r);
+        return 1.0-smoothstep(-.004,.004,length(max(q,0.0))+min(max(q.x,q.y),0.0)-r);
+      }
+      // Simple inset number 07; no external logos or decal textures.
+      float kitDigitZero(vec2 p) {
+        return max(max(kitBox(p-vec2(-.045,0.0),vec2(.012,.075),.004), kitBox(p-vec2(.045,0.0),vec2(.012,.075),.004)),
+                   max(kitBox(p-vec2(0.0,.066),vec2(.045,.012),.004),kitBox(p-vec2(0.0,-.066),vec2(.045,.012),.004)));
+      }
+      float kitDigitSeven(vec2 p) {
+        return max(kitBox(p-vec2(0.0,.066),vec2(.050,.012),.004),kitBand(p.x - (.02 + p.y*.42),.012)*step(abs(p.y),.075));
+      }
+      // Long tapered tongues run back from the front fender along each flank.
+      float kitTongue(vec2 p, vec2 a, vec2 b, float width, float bend) {
+        float t=clamp((p.x-a.x)/(b.x-a.x),0.0,1.0);
+        vec2 center=mix(a,b,t);
+        center.y += sin(t*3.14159)*(bend + .025*sin(t*6.28318));
+        float radius=width*pow(1.0-t,.8);
+        float endGap=max(max(a.x-p.x,p.x-b.x),0.0);
+        return 1.0-smoothstep(radius,radius+.009,length(vec2(endGap,p.y-center.y)));
+      }
       vec3 kitWeave(vec3 p) {
         vec2 q=vec2(p.x+p.z*.23,p.y+p.z*.30)*115.0;
         float a=step(.5,fract(q.x)), b=step(.5,fract(q.y));
@@ -48,16 +75,59 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
       vec3 second = mix(kitSecondary,kitWeave(vKitPos),kitCarbon);
       diffuseColor.rgb=mix(diffuseColor.rgb,second,secondaryMask);
       float ax=abs(vKitPos.x);
-      float upperSurface=smoothstep(kitBelt+.06,kitBelt+.17,vKitPos.y);
-      float sideSurface=smoothstep(kitSide*.73,kitSide*.92,ax);
-      float stripe=kitBand(ax-kitOffset,kitStripe*.5)*upperSurface*(1.0-sideSurface);
-      float belt=kitBand(vKitPos.y-kitBelt,.035)*sideSurface;
-      float roundel=(1.0-smoothstep(.20,.22,length(vec2(vKitPos.z-kitDoor,vKitPos.y-(kitBelt+.28)))))*sideSurface;
-      float centerStripe=kitBand(vKitPos.x,kitStripe)*upperSurface*(1.0-sideSurface);
-      float graphics=kitPattern < .5 ? 0.0 : (kitPattern < 1.5 ? stripe : (kitPattern < 2.5 ? max(stripe,max(belt,roundel)) : centerStripe));
-      diffuseColor.rgb=mix(diffuseColor.rgb,kitAccent,graphics*.96);`);
+      vec3 n=normalize(vKitNormal);
+      float top=smoothstep(.42,.72,abs(n.y))*smoothstep(kitBelt+.08,kitBelt+.20,vKitPos.y);
+      float side=smoothstep(.45,.8,abs(n.x))*smoothstep(kitSide*.65,kitSide*.88,ax);
+      float stripe=kitBand(ax-kitOffset,kitStripe*.5)*top;
+      float oldUpper=smoothstep(kitBelt+.06,kitBelt+.17,vKitPos.y);
+      float oldSide=smoothstep(kitSide*.73,kitSide*.92,ax);
+      float legacyStripe=kitBand(ax-kitOffset,kitStripe*.5)*oldUpper*(1.0-oldSide);
+      float centerStripe=kitBand(vKitPos.x,kitStripe)*oldUpper*(1.0-oldSide);
+      float z=vKitPos.z-kitDoor;
+      float flank=side*step(kitBelt-.04,vKitPos.y)*step(vKitPos.y,kitBelt+.48);
+      float lower=kitBand(vKitPos.y-(kitBelt+.08),.025)*flank;
+      float slash=kitBand(vKitPos.y-(kitBelt+.17+z*.25),.032)*flank*step(abs(z-.42),.75);
+      float graphics=0.0, panel=0.0, number=0.0, flameCore=0.0;
+      if(kitPattern > .5 && kitPattern < 1.5) graphics=legacyStripe;
+      else if(kitPattern < 2.5 && kitPattern > 1.5) {
+        // Clean GT stripes plus a numbered door plate and a restrained rocker line.
+        graphics=max(stripe*.8, max(lower,slash));
+        vec2 platePos=vec2(-(z+.30)*sign(vKitPos.x),vKitPos.y-(kitBelt+.27));
+        panel=kitBox(platePos,vec2(.265,.142),.035)*side;
+        number=max(kitDigitZero(platePos-vec2(-.075,0.0)),kitDigitSeven(platePos-vec2(.075,0.0)))*panel;
+        graphics=max(graphics,panel);
+      }
+      else if(kitPattern > 2.5 && kitPattern < 3.5) graphics=centerStripe;
+      else if(kitPattern > 3.5 && kitPattern < 4.5) {
+        graphics=max(kitBand(vKitPos.x-kitOffset,kitStripe*.75), kitBand(vKitPos.x-kitOffset-kitStripe*1.6,.012))*top;
+      } else if(kitPattern > 4.5 && kitPattern < 5.5) {
+        float blade=kitBand(vKitPos.y-(kitBelt+.12+z*.21),.045)*flank*step(abs(z),1.05);
+        float fine=kitBand(vKitPos.y-(kitBelt+.22+z*.21),.013)*flank*step(abs(z),.9);
+        graphics=max(max(blade,fine),kitBand(vKitPos.x,kitStripe*.18)*top);
+      } else if(kitPattern > 5.5 && kitPattern < 6.5) {
+        float twin=max(kitBand(vKitPos.y-(kitBelt+.04),.024),kitBand(vKitPos.y-(kitBelt+.12),.012))*flank;
+        graphics=max(centerStripe,twin);
+      } else if(kitPattern > 6.5 && kitPattern < 7.5) {
+        float upper=max(kitBand(vKitPos.x-kitOffset,kitStripe*.65),kitBand(vKitPos.x-kitOffset-kitStripe*1.8,.018))*top;
+        float spear=kitBand(vKitPos.y-(kitBelt+.15+z*.12),.055)*flank*step(abs(z+.05),.95);
+        graphics=max(upper,spear);
+      } else if(kitPattern > 7.5) {
+        vec2 f=vec2(z,vKitPos.y-kitBelt);
+        float base=kitBox(f-vec2(-.87,.19),vec2(.24,.17),.10);
+        float tongue1=kitTongue(f,vec2(-.88,.14),vec2(.95,.19),.14,-.08);
+        float tongue2=kitTongue(f,vec2(-.87,.22),vec2(.55,.43),.13,.11);
+        float tongue3=kitTongue(f,vec2(-.87,.12),vec2(.50,.04),.11,-.07);
+        graphics=max(base,max(tongue1,max(tongue2,tongue3)))*flank;
+        flameCore=max(kitTongue(f,vec2(-.94,.15),vec2(.42,.20),.047,-.06),kitTongue(f,vec2(-.94,.22),vec2(.12,.38),.036,.08))*flank;
+      }
+      diffuseColor.rgb=mix(diffuseColor.rgb,kitAccent,graphics*.96);
+      diffuseColor.rgb=mix(diffuseColor.rgb,mix(kitAccent,vec3(1.0),.5),flameCore*.8);
+      // Legible number contrast follows the chosen livery color.
+      float lightness=dot(kitAccent,vec3(.2126,.7152,.0722));
+      vec3 ink=lightness > .35 ? vec3(.015,.02,.025) : vec3(.96,.97,.98);
+      diffuseColor.rgb=mix(diffuseColor.rgb,ink,number);`);
   };
-  mat.customProgramCacheKey = () => 'overtake-custom-paint-v2';
+  mat.customProgramCacheKey = () => 'overtake-custom-paint-v4';
   mat.name = `custom-paint-${id}`;
   return mat;
 }

@@ -1,0 +1,32 @@
+import { chromium as pw } from '@playwright/test';
+import chromium from '@sparticuz/chromium';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const browser=await pw.launch({executablePath:await chromium.executablePath(),headless:true,args:chromium.args.filter(a=>a!=='--single-process').concat(['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox']),env:{...process.env,LD_LIBRARY_PATH:`/home/user/.local/lib/chromium-deps:${process.env.LD_LIBRARY_PATH||''}`}});
+const base=process.env.BASE_URL||'http://localhost:4181',errors=[];
+async function setup(page) {page.setDefaultTimeout(120000);page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});page.on('pageerror',e=>errors.push(String(e)));await page.addInitScript(()=>{if(!sessionStorage.getItem('smoke-seeded')) {localStorage.setItem('overtake-progression-v2',JSON.stringify({version:2,walletVersion:1,coins:10000,credits:10000,gems:1000,owned:['golf'],upgrades:{},tunes:{},dev:false}));sessionStorage.setItem('smoke-seeded','yes');}});await page.goto(`${base}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));}
+try {
+ fs.mkdirSync('test-results',{recursive:true});const page=await browser.newPage({viewport:{width:1280,height:800}});await setup(page);
+ for(const mode of ['checkpoint','precision','speed'])assert.equal(await page.locator(`[data-mode=${mode}]`).count(),1);
+ await page.click('[data-mode=checkpoint]');assert.match(await page.locator('#active-mode-info').textContent(),/500 m/);await page.click('#menu-start');
+ assert.match(await page.locator('#contract-index').textContent(),/CHECKPOINT 1/);assert.match(await page.locator('#contract-reward').textContent(),/15s/);
+ const gate=await page.evaluate(()=>{const g=window.__overtake;g.clearTraffic();g.trySpawn=()=>{};g.run.distance=499;g.run.timeLeft=.06;g.vehicle.speed=30;g.updateDriving(.1);return {distance:g.run.distance,time:g.run.timeLeft,score:g.run.score,mode:g.mode}});
+ assert.ok(gate.distance>=500 && gate.time>14 && gate.score===250 && gate.mode==='driving');assert.match(await page.locator('#contract-index').textContent(),/CHECKPOINT 2/);
+ await page.evaluate(()=>{const g=window.__overtake;g.run.timeLeft=.01;g.updateDriving(.1)});await page.waitForSelector('#gameover:not(.hidden)');await page.click('#btn-result-menu');assert.equal(await page.locator('#mode-best-checkpoint').textContent(),'250');
+ await page.click('[data-mode=precision]');await page.click('#menu-start');assert.match(await page.locator('#contract-desc').textContent(),/8 near misses/);
+ await page.evaluate(async()=>{const g=window.__overtake;const {registerPass}=await import('/src/run.mjs');for(let i=0;i<8;i++){const result=registerPass(g.run,'same',true);g.handleRunEvents(result.events);}});await page.waitForSelector('#gameover:not(.hidden)');assert.equal(await page.evaluate(()=>window.__overtake.run.reason),'objective');await page.click('#btn-result-menu');assert.notEqual(await page.locator('#mode-best-precision').textContent(),'0');
+ await page.click('[data-mode=speed]');await page.click('#menu-start');assert.match(await page.locator('#mode-rule-hud').textContent(),/140 KM\/H/);
+ const speed=await page.evaluate(()=>{const g=window.__overtake;g.clearTraffic();g.trySpawn=()=>{};g.run.highSpeedTime=.95;g.vehicle.speed=42;g.updateDriving(.1);return {score:g.run.score,speed:g.speed}});assert.equal(speed.score,50);assert.match(await page.locator('#mode-rule-hud').textContent(),/SPEED BONUS/);
+ await page.evaluate(()=>{const g=window.__overtake;g.run.timeLeft=.01;g.updateDriving(.1)});await page.waitForSelector('#gameover:not(.hidden)');await page.click('#btn-result-menu');assert.equal(await page.locator('#mode-best-speed').textContent(),'50');
+ await page.click('#menu-garage');await page.click('[data-garage-tab=style]');await page.click('#btn-customize');await page.click('[data-workshop-tab=paint]');await page.locator('#custom-primary-color').fill('#183050');await page.selectOption('#custom-livery','flames',{force:true});assert.equal(await page.locator('#custom-livery-color').inputValue(),'#ff6a1a');await page.click('[data-custom-view=side]');await page.evaluate(()=>window.__overtake.composer.render());await page.screenshot({path:'test-results/flame-livery.png',timeout:120000});
+ await page.locator('#custom-livery-color').fill('#28aaff');await page.evaluate(()=>window.__overtake.composer.render());await page.screenshot({path:'test-results/flame-livery-blue.png',timeout:120000});
+ // Exercise the same shader on other fitted body geometries, without saving those previews.
+ for (const id of ['skyline','challenger','bugatti']) {
+  await page.evaluate(id=>{const g=window.__overtake;g.library.setCustomization(id,{...g.library.getCustomization(id),livery:'flames',liveryColor:'#ff6a1a'});g.setSelectedCar(id);g.setGarageView('side');g.composer.render()},id);
+  await page.screenshot({path:`test-results/flames-${id}.png`,timeout:120000});
+ }
+ await page.reload({waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));assert.equal(await page.locator('#mode-best-checkpoint').textContent(),'250');assert.equal(await page.locator('#mode-best-speed').textContent(),'50');await page.click('#menu-garage');await page.click('[data-garage-tab=style]');await page.click('#btn-customize');await page.click('[data-workshop-tab=paint]');assert.equal(await page.locator('#custom-livery').inputValue(),'flames');assert.equal(await page.locator('#custom-livery-color').inputValue(),'#28aaff');assert.ok(await page.evaluate(()=>JSON.parse(localStorage.getItem('overtake-progression-v2')).tunes.golf.includes('livery:flames')));
+ await page.close();
+ const mobile=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});await setup(mobile);await mobile.click('[data-mode=checkpoint]');await mobile.click('#menu-start');assert.match(await mobile.locator('#contract-index').textContent(),/CHECKPOINT/);assert.equal(await mobile.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await mobile.close();
+ assert.deepEqual(errors,[]);console.log({gate,speed,errors});
+}finally{await browser.close();}

@@ -1,7 +1,14 @@
 import { CAR_CONTENT } from './content/cars.mjs';
 export type CarId = (typeof CAR_CONTENT)[number]['id'];
 export type TruckId = 'semi' | 'kraz';
-export type TrafficId = CarId | TruckId;
+export const TRAFFIC_ONLY = [
+  { id: 'camry', name: 'Toyota Camry' },
+  { id: 'mercedes-560', name: 'Mercedes-Benz 560 SEL' },
+  { id: 'range-rover', name: 'Range Rover Sport' },
+] as const;
+export type TrafficOnlyId = (typeof TRAFFIC_ONLY)[number]['id'];
+export type TrafficId = CarId | TruckId | TrafficOnlyId;
+export function isPlayableCar(id: TrafficId): id is CarId { return CARS.some(car => car.id === id); }
 export const TRUCKS: { id: TruckId; name: string }[] = [
   { id: 'semi', name: 'Tractor trailer' }, { id: 'kraz', name: 'KrAZ truck' },
 ];
@@ -20,6 +27,8 @@ export interface CarSpec {
   color: string;
   credit?: string;
   price: number;
+  unlockTier: number;
+  rarity: string;
   trafficCruise: number; // m/s
   orientationDegrees: number;
   collection: string;

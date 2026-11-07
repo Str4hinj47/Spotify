@@ -112,10 +112,11 @@ def first_color_image(mat: bpy.types.Material):
     return None
 
 
-def make_material(src: bpy.types.Material, paint_rgb, cache: dict, texture_limit=1024):
-    if src.name in cache:
-        return cache[src.name]
-    cat = category(src.name)
+def make_material(src: bpy.types.Material, paint_rgb, cache: dict, texture_limit=1024, category_override=None):
+    cat = category_override or category(src.name)
+    cache_key = (src.name, cat)
+    if cache_key in cache:
+        return cache[cache_key]
     mat = bpy.data.materials.new(name=f"{cat}__{src.name}")
     mat.use_nodes = True
     nt = mat.node_tree
@@ -197,7 +198,7 @@ def make_material(src: bpy.types.Material, paint_rgb, cache: dict, texture_limit
             nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
             if cat in {"taillight", "headlight"}:
                 nt.links.new(tex.outputs["Color"], bsdf.inputs["Emission Color"])
-    cache[src.name] = mat
+    cache[cache_key] = mat
     return mat
 
 
@@ -217,6 +218,21 @@ def evaluated_bounds(obj, depsgraph, transform):
 
 def convert(key: str, spec: dict):
     bpy.ops.wm.open_mainfile(filepath=str(spec["path"]), load_ui=False)
+    if spec.get("scene"):
+        bpy.context.window.scene = bpy.data.scenes[spec["scene"]]
+        bpy.context.view_layer.update()
+    if spec.get("rest_pose"):
+        # Some scenes were saved with vehicle doors and wheels posed open.
+        for obj in bpy.context.scene.objects:
+            if obj.type == "ARMATURE":
+                obj.data.pose_position = "REST"
+        bpy.context.view_layer.update()
+    for name, pivot, angle in spec.get("rotate_objects", []):
+        obj = bpy.data.objects.get(name)
+        if obj:
+            p = Vector(pivot)
+            obj.matrix_world = Matrix.Translation(p) @ Matrix.Rotation(angle, 4, 'Z') @ Matrix.Translation(-p) @ obj.matrix_world
+            bpy.context.view_layer.update()
     # Reduce subdivision to keep the game light while preserving silhouettes.
     for obj in bpy.data.objects:
         for mod in obj.modifiers:
@@ -232,7 +248,7 @@ def convert(key: str, spec: dict):
 
     candidates = []
     for obj in list(bpy.data.objects):
-        if obj.type != "MESH" or obj.hide_render:
+        if obj.type != "MESH" or obj.hide_render or (spec.get("allow_objects") is not None and obj.name not in spec["allow_objects"]):
             continue
         if EXCLUDE_OBJ.search(obj.name) or obj.name in spec.get("exclude_objects", set()):
             continue
@@ -242,10 +258,18 @@ def convert(key: str, spec: dict):
         b = evaluated_bounds(obj, deps, transform)
         if b is None:
             continue
+        # Some files include a full workshop scene. Restrict their car to an
+        # explicitly surveyed box in the original Blender coordinates.
+        region = spec.get("source_region")
+        if region:
+            inv = transform.inverted()
+            corners = [inv @ Vector((x, y, z)) for x in (b[0].x, b[1].x) for y in (b[0].y, b[1].y) for z in (b[0].z, b[1].z)]
+            if any(v[i] < region[i][0] or v[i] > region[i][1] for v in corners for i in range(3)):
+                continue
         candidates.append((obj, b))
 
     # Drop detached studio helpers / stray parts far from the main body cluster.
-    if candidates:
+    if candidates and not spec.get("keep_all_candidates"):
         centers = [b[2] for _, b in candidates]
         med = Vector((sorted(c.x for c in centers)[len(centers)//2],
                       sorted(c.y for c in centers)[len(centers)//2],
@@ -288,9 +312,41 @@ def convert(key: str, spec: dict):
             if src is None:
                 me.materials.append(make_material(bpy.data.materials.new("Unknown"), spec["paint"], cache, spec.get("texture_limit", 1024)))
             else:
-                me.materials.append(make_material(src, spec["paint"], cache, spec.get("texture_limit", 1024)))
+                override = spec.get("material_category", lambda _obj, _mat: None)(obj.name, src.name)
+                material = make_material(src, spec["paint"], cache, spec.get("texture_limit", 1024), override)
+                if obj.name in spec.get("factory_wing_objects", set()) and (material.name.startswith("paint__") or spec.get("tag_all_wing_materials")):
+                    kind = material.name.split('__', 1)[0]
+                    material = material.copy()
+                    material.name = kind + "__factory_wing"
+                me.materials.append(material)
         for p, slot in zip(me.polygons, face_slots):
             p.material_index = min(slot, max(0, len(me.materials) - 1))
+        face_category = spec.get("face_category")
+        if face_category:
+            for polygon in me.polygons:
+                src = src_mats[polygon.material_index] if polygon.material_index < len(src_mats) else None
+                cat = face_category(obj.name, src.name if src else '', polygon.center)
+                if cat and src:
+                    material = make_material(src, spec["paint"], cache, spec.get("texture_limit", 1024), cat)
+                    slot = me.materials.find(material.name)
+                    if slot < 0:
+                        me.materials.append(material); slot = len(me.materials) - 1
+                    polygon.material_index = slot
+        # Remove identified branded faces before joining so UVs, glazing and
+        # nearby wheel/body geometry are left untouched.
+        excluded = {i for i, src in enumerate(src_mats) if src and spec.get("exclude_material", lambda _obj, _mat: False)(obj.name, src.name)}
+        if excluded:
+            import bmesh
+            bm = bmesh.new(); bm.from_mesh(me)
+            bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.material_index in excluded], context='FACES')
+            bm.to_mesh(me); bm.free(); me.update()
+        # Remove small, surveyed badge geometry without discarding adjacent panels.
+        face_filter = spec.get("exclude_face")
+        if face_filter:
+            import bmesh
+            bm = bmesh.new(); bm.from_mesh(me)
+            bmesh.ops.delete(bm, geom=[f for f in bm.faces if face_filter(obj.name, f.calc_center_median())], context='FACES')
+            bm.to_mesh(me); bm.free(); me.update()
         new_obj = bpy.data.objects.new(name=f"{key}_{obj.name}", object_data=me)
         bpy.context.collection.objects.link(new_obj)
         new_objs.append(new_obj)

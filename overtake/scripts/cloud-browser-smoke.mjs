@@ -29,13 +29,13 @@ try {
  });
  await page.goto(base,{waitUntil:'networkidle'});await page.click('#account-open');await page.waitForSelector('#cloud-controls:not([hidden])');
  await page.click('#cloud-upload');await page.waitForFunction(()=>document.querySelector('#cloud-status').textContent.includes('updated'));
- assert.equal(row.payload.progression.money,1234);assert.equal(row.payload.progression.dev,false);
+ assert.equal(row.payload.progression.coins,1234);assert.equal(row.payload.progression.dev,false);
  await page.evaluate(()=>{const p=JSON.parse(localStorage.getItem('overtake-progression-v2'));p.money=777;localStorage.setItem('overtake-progression-v2',JSON.stringify(p));});
  await page.click('#cloud-restore');await page.waitForFunction(()=>document.querySelector('#cloud-status').textContent.includes('restored to this device'));
- assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('overtake-progression-v2')).money),1234);
+ assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('overtake-progression-v2')).coins),1234);
  await page.click('#cloud-undo');assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('overtake-progression-v2')).money),777);
- conflict=true;await page.click('#cloud-upload');await page.waitForFunction(()=>document.querySelector('#cloud-status').textContent.includes('changed on another device'));assert.equal(row.payload.progression.money,1234);
- row.revision=1; conflict='recreate';await page.click('#cloud-upload');await page.waitForFunction(()=>document.querySelector('#cloud-status').textContent.includes('changed on another device'));assert.equal(row.payload.progression.money,1234);assert.equal(row.save_id,'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+ conflict=true;await page.click('#cloud-upload');await page.waitForFunction(()=>document.querySelector('#cloud-status').textContent.includes('changed on another device'));assert.equal(row.payload.progression.coins,1234);
+ row.revision=1; conflict='recreate';await page.click('#cloud-upload');await page.waitForFunction(()=>document.querySelector('#cloud-status').textContent.includes('changed on another device'));assert.equal(row.payload.progression.coins,1234);assert.equal(row.save_id,'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
  row.payload.schema=2;await page.click('#cloud-upload');await page.waitForFunction(()=>document.querySelector('#cloud-status').textContent.includes('Unsupported'));assert.equal(row.payload.schema,2);
  await page.click('#cloud-delete');await page.waitForFunction(()=>document.querySelector('#cloud-status').textContent.includes('deleted'));assert.equal(row,null);
  assert.deepEqual(errors,[]);console.log('Mocked cloud save flows passed');

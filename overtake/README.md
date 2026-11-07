@@ -55,11 +55,15 @@ periods; recorded runs include ranked attempts, but not abandoned regular or
 new developer-option runs.
 
 - **Run modes:** Endless (survival), Rush (120-second score attack), Time Trial
-  (race to 3 km), Near Miss (90 seconds; close passes score more), and Ranked
-  Attack (timed distance plus an overtake/near-miss objective). Daily and
-  weekly objectives rotate at UTC midnight and Monday UTC respectively; each
-  ends on objective completion or timeout. Traffic and conditions vary and the
-  objectives and results are local, not a fair or verified online competition.
+  (race to 3 km), Ghost Trial (race your local 3 km replay), Near Miss (close
+  passes score more), Convoy (pass six cars), and Ranked Attack (timed distance
+  plus an objective). Checkpoint Chase starts at 35 seconds and adds 15 seconds
+  and 250 points every 500 m. Precision Challenge gives 120 seconds to make
+  eight near misses, with double points for close passes. Speed Run gives 90
+  seconds and awards 50 points per full second at 140 km/h or faster, in
+  addition to passes and quests. Daily, weekly and seasonal objectives rotate
+  on UTC boundaries. Traffic and conditions vary; results are local and not a
+  fair or verified online competition.
 - **Ranked Attack:** choose Slipstream Sprint (2 km / 60 s / 4 overtakes),
   Thread the Needle (2.8 km / 82 s / 3 near misses) or Redline Gauntlet
   (4 km / 110 s / 8 overtakes). Meet the objective before the finish line to
@@ -70,11 +74,13 @@ new developer-option runs.
   weather and traffic vary. Closing/reloading the browser can evade a loss.
   This is not an online leaderboard or anti-cheat system.
 - **Records:** personal bests and recent history are kept in `localStorage`;
-  daily/weekly bests reset per period, and completed Time Trials track fastest
+  daily/weekly/seasonal bests reset per period, and completed Time Trials track fastest
   time. Dev-option runs are excluded from new records. Existing records are not
   retroactively verified. Result sharing labels runs local and unverified.
 - **Contracts:** most runs roll three sequential objectives; daily and weekly
-  runs have one rotating objective. Completing objectives pays bonus points.
+  runs have one rotating objective. Precision has one near-miss objective;
+  Checkpoint Chase instead awards points and time at each checkpoint. Completing
+  quests pays bonus points.
 - **Smarter traffic:** same-direction cars follow slower leaders and brake
   instead of stacking; rear lights brighten while braking. A time-to-collision hazard
   radar warns about the nearest closing threat. Nearby traffic avoids repeating
@@ -91,7 +97,7 @@ new developer-option runs.
 - Driving uses a road-relative vehicle model (`src/physics.mjs`): continuous
   speed-sensitive steering, grip-limited yaw, friction-circle throttle/brake,
   handbrake grip loss, and per-car wheelbase/grip/brake/drag values.
-- Scoring: overtake +100, near-miss bonus +50, close oncoming dodge +75.
+- Scoring: completed overtake +100, near-miss bonus +50; oncoming traffic gives no pass points. Earn 25 points per half-second continuously above 200 km/h (partial intervals reset when slowing down). Speed Run keeps its separate 140 km/h bonus.
   Every 5 clean passes raises the combo multiplier (up to ×5). Car-specific
   score bonuses apply. Best score is stored in `localStorage`.
 - Hitting traffic or the barrier ends the run. Closely aligned cars leave no safe center gap, and the guardrail checks the full vehicle footprint.

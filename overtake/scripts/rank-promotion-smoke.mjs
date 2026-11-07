@@ -1,0 +1,15 @@
+// Promotion reveal, opaque badge interiors, reduced motion and timed dismissal.
+import {chromium as pw} from '@playwright/test';import chromium from '@sparticuz/chromium';import assert from 'node:assert/strict';import fs from 'node:fs';
+const browser=await pw.launch({executablePath:await chromium.executablePath(),args:chromium.args.filter(a=>a!=='--single-process').concat(['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox']),env:{...process.env,LD_LIBRARY_PATH:`/home/user/.local/lib/chromium-deps:${process.env.LD_LIBRARY_PATH||''}`}});
+try {
+ const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});page.setDefaultTimeout(120000);const errors=[];page.on('pageerror',e=>errors.push(String(e)));
+ await page.addInitScript(()=>{localStorage.setItem('overtake-ranked-v1',JSON.stringify({version:1,points:110,attempts:2,scenarios:{}}))});
+ await page.goto(`${process.env.BASE_URL||'http://localhost:4181'}/play.html?test=1&mode=ranked`,{waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
+ const badges=await page.evaluate(async()=>{const {rankBadge}=await import('/src/rank-badges.ts');return await Promise.all(Array.from({length:7},async(_,i)=>{const s=rankBadge(i),img=new Image();img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s);await img.decode();const c=document.createElement('canvas');c.width=200;c.height=200;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);return {text:/<text\b/i.test(s),center:ctx.getImageData(100,90,1,1).data[3],inner:ctx.getImageData(100,120,1,1).data[3],outside:ctx.getImageData(0,0,1,1).data[3]}}));});
+ for(const badge of badges)assert.deepEqual(badge,{text:false,center:255,inner:255,outside:0});
+ await page.evaluate(()=>{const g=window.__overtake;g.start();g.clearTraffic();g.run.distance=1999;g.run.elapsed=45;g.run.timeLeft=15;g.run.overtakes=4;g.vehicle.speed=25;g.speed=25;g.updateDriving(.1)});
+ assert.equal(await page.locator('#promotion-name').innerText(),'STREET');assert.ok(await page.locator('#rank-promotion').isVisible());assert.equal(await page.locator('.promotion-badge').evaluate(el=>getComputedStyle(el).animationName),'none');
+ fs.mkdirSync('test-results',{recursive:true});await page.screenshot({path:'test-results/rank-promotion-mobile.png',timeout:120000});
+ await page.setViewportSize({width:667,height:375});const bounds=await page.locator('#promotion-close').boundingBox();assert.ok(bounds && bounds.y>=0 && bounds.y+bounds.height<=375);await page.screenshot({path:'test-results/rank-promotion-landscape.png',timeout:120000});
+ await page.waitForSelector('#rank-promotion',{state:'hidden',timeout:20000});assert.ok(await page.locator('#gameover').isVisible());assert.deepEqual(errors,[]);console.log('Filled badge interiors, mobile promotion, reduced motion and timed dismissal passed.');
+}finally{await browser.close()}

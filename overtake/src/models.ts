@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { CARS, TRUCKS, type CarId, type TrafficId } from './catalog';
+import { CARS, TRUCKS, TRAFFIC_ONLY, isPlayableCar, type CarId, type TrafficId } from './catalog';
 import { indicatorMaterial, isIndicatorMaterial, addFrontIndicator, isFrontIndicatorMaterial, type IndicatorUniforms } from './indicators';
-import { createBodyKit } from './body-kits';
+import { createBodyKit, BODY_FITS } from './body-kits';
 import { rigWheels } from './wheels';
 import { createCarbonMaterial, customPaintMaterial } from './livery';
 import { sanitizeCustomization, type Customization } from './customization.mjs';
@@ -19,7 +19,7 @@ export interface CarModel {
 // A few source meshes reuse one "glass" material for both the cabin and lamp
 // lenses (notably the W222). Preserve transparent lenses while making cabin
 // glazing depth-writing. Split triangles only where a mesh actually spans both.
-function separateLampLenses(scene: THREE.Group) {
+function separateLampLenses(scene: THREE.Group, id: TrafficId) {
   scene.updateMatrixWorld(true);
   const lenses = new Map<THREE.Material, THREE.Material>();
   const point = new THREE.Vector3();
@@ -36,7 +36,7 @@ function separateLampLenses(scene: THREE.Group) {
         point.fromBufferAttribute(positions,index?index.getX(i+j):i+j).applyMatrix4(mesh.matrixWorld);
         z+=point.z/3;y+=point.y/3;
       }
-      classes.push(y<.96 && (z < -1.5 || z > 2.25) ? 1 : 0);
+      classes.push(y<.96 && (z < -1.5 || z > (id === 'aventador-game' ? 1.85 : 2.25)) ? 1 : 0);
     }
     if(!classes.includes(1)) return;
     let lens=lenses.get(mesh.material);
@@ -78,6 +78,25 @@ function removeMustangFactoryWing(inner:THREE.Group, wrapper:THREE.Group):THREE.
     }
     const copy=geometry.clone();copy.setIndex(kept);copy.clearGroups();mesh.geometry=copy;owned.push(copy);
   }
+  return owned;
+}
+
+// The race car's factory wing is merged with body/trim in the source. Clip
+// only the raised rear aero element on an aftermarket-equipped player clone.
+function removeBmwFactoryWing(inner: THREE.Group, wrapper: THREE.Group): THREE.BufferGeometry[] {
+  const owned: THREE.BufferGeometry[] = [];
+  inner.traverse(o => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh || Array.isArray(mesh.material) || !/^(paint__Material|trim__plastic)$/.test(mesh.material.name)) return;
+    const geo=mesh.geometry, index=geo.index, pos=geo.getAttribute('position'); if (!index || !pos) return;
+    const transform=new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
+    const point=new THREE.Vector3(), c=new THREE.Vector3(), kept:number[]=[];
+    for(let i=0;i+2<index.count;i+=3) {
+      c.set(0,0,0); for(let j=0;j<3;j++) c.add(point.fromBufferAttribute(pos,index.getX(i+j)).applyMatrix4(transform)); c.multiplyScalar(1/3);
+      if (!(c.z>1.55 && c.y>.86)) kept.push(index.getX(i),index.getX(i+1),index.getX(i+2));
+    }
+    const copy=geo.clone();copy.setIndex(kept);copy.clearGroups();mesh.geometry=copy;owned.push(copy);
+  });
   return owned;
 }
 
@@ -127,6 +146,7 @@ export class ModelLibrary {
   private paintOverrides = new Map<CarId, number>();
   private thumbs = new Map<CarId, string>();
   private customization = new Map<CarId, Customization>();
+  private rims = new Map<string, THREE.BufferGeometry>();
 
   constructor() {
     const draco = new DRACOLoader();
@@ -138,8 +158,10 @@ export class ModelLibrary {
   }
 
   async loadAll(onProgress: (done: number, total: number, label: string) => void) {
+    const rimFile = await this.loader.loadAsync(`${(import.meta as any).env?.BASE_URL ?? '/'}models/custom-rims.glb`);
+    rimFile.scene.traverse(o => { const mesh=o as THREE.Mesh; if(mesh.isMesh) { const n=mesh.name.match(/^wheel[_\s]*(\d+)$/i)?.[1]; if(n) this.rims.set(`rim-${n}`,mesh.geometry); } });
     let done = 0;
-    const models = [...CARS, ...TRUCKS];
+    const models = [...CARS, ...TRUCKS, ...TRAFFIC_ONLY];
     for (const spec of models) {
       onProgress(done, models.length, spec.name);
       const gltf: GLTF = await this.loader.loadAsync(`${(import.meta as any).env?.BASE_URL ?? '/'}models/${spec.id}.glb`);
@@ -231,7 +253,7 @@ export class ModelLibrary {
           }
         }
       });
-      separateLampLenses(scene);
+      separateLampLenses(scene, spec.id);
       const normalized = new THREE.Group();
       normalized.add(scene);
       if (spec.id === 'mustang') exposeMustangValanceSignals(normalized);
@@ -287,10 +309,12 @@ export class ModelLibrary {
     this.customization.set(id, sanitizeCustomization(config));
   }
 
+  getCustomization(id: CarId): Customization { return sanitizeCustomization(this.customization.get(id)); }
+
   /** Clone a car. Explicit paint wins, then the user's saved paint override. */
   create(id: TrafficId, opts: { paint?: number; player?: boolean } = {}): THREE.Group {
     const source = this.get(id);
-    const paint = opts.paint ?? (id !== 'semi' && id !== 'kraz' ? this.paintOverrides.get(id) : undefined);
+    const paint = opts.paint ?? (isPlayableCar(id) ? this.paintOverrides.get(id) : undefined);
     const inner = source.scene.clone(true);
     const wrapper = new THREE.Group();
     wrapper.name = `${id}_wrapper`;
@@ -306,22 +330,30 @@ export class ModelLibrary {
     let factoryPaint: number | undefined;
     const customPaintCopies: THREE.Material[] = [];
     const customGeometries: THREE.BufferGeometry[] = [];
-    const config = opts.player && id !== 'semi' && id !== 'kraz' ? this.customization.get(id) : undefined;
+    const config = opts.player && isPlayableCar(id) ? this.customization.get(id) : undefined;
     wrapper.updateMatrixWorld(true);
+    if (id === 'bmw-m3' && config && config.spoiler !== 'stock') customGeometries.push(...removeBmwFactoryWing(inner, wrapper));
     inner.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
+      if ((id === 'skyline' || id === 'bugatti') && config && config.spoiler !== 'stock' && !Array.isArray(mesh.material) && /__factory_wing/.test(mesh.material.name)) mesh.visible = false;
       mesh.castShadow = !!opts.player;
       mesh.receiveShadow = false;
       const recolor = (mat: THREE.Material) => {
         if (factoryPaint === undefined && mat.name.startsWith('paint__')) factoryPaint = (mat as THREE.MeshStandardMaterial).color?.getHex();
-        if ((opts.player || id === 'golf') && id !== 'semi' && id !== 'kraz' && (isIndicatorMaterial(id, mat) || isFrontIndicatorMaterial(id, mat))) {
+        if ((opts.player || id === 'golf' || id === 'camry' || id === 'mercedes-560' || id === 'range-rover' || id === 'bugatti' || id === 'bmw-m3' || id === 'skyline' || id === 'aventador' || id === 'aventador-game') && id !== 'semi' && id !== 'kraz' && (isIndicatorMaterial(id, mat) || isFrontIndicatorMaterial(id, mat))) {
           const meshToCar = new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
           const rear = isIndicatorMaterial(id, mat);
           let lamp = rear ? indicatorMaterial(id, mat, meshToCar, signal) : mat.clone() as THREE.MeshStandardMaterial;
           if (isFrontIndicatorMaterial(id, mat)) lamp = addFrontIndicator(id, lamp, meshToCar, signal);
-          if (rear && mat.name.startsWith('taillight__')) { lamp.emissiveIntensity = 0.55; brakeIndicatorCopies.push(lamp); }
-          if (mat.name.startsWith('headlight__') && !/cover/i.test(mat.name)) headlightIndicators.push(lamp);
+          if (rear && (mat.name.startsWith('taillight__') || id === 'camry')) {
+            if (id === 'camry') lamp.emissive.set(0xff2020);
+            lamp.emissiveIntensity = 0.55; brakeIndicatorCopies.push(lamp);
+          }
+          if ((mat.name.startsWith('headlight__') && !/cover/i.test(mat.name)) || (id === 'camry' && !rear)) {
+            if (id === 'camry') lamp.emissive.set(0xf6f9ff);
+            headlightIndicators.push(lamp);
+          }
           indicatorCopies.push(lamp);
           return lamp;
         }
@@ -350,7 +382,7 @@ export class ModelLibrary {
             }
             base = cached;
           }
-          if (config && id !== 'semi' && id !== 'kraz' && (config.paintScheme !== 'single' || config.livery !== 'none')) {
+          if (config && isPlayableCar(id) && (config.paintScheme !== 'single' || config.livery !== 'none')) {
             const meshToCar = new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
             const custom = customPaintMaterial(base, meshToCar, id, config);
             customPaintCopies.push(custom);
@@ -364,7 +396,7 @@ export class ModelLibrary {
         ? mesh.material.map(recolor)
         : recolor(mesh.material);
     });
-    if (opts.player && id !== 'semi' && id !== 'kraz') {
+    if (opts.player && isPlayableCar(id)) {
       if (config) {
         // These separate rear outlet meshes belong to the source R8, not the
         // bumper. Hide them only when this player clone has replacement tips.
@@ -396,11 +428,39 @@ export class ModelLibrary {
             const finish=createCarbonMaterial();factoryExhaust.material=finish;customPaintCopies.push(finish);
           }
         }
-        wrapper.add(createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080));
+        if (BODY_FITS[id]) wrapper.add(createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080));
       }
     }
     const wheels: THREE.Group[] = [];
     inner.traverse(o => { if (o.name.startsWith('wheel_pivot_')) wheels.push(o as THREE.Group); });
+    if (config) {
+      const geometry=this.rims.get(config.rim);
+      const width={narrow:.85,standard:1,wide:1.18}[config.tireWidth];
+      const colored = config.rimColor ? new THREE.Color(config.rimColor) : null;
+      const rimMaterial=geometry ? new THREE.MeshStandardMaterial({color:colored ?? new THREE.Color('#bbc2cb'),metalness:.8,roughness:.27,side:THREE.DoubleSide}) : null;
+      if(rimMaterial) customPaintCopies.push(rimMaterial);
+      for(const pivot of wheels) {
+        const side=Math.sign(pivot.position.x) || 1;
+        pivot.scale.x=width;
+        pivot.traverse(o=>{
+          const m=o as THREE.Mesh;if(!m.isMesh || Array.isArray(m.material)) return;
+          const name=m.material.name;
+          if(name.startsWith('tire__')) return;
+          if(geometry) m.visible=false;
+          else if(colored && !name.startsWith('brake__')) {
+            const copy=m.material.clone() as THREE.MeshStandardMaterial;
+            if(copy.color) { copy.color.copy(colored); copy.map=null; copy.metalness=.8; copy.roughness=.27; }
+            m.material=copy;customPaintCopies.push(copy);
+          }
+        });
+        if(geometry && rimMaterial) {
+          const rim=new THREE.Mesh(geometry,rimMaterial), radius=pivot.userData.wheelRadius*.76;
+          rim.name='custom-rim';rim.rotation.y=side*Math.PI/2;rim.scale.setScalar(radius);
+          rim.position.x=side*Math.max(.02,pivot.userData.wheelHalfWidth-radius*.323-.01);
+          pivot.add(rim);
+        }
+      }
+    }
     wrapper.userData.wheels = wheels;
     wrapper.userData.customPaintMaterials = customPaintCopies;
     wrapper.userData.customGeometries = customGeometries;
