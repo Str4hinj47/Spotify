@@ -7,7 +7,7 @@ const browser=await pw.launch({executablePath:await chromium.executablePath(),he
 const errors=[];
 try {
  const page=await browser.newPage({viewport:{width:1280,height:800}});page.on('pageerror',e=>errors.push(String(e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
- await page.goto(`${base}/?test=1`,{waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
+ await page.goto(`${base}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
  await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf)});
  const wheelAngles=await page.evaluate(async()=>{const T=await import('/node_modules/three/build/three.module.js'),g=window.__overtake;g.setSelectedCar('golf');g.player.updateMatrixWorld(true);return g.player.userData.wheels.map(w=>{const pts=[];w.traverse(o=>{if(!o.isMesh||!o.material.name.startsWith('tire__'))return;const a=o.geometry.attributes.position,idx=o.geometry.index;for(let i=0;i<idx.count;i++){const v=new T.Vector3().fromBufferAttribute(a,idx.getX(i)).applyMatrix4(o.matrixWorld);pts.push([v.x,v.z]);}});const mx=pts.reduce((s,p)=>s+p[0],0)/pts.length,mz=pts.reduce((s,p)=>s+p[1],0)/pts.length;let xx=0,zz=0,xz=0;for(const [x,z] of pts){xx+=(x-mx)**2;zz+=(z-mz)**2;xz+=(x-mx)*(z-mz)}return .5*Math.atan2(2*xz,zz-xx)*180/Math.PI;});});
  assert.ok(wheelAngles.every(a=>Math.abs(a)<1),`Golf wheel toe ${wheelAngles}`);

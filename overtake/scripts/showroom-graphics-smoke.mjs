@@ -13,7 +13,7 @@ try {
  const page=await browser.newPage({viewport:{width:1280,height:800}});
  page.on('pageerror',e=>errors.push(String(e)));
  page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
- await page.goto(real?base:`${base}/?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
+ await page.goto(real?`${base}/play.html`:`${base}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
  await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
  await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf);g.garageAuto=false;});
  fs.mkdirSync('test-results',{recursive:true});
@@ -52,7 +52,7 @@ try {
  if(real) await page.screenshot({path:'test-results/showroom-final-landscape.png',timeout:120000});
  await page.setViewportSize({width:390,height:844});
  await page.evaluate(()=>{const g=window.__overtake;g.updateCamera(0);g.composer.render();});
- await page.click('#btn-customize');assert.ok(await page.locator('#custom-panel').isVisible());await page.click('#custom-done');
+ await page.click('[data-garage-tab=style]');await page.click('#btn-customize');assert.ok(await page.locator('#custom-panel').isVisible());await page.click('#custom-done');
  await page.click('#btn-start');
  const road=await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf);g.playerS=900;g.weather.snowCover=0;g.updateRoad();const before=Array.from(g.roadStuds.instanceMatrix.array.slice(16,32));g.playerS+=9;g.updateRoad();const after=Array.from(g.roadStuds.instanceMatrix.array.slice(0,16));const visible=g.roadStuds.visible;g.weather.snowCover=1;g.updateRoad();const snowy=g.roadStuds.visible;g.atmosphere.update(0,{rain:0,snow:0},{fog:0xbfd4e2},g.camera.position,1);g.updateWorld(.01);return {before,after,visible,snowy,count:g.roadStuds.count,garage:g.garageGroup.visible,world:g.roadGroup.visible};});
  assert.deepEqual(road.before,road.after);assert.ok(road.visible&&!road.snowy&&road.count>70&&!road.garage&&road.world);

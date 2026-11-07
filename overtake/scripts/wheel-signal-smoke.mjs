@@ -10,7 +10,7 @@ const errors = [];
 try {
   const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
   page.on('pageerror', e => errors.push(String(e)));
-  await page.goto(`${base}/?test=1`, { waitUntil: 'domcontentloaded', timeout: 180000 });
+  await page.goto(`${base}/play.html?test=1`, { waitUntil: 'domcontentloaded', timeout: 180000 });
   await page.waitForSelector('#topbar:not(.hidden)', { timeout: 180000 });
   const rigs = await page.evaluate(async () => {
     const { spinWheels } = await import('/src/wheels.ts');

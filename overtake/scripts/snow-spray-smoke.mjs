@@ -9,7 +9,7 @@ try {
   const page=await browser.newPage({viewport:{width:1000,height:700}}),errors=[];
   page.on('pageerror',e=>errors.push(String(e)));
   page.on('console',msg=>{if(msg.type()==='error')errors.push(msg.text());});
-  await page.goto('http://localhost:3000/?test=1',{waitUntil:'domcontentloaded',timeout:180000});
+  await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
   await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   const result=await page.evaluate(async()=>{
     const T=await import('/node_modules/three/build/three.module.js'),g=window.__overtake;

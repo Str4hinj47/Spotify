@@ -12,7 +12,7 @@ try {
  const page=await browser.newPage({viewport:{width:800,height:600},deviceScaleFactor:1});
  page.on('pageerror',e=>errors.push(String(e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
  if(real) await page.addInitScript(()=>localStorage.setItem('overtake-graphics-quality','balanced'));
- await page.goto(real?base:`${base}/?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
+ await page.goto(real?`${base}/play.html`:`${base}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
  await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
  await page.click('#btn-start');
  const r=await page.evaluate(async()=>{

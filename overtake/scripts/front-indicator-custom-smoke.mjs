@@ -10,7 +10,7 @@ try {
  const page = await browser.newPage({viewport:{width:800,height:600}});
  page.on('pageerror', e => errors.push(String(e)));
  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
- await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
+ await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
  await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
  for (const id of ['golf','mercedes','audi','mustang','ferrari','r8','challenger']) {
   const result = await page.evaluate(async id => {

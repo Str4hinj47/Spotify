@@ -19,7 +19,7 @@ try {
       localStorage.setItem('overtake-best','5000'); sessionStorage.setItem('seeded','1');
     }
   });
-  async function load(){await page.goto(`${base}/?test=1`,{waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));}
+  async function load(){await page.goto(`${base}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));}
   const state=()=>page.evaluate(()=>window.__overtake.getProgression());
   await load();
   assert.deepEqual(await state(),{version:2,money:0,dev:false,owned:['golf'],upgrades:{},tunes:{}});
@@ -33,7 +33,7 @@ try {
   await load();assert.equal((await state()).dev,true);assert.equal((await state()).money,0);
   await page.click('#dev-toggle');assert.equal(await page.locator('#btn-start').isDisabled(),true);
   await page.click('[data-car=golf]');
-  await page.click('#btn-customize');
+  await page.click('[data-garage-tab=style]');await page.click('#btn-customize');
   await page.click('[data-part-panel=front] .workshop-choices button[data-value=street]');
   assert.equal(await page.locator('#custom-front').inputValue(),'stock');
   assert.match(await page.locator('#tune-message').innerText(),/not enough/i);
@@ -42,9 +42,9 @@ try {
   assert.equal((await state()).money,11250);assert.match(await page.locator('#final-progress').innerText(),/\+\$11,250/);
   await page.click('#btn-garage');assert.equal((await state()).money,11250);
   const baseSpeed=await page.evaluate(()=>window.__overtake.getMaxSpeed());
-  await page.click('[data-upgrade=engine]');assert.equal((await state()).money,10550);
+  await page.click('[data-garage-tab=upgrades]');await page.click('[data-upgrade=engine]');assert.equal((await state()).money,10550);
   assert.ok(await page.evaluate(base=>window.__overtake.getMaxSpeed()>base,baseSpeed));
-  await page.click('#btn-customize');await page.click('[data-part-panel=front] .workshop-choices button[data-value=street]');
+  await page.click('[data-garage-tab=style]');await page.click('#btn-customize');await page.click('[data-part-panel=front] .workshop-choices button[data-value=street]');
   assert.equal((await state()).money,10300);assert.equal(await page.locator('#custom-front').inputValue(),'street');
   await page.click('[data-part-panel=front] .workshop-choices button[data-value=stock]');
   await page.click('[data-part-panel=front] .workshop-choices button[data-value=street]');assert.equal((await state()).money,10300);
@@ -54,10 +54,10 @@ try {
   await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf);g.run.score=2000;g.pause();g.toGarage();g.toGarage();});
   assert.equal((await state()).money,10300);
   await load();assert.equal((await state()).money,10300);assert.ok((await state()).owned.includes('mustang'));assert.equal((await state()).upgrades.golf.engine,1);
-  await page.click('[data-car=golf]');await page.click('#dev-toggle');await page.click('#btn-customize');
+  await page.click('[data-car=golf]');await page.click('#dev-toggle');await page.click('[data-garage-tab=style]');await page.click('#btn-customize');
   await page.click('[data-part-panel=front] .workshop-choices button[data-value=track]');
   assert.equal(await page.locator('#custom-front').inputValue(),'track');assert.equal((await state()).money,10300);
-  await page.click('#custom-done');await page.click('#dev-toggle');await page.click('#btn-customize');
+  await page.click('#custom-done');await page.click('#dev-toggle');await page.click('[data-garage-tab=style]');await page.click('#btn-customize');
   assert.equal(await page.locator('#custom-front').inputValue(),'street','dev tuning must not persist as a free purchase');
   await page.click('#custom-done');
   for(const viewport of [{width:390,height:844},{width:667,height:375}]){

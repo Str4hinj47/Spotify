@@ -12,9 +12,9 @@ try {
   page.setDefaultTimeout(120000);
   page.on('console',m=>{if(m.type()==='error')errors.push(m.text())}); page.on('pageerror',e=>errors.push(String(e)));
   await seedEconomy(page);
-  await page.goto('http://localhost:3000/?test=1'); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
+  await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.evaluate(()=>{localStorage.removeItem('overtake-customization-v1')});
-  await page.click('.car-card[data-car="golf"]'); await page.click('#btn-customize');
+  await page.click('.car-card[data-car="golf"]'); await page.click('[data-garage-tab=style]');await page.click('#btn-customize');
   assert.ok(await page.locator('#custom-panel').isVisible());
   for (const part of ['front','rear','skirts','spoiler','exhaust']) { await page.click(`[data-workshop-part="${part}"]`); await page.click(`[data-part-panel="${part}"] .workshop-choices button[data-value="track"]`); }
   await page.click('[data-workshop-tab="lighting"]');
@@ -42,7 +42,7 @@ try {
   await page.screenshot({path:'test-results/custom-driving.png',timeout:120000});
   // Reload and verify per-car persistence, then reset only the current car.
   await page.reload({timeout:180000,waitUntil:'domcontentloaded'}); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
-  await page.click('.car-card[data-car="golf"]');await page.click('#btn-customize');
+  await page.click('.car-card[data-car="golf"]');await page.click('[data-garage-tab=style]');await page.click('#btn-customize');
   assert.equal(await page.locator('#custom-exhaust').inputValue(),'track');
   assert.equal(await page.locator('#custom-glow-color').inputValue(),'#ff32bc');
   await page.click('#custom-reset');assert.equal(await page.locator('#custom-exhaust').inputValue(),'stock');assert.equal(await page.locator('#custom-glow-enabled').isChecked(),false);

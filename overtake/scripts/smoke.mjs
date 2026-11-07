@@ -20,7 +20,7 @@ const shot = (name) => page.screenshot({ path: out + name, timeout: 90000 });
 const g = (fn) => page.evaluate(fn);
 
 await seedEconomy(page);
-await page.goto('http://localhost:3000/?test=1', { waitUntil: 'domcontentloaded' });
+await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`, { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('#topbar:not(.hidden)', { timeout: 120000 });
 await page.addStyleTag({ content: '*{backdrop-filter:none!important;animation:none!important;transition:none!important}' });
 await page.waitForTimeout(800);

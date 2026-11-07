@@ -11,7 +11,7 @@ const errors=[];
 try {
   const page=await browser.newPage({viewport:{width:960,height:640},deviceScaleFactor:1});
   page.on('pageerror',e=>errors.push(String(e))); page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
-  await page.goto(`${base}/?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
+  await page.goto(`${base}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
   await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.waitForFunction(()=>window.__overtake.detailedScenery.ready,null,{timeout:180000});
   await page.click('#btn-start');

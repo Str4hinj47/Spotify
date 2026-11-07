@@ -3,7 +3,7 @@ import chromium from '@sparticuz/chromium';
 const args = chromium.args.filter(a => a !== '--single-process').concat(['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox','--autoplay-policy=no-user-gesture-required']);
 const browser = await pw.launch({ executablePath: await chromium.executablePath(), args, headless: true, env: { ...process.env, LD_LIBRARY_PATH: '/home/user/.local/lib/chromium-deps' } });
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
-await page.goto('http://localhost:3000/?test=1', { waitUntil: 'domcontentloaded' });
+await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`, { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('#topbar:not(.hidden)', { timeout: 120000 });
 const res = await page.evaluate(() => {
   const g = window.__overtake;

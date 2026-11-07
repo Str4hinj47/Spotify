@@ -5,7 +5,7 @@ const browser = await pw.launch({executablePath:await chromium.executablePath(),
 const page = await browser.newPage({viewport:{width:1280,height:800}});
 page.on('console',m=>console.log('CON',m.type(),m.text()));
 page.on('pageerror',e=>console.log('ERR',String(e)));
-await page.goto('http://localhost:3000/',{waitUntil:'domcontentloaded'});
+await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html`,{waitUntil:'domcontentloaded'});
 await page.waitForSelector('#topbar:not(.hidden)',{timeout:120000});
 await page.addStyleTag({content:'*{backdrop-filter:none!important;filter:none!important;animation:none!important;transition:none!important}'});
 await page.waitForTimeout(2000);

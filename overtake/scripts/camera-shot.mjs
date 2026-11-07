@@ -8,7 +8,7 @@ const browser = await pw.launch({ executablePath: await chromium.executablePath(
 const page = await browser.newPage({ viewport: { width: 1100, height: 680 } });
 const errors = [];
 page.on('pageerror', e => errors.push(String(e)));
-await page.goto('http://localhost:3000/?test=1', { waitUntil: 'domcontentloaded' });
+await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`, { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('#topbar:not(.hidden)', { timeout: 120000 });
 await page.addStyleTag({ content: '*{backdrop-filter:none!important;animation:none!important;transition:none!important}' });
 await page.click('.car-card[data-car="ferrari"]');

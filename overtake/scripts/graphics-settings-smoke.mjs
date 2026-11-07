@@ -10,7 +10,7 @@ const errors=[];
 try {
   const page=await browser.newPage({viewport:{width:960,height:640},deviceScaleFactor:1});
   page.on('pageerror',e=>errors.push(String(e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
-  await page.goto(base,{waitUntil:'domcontentloaded',timeout:180000});
+  await page.goto(`${base}/play.html`,{waitUntil:'domcontentloaded',timeout:180000});
   await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
   const inspect=()=>page.evaluate(()=>{const g=window.__overtake,r=g.renderer;return {quality:g.getGraphicsQuality(),ratio:r.getPixelRatio(),canvas:[r.domElement.width,r.domElement.height],buffer:[g.composer.inputBuffer.width,g.composer.inputBuffer.height]};});
@@ -54,7 +54,7 @@ try {
     const dimensions=await inspect();assert.deepEqual(dimensions.buffer,dimensions.canvas);
     await page.click('#graphics-close');
   }
-  await page.goto(`${base}/?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
+  await page.goto(`${base}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
   await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   assert.equal((await inspect()).ratio,1);
   await page.click('#btn-graphics');await page.click('[data-quality=performance]');assert.equal((await inspect()).ratio,1);

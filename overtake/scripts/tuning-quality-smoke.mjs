@@ -11,9 +11,9 @@ try {
   const page=await browser.newPage({viewport:{width:1100,height:760}});
   page.on('pageerror',e=>errors.push(String(e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
   await seedEconomy(page);
-  await page.goto('http://localhost:3000/?test=1',{timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
+  await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`,{timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.evaluate(()=>localStorage.removeItem('overtake-customization-v1'));
-  await page.click('.car-card[data-car="golf"]');await page.click('#btn-customize');
+  await page.click('.car-card[data-car="golf"]');await page.click('[data-garage-tab=style]');await page.click('#btn-customize');
   for(const part of ['front','rear','skirts','spoiler','exhaust']){
     await page.click(`[data-workshop-part="${part}"]`);
     for(const value of ['street','touring','sport','track']) assert.equal(await page.locator(`[data-part-panel="${part}"] button[data-value="${value}"]`).count(),1);
@@ -47,7 +47,7 @@ try {
   assert.deepEqual(result.lamps,{off:0,on:1,selective:true,intensity:.55,coverTransparent:true,trafficSelective:true});
   assert.deepEqual(result.flame,{on:true,count:3,shaders:true,time:12.5,off:false});
   await page.reload({timeout:180000,waitUntil:'domcontentloaded'});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
-  await page.click('.car-card[data-car="golf"]');await page.click('#btn-customize');
+  await page.click('.car-card[data-car="golf"]');await page.click('[data-garage-tab=style]');await page.click('#btn-customize');
   for(const part of ['front','rear','skirts','spoiler','exhaust'])assert.equal(await page.locator(`#custom-${part}`).inputValue(),'sport');
   assert.deepEqual(errors,[]);console.log('Tuning quality smoke passed:',result.distinct.length,'part/car combinations',result.lamps,result.flame);
 } finally {await browser.close();}

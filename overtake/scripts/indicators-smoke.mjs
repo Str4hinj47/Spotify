@@ -12,7 +12,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push(String(e)));
-  await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/?test=1`);
+  await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`);
   await page.waitForSelector('#topbar:not(.hidden)', { timeout: 180000 });
   await page.evaluate(() => { const g = window.__overtake; cancelAnimationFrame(g.raf); g.garageAuto = false; g.garageZoom = 5.7; g.garagePitch = 0.24; });
   fs.mkdirSync('test-results', { recursive: true });

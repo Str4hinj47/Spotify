@@ -10,9 +10,9 @@ try {
   page.setDefaultTimeout(120000);
   page.on('pageerror',e=>errors.push(String(e)));
   await seedEconomy(page);
-  await page.goto('http://localhost:3000/?test=1'); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
+  await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.evaluate(()=>localStorage.removeItem('overtake-customization-v1'));
-  await page.click('.car-card[data-car="r8"]'); await page.click('#btn-customize');
+  await page.click('.car-card[data-car="r8"]'); await page.click('[data-garage-tab=style]');await page.click('#btn-customize');
   assert.equal(await page.locator('#custom-panel select:visible').count(),0);
   await page.click('[data-workshop-part="exhaust"]');
   await page.click('[data-part-panel="exhaust"] .workshop-choices button[data-value="street"]');

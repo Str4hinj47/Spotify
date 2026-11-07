@@ -11,7 +11,7 @@ const realRender = process.env.REAL_RENDER === '1';
 try {
   const page=await browser.newPage({viewport:realRender ? {width:720,height:480} : {width:1000,height:700}});
   page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});page.on('pageerror',e=>errors.push(String(e)));
-  await page.goto(realRender ? 'http://localhost:3000/' : 'http://localhost:3000/?test=1',{waitUntil:'domcontentloaded'});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
+  await page.goto(realRender ? `${process.env.BASE_URL || 'http://localhost:3000'}/play.html` : `${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`,{waitUntil:'domcontentloaded'});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.click('#btn-start');
   const setup=await page.evaluate(()=>{
     const g=window.__overtake;cancelAnimationFrame(g.raf);g.clearTraffic();g.trySpawn=()=>{};g.setCycleRunning(false);g.setTimeOfDay(12);g.setCameraPreset('far');

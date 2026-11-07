@@ -10,7 +10,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push(String(e)));
-  await page.goto('http://localhost:3000/?test=1');
+  await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`);
   await page.waitForSelector('#topbar:not(.hidden)', { timeout: 180000 });
   await page.click('#btn-start');
   await page.evaluate(() => { const g=window.__overtake; cancelAnimationFrame(g.raf); g.clearTraffic(); g.trySpawn=()=>{}; g.setCycleRunning(false); g.setWeatherMode('clear'); });

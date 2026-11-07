@@ -9,7 +9,7 @@ const errors=[];
 try {
   const page=await browser.newPage({viewport:{width:960,height:640},deviceScaleFactor:1});
   page.on('pageerror',e=>errors.push(String(e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
-  await page.goto('http://localhost:3000/',{timeout:180000,waitUntil:'domcontentloaded'});
+  await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html`,{timeout:180000,waitUntil:'domcontentloaded'});
   await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   const inspect=()=>page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf);const r=g.renderer,c=g.composer;
     const car=g.library.create('mercedes');const textures=[];car.traverse(o=>{if(o.isMesh)for(const m of Array.isArray(o.material)?o.material:[o.material])if(m.map){const t=m.map;textures.push({name:t.name,width:t.image.width,height:t.image.height,aniso:t.anisotropy});}});
