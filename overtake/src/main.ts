@@ -412,7 +412,7 @@ function syncRankUI() {
     button.className = `rank-scenario${scenario.id === selectedScenario.id ? ' active' : ''}`;
     button.setAttribute('aria-pressed', String(scenario.id === selectedScenario.id));
     const best = state.scenarios[scenario.id];
-    button.innerHTML = `<span class="rank-scenario-top"><span>${scenario.kicker}</span><span>GOLD +${Math.round(40 * scenario.multiplier)} RP</span></span><strong>${scenario.title}</strong><small>${(scenario.distance / 1000).toFixed(1)} km in ${scenario.limit}s · ${scenario.objective}</small><small>Gold ≤ ${scenario.gold}s · Silver ≤ ${scenario.silver}s · Finish +${Math.round(18 * scenario.multiplier)} RP${best?.bestTime ? ` · Best ${formatTime(best.bestTime)}` : ''}</small>`;
+    button.innerHTML = `<span class="rank-scenario-top"><span>${scenario.kicker}</span><span>GOLD +${Math.round(40 * scenario.multiplier)} RP</span></span><strong>${scenario.title}</strong><small>${(scenario.distance / 1000).toFixed(1)} km in ${scenario.limit}s · ${scenario.objective}</small><small>Gold ≤ ${scenario.gold}s · Silver ≤ ${scenario.silver}s · Bronze +${Math.round(18 * scenario.multiplier)} / Silver +${Math.round(28 * scenario.multiplier)} RP${best?.bestTime ? ` · Best ${formatTime(best.bestTime)}` : ''}</small>`;
     button.addEventListener('click', () => { game.setRankedScenario(scenario.id as ScenarioId); syncRankUI(); list.querySelector<HTMLButtonElement>(`[data-scenario="${scenario.id}"]`)?.focus(); audio.click(); });
     list.appendChild(button);
   }
