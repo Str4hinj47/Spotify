@@ -173,7 +173,7 @@ export function finishRun(run, reason) {
 
 export function runSummary(run, carId) {
   return {
-    mode: run.mode, car: carId, score: run.score, distance: run.distance,
+    mode: run.mode, car: carId, score: run.score, distance: run.distance, eventPeriod: run.eventPeriod,
     overtakes: run.overtakes, nearMisses: run.nearMisses, oncomingDodges: run.oncomingDodges,
     topSpeed: run.topSpeed, contractsDone: run.contractsDone, elapsed: run.elapsed,
     medal: medalFor(run.mode, run.score), reason: run.reason, date: Date.now(),

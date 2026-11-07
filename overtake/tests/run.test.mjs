@@ -98,3 +98,12 @@ test('near-miss challenge rewards close passes more than clean passes',()=>{
   const close=createRun('near',1),wide=createRun('near',1);
   assert.ok(registerPass(close,'same',true).points>registerPass(wide,'same',false).points*2);
 });
+
+test('daily bests reset by UTC period while history survives', async()=>{
+  const {emptyRecords,recordRun,bestFor}=await import('../src/records.mjs');
+  const now=Date.UTC(2026,0,5,12);const run=createRun('daily',1,now);run.score=3000;
+  const records=recordRun(emptyRecords(),runSummary(run,'golf')).records;
+  assert.equal(bestFor(records,'daily',now),3000);assert.equal(bestFor(records,'daily',now+86400000),0);
+  const next=createRun('daily',1,now+86400000);next.score=100;
+  const result=recordRun(records,runSummary(next,'golf'));assert.equal(result.newBest,true);assert.equal(result.records.modes.daily.bestScore,100);assert.equal(result.records.modes.daily.recent.length,2);
+});

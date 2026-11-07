@@ -96,7 +96,7 @@ export interface RunStats {
   mode: RunMode;
   car: CarId;
   topSpeed: number;
-  contractsDone: number;
+  contractsDone: number; contractsTotal: number; bestTime: number | null;
   elapsed: number;
   medal: Medal;
   reason: string | null;
@@ -1515,7 +1515,7 @@ export class OvertakeGame {
       const legacy = Number(localStorage.getItem('overtake-best') || 0) || 0;
       if (legacy > this.records.modes.endless.bestScore) this.records.modes.endless.bestScore = legacy;
       const savedMode = localStorage.getItem('overtake-mode');
-      if (savedMode === 'rush' || savedMode === 'endless') this.runMode = savedMode;
+      if (savedMode && Object.hasOwn(RUN_MODES, savedMode)) this.runMode = savedMode as RunMode;
     } catch { this.records = emptyRecords(); }
   }
   private saveRecords() {
@@ -1682,7 +1682,7 @@ export class OvertakeGame {
       } else if (e.type === 'combo') {
         this.cb.onEvent({ kind: 'combo', text: `COMBO ×${e.mult}` });
       } else if (e.type === 'finish') {
-        this.endRun('time');
+        this.endRun(e.reason ?? 'time');
       }
     }
   }
@@ -1790,6 +1790,7 @@ export class OvertakeGame {
         }
         this.cb.onEvent({ kind: near ? 'near' : 'overtake', text: signaled ? (near ? 'NEAR MISS · SIGNAL +50' : 'OVERTAKE · SIGNAL +50') : (near ? 'NEAR MISS' : 'OVERTAKE'), points });
         this.handleRunEvents(events);
+        if (this.run.finished) return;
       }
       if (t.dir === -1 && !t.passed && ds < -(pHalfL + t.length / 2 + 1)) {
         t.passed = true;
@@ -1840,11 +1841,11 @@ export class OvertakeGame {
     this.records = result.records;
     this.saveRecords();
     this.best = bestFor(this.records, this.runMode);
-    if (reason === 'time') this.cb.onEvent({ kind: 'finish', text: 'RUSH COMPLETE' });
+    if (reason !== 'crash') this.cb.onEvent({ kind: 'finish', text: reason === 'objective' ? 'CHALLENGE COMPLETE' : reason === 'distance' ? 'FINISH LINE' : 'TIME UP' });
     this.cb.onGameOver({
       score: this.score, distance: this.distance, overtakes: this.overtakes, nearMisses: this.nearMisses,
       best: this.best, newBest: result.newBest, mode: this.run.mode, car: this.selected,
-      topSpeed: this.run.topSpeed, contractsDone: this.run.contractsDone, elapsed: this.run.elapsed,
+      topSpeed: this.run.topSpeed, contractsDone: this.run.contractsDone, contractsTotal: this.run.contracts.length, bestTime: this.records.modes.trial.bestTime, elapsed: this.run.elapsed,
       medal: result.medal, reason, moneyGained: progress.gain,
     });
   }

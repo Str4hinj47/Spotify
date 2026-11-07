@@ -10,7 +10,7 @@ export interface RunState {
   eventPeriod: number | null; allContractsSent?: boolean; finished: boolean; reason: string | null;
 }
 export interface RunEvent { type: string; contract?: RunContract; points?: number; mult?: number; reason?: string; }
-export interface RunSummary { mode: RunMode; car: string; score: number; distance: number; overtakes: number; nearMisses: number; oncomingDodges: number; topSpeed: number; contractsDone: number; elapsed: number; medal: Medal; reason: string | null; date: number; }
+export interface RunSummary { mode: RunMode; car: string; score: number; distance: number; eventPeriod?: number | null; overtakes: number; nearMisses: number; oncomingDodges: number; topSpeed: number; contractsDone: number; elapsed: number; medal: Medal; reason: string | null; date: number; }
 export const RUN_MODES: Record<RunMode, { id: RunMode; label: string; duration: number | null; tagline: string; medals: { bronze: number; silver: number; gold: number } }>;
 export function mulberry32(seed: number): () => number;
 export function eventFor(mode: 'daily' | 'weekly', now?: number): { period: number; contract: RunContract };
