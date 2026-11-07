@@ -8,6 +8,10 @@ export const RUN_MODES = {
     tagline: 'Classic survival. Chain passes until you wreck.',
     medals: { bronze: 2500, silver: 6000, gold: 12000 },
   },
+  trial: { id: 'trial', label: 'Time Trial', duration: null, tagline: 'Reach 3 km as fast as possible.', medals: { bronze: 2000, silver: 5000, gold: 10000 } },
+  near: { id: 'near', label: 'Near Miss', duration: 90, tagline: 'Ninety seconds. Close passes pay more.', medals: { bronze: 1800, silver: 4000, gold: 7500 } },
+  daily: { id: 'daily', label: 'Daily Drive', duration: 120, tagline: 'One rotating objective every UTC day.', medals: { bronze: 1000, silver: 2500, gold: 5000 } },
+  weekly: { id: 'weekly', label: 'Weekly Event', duration: 240, tagline: 'A bigger rotating objective each UTC week.', medals: { bronze: 2000, silver: 5000, gold: 9000 } },
   rush: {
     id: 'rush', label: 'Rush', duration: 120,
     tagline: 'Two minutes. Maximum points. Contracts pay extra.',
@@ -47,7 +51,24 @@ function pickContracts(seed) {
   return [first, ...rest].map((c) => ({ ...c }));
 }
 
-export function createRun(mode = 'endless', seed = Date.now()) {
+// Local events rotate on UTC boundaries. Their scores are not globally verified.
+export function eventFor(mode, now = Date.now()) {
+  const day = Math.floor(now / 86400000);
+  const week = Math.floor((day + 3) / 7); // Monday UTC
+  const choices = mode === 'weekly' ? [
+    { id:'weekly-pass', title:'Traffic tamer', desc:'Overtake 10 cars', metric:'overtakes', target:10, reward:1500 },
+    { id:'weekly-near', title:'On the edge', desc:'Make 6 near misses', metric:'nearMisses', target:6, reward:1500 },
+    { id:'weekly-distance', title:'Long haul', desc:'Drive 4 km', metric:'distance', target:4000, reward:1500 },
+  ] : [
+    { id:'daily-pass', title:'Clean run', desc:'Overtake 4 cars', metric:'overtakes', target:4, reward:650 },
+    { id:'daily-near', title:'Close calls', desc:'Make 3 near misses', metric:'nearMisses', target:3, reward:650 },
+    { id:'daily-distance', title:'Open road', desc:'Drive 1.5 km', metric:'distance', target:1500, reward:650 },
+  ];
+  const period = mode === 'weekly' ? week : day;
+  return { period, contract: { ...choices[((period % choices.length) + choices.length) % choices.length] } };
+}
+
+export function createRun(mode = 'endless', seed = Date.now(), now = Date.now()) {
   const m = RUN_MODES[mode] ? mode : 'endless';
   const def = RUN_MODES[m];
   return {
@@ -55,7 +76,8 @@ export function createRun(mode = 'endless', seed = Date.now()) {
     distance: 0, score: 0, combo: 0, bestCombo: 0,
     overtakes: 0, nearMisses: 0, oncomingDodges: 0,
     topSpeed: 0, highSpeedTime: 0,
-    contracts: pickContracts(seed), contractIndex: 0, contractBaseline: 0, contractsDone: 0,
+    contracts: m === 'daily' || m === 'weekly' ? [eventFor(m, now).contract] : pickContracts(seed), contractIndex: 0, contractBaseline: 0, contractsDone: 0,
+    eventPeriod: m === 'daily' || m === 'weekly' ? eventFor(m, now).period : null,
     finished: false, reason: null,
   };
 }
@@ -89,6 +111,7 @@ function completeContracts(run, events) {
   if (run.contractIndex >= run.contracts.length && !run.allContractsSent) {
     run.allContractsSent = true;
     events.push({ type: 'allContracts' });
+    if (run.mode === 'daily' || run.mode === 'weekly') { run.finished = true; run.reason = 'objective'; events.push({ type:'finish', reason:'objective' }); }
   }
 }
 
@@ -97,8 +120,15 @@ export function tickRun(run, dt, speed) {
   const events = [];
   if (run.finished) return events;
   dt = Math.max(0, Math.min(0.1, dt));
+  const distanceBefore = run.distance, elapsedBefore = run.elapsed;
   run.elapsed += dt;
   run.distance += Math.max(0, speed) * dt;
+  if (run.mode === 'trial' && distanceBefore < 3000 && run.distance >= 3000) {
+    const fraction = (3000 - distanceBefore) / (run.distance - distanceBefore);
+    run.elapsed = elapsedBefore + dt * fraction;
+    run.distance = 3000; run.finished = true; run.reason = 'distance';
+    events.push({ type: 'finish', reason: 'distance' });
+  }
   run.topSpeed = Math.max(run.topSpeed, speed * 3.6);
   if (speed * 3.6 >= 140) run.highSpeedTime += dt;
   if (run.timeLeft !== null) {
@@ -129,6 +159,7 @@ export function registerPass(run, kind, near, carBonus = 1, signaled = false) {
     run.nearMisses++;
     points = passScore(run.combo, 'oncoming', true, carBonus);
   }
+  if (run.mode === 'near') points = Math.round(points * (near ? 1.75 : 0.5));
   run.score += points;
   if (run.combo % 5 === 0) events.push({ type: 'combo', mult: multiplierFor(run.combo) });
   completeContracts(run, events);

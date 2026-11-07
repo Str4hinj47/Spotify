@@ -74,3 +74,27 @@ test('records retain Challenger and R8 runs on reload', async () => {
   }
   assert.deepEqual(sanitizeRecords(JSON.parse(JSON.stringify(records))).modes.endless.recent.map(run => run.car), ['challenger', 'r8']);
 });
+
+test('time trial finishes at 3 km and records only completed fastest times', async () => {
+  const { emptyRecords, recordRun, sanitizeRecords } = await import('../src/records.mjs');
+  const run=createRun('trial',1); run.distance=2999; run.elapsed=100;
+  const events=tickRun(run,.1,20); assert.equal(run.reason,'distance');assert.equal(run.distance,3000);assert.ok(Math.abs(run.elapsed-100.05)<1e-9);assert.equal(events[0].reason,'distance');
+  let records=recordRun(emptyRecords(),runSummary(run,'golf')).records;
+  assert.equal(records.modes.trial.bestTime,run.elapsed);
+  const crash={...runSummary(run,'golf'),elapsed:20,reason:'crash'};
+  assert.equal(recordRun(records,crash).newBest,false);
+  assert.equal(sanitizeRecords(records).modes.trial.bestTime,run.elapsed);
+});
+test('daily and weekly challenges rotate on UTC boundaries and finish on completion', async () => {
+  const {eventFor}=await import('../src/run.mjs');const t=Date.UTC(2026,0,5,12);
+  assert.equal(eventFor('daily',t).period,eventFor('daily',t+1000).period);
+  assert.notEqual(eventFor('daily',t).period,eventFor('daily',t+86400000).period);
+  assert.equal(eventFor('weekly',t).period,eventFor('weekly',t+6*86400000).period);
+  assert.notEqual(eventFor('weekly',t).period,eventFor('weekly',t+7*86400000).period);
+  const run=createRun('daily',4,t);const c=run.contracts[0];run[c.metric]=c.target;
+  const events=tickRun(run,0,0);assert.equal(run.reason,'objective');assert.equal(run.score,c.reward);assert.ok(events.some(e=>e.type==='finish'&&e.reason==='objective'));
+});
+test('near-miss challenge rewards close passes more than clean passes',()=>{
+  const close=createRun('near',1),wide=createRun('near',1);
+  assert.ok(registerPass(close,'same',true).points>registerPass(wide,'same',false).points*2);
+});

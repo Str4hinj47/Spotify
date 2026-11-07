@@ -6,7 +6,7 @@ const CARS = ['golf', 'mercedes', 'audi', 'mustang', 'ferrari', 'r8', 'challenge
 
 export function emptyRecords() {
   const modes = {};
-  for (const m of MODES) modes[m] = { bestScore: 0, bestDistance: 0, runs: 0, recent: [] };
+  for (const m of MODES) modes[m] = { bestScore: 0, bestDistance: 0, bestTime: null, runs: 0, recent: [] };
   return { version: 2, modes };
 }
 
@@ -19,6 +19,7 @@ export function sanitizeRecords(raw) {
     const rec = out.modes[m];
     rec.bestScore = Math.max(0, Number(src.bestScore) || 0);
     rec.bestDistance = Math.max(0, Number(src.bestDistance) || 0);
+    rec.bestTime = Number.isFinite(src.bestTime) && src.bestTime > 0 ? src.bestTime : null;
     rec.runs = Math.max(0, Math.floor(Number(src.runs) || 0));
     if (Array.isArray(src.recent)) {
       rec.recent = src.recent.filter((r) => r && typeof r === 'object' && CARS.includes(r.car) && Number.isFinite(Number(r.score)))
@@ -40,7 +41,8 @@ export function recordRun(records, summary) {
   const rec = sanitizeRecords(records);
   const mode = MODES.includes(summary.mode) ? summary.mode : 'endless';
   const bucket = rec.modes[mode];
-  const newBest = summary.score > bucket.bestScore;
+  const newBest = mode === 'trial' ? summary.reason === 'distance' && summary.elapsed > 0 && (bucket.bestTime === null || summary.elapsed < bucket.bestTime) : summary.score > bucket.bestScore;
+  if (mode === 'trial' && newBest) bucket.bestTime = summary.elapsed;
   bucket.bestScore = Math.max(bucket.bestScore, summary.score);
   bucket.bestDistance = Math.max(bucket.bestDistance, summary.distance);
   bucket.runs++;

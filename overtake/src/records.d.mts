@@ -1,6 +1,6 @@
 import type { RunMode, RunSummary, Medal } from './run.mjs';
 export interface RunRecord extends RunSummary { mode: RunMode; }
-export interface ModeRecords { bestScore: number; bestDistance: number; runs: number; recent: RunRecord[]; }
+export interface ModeRecords { bestScore: number; bestDistance: number; bestTime: number | null; runs: number; recent: RunRecord[]; }
 export interface Records { version: 2; modes: Record<RunMode, ModeRecords>; }
 export function emptyRecords(): Records;
 export function sanitizeRecords(raw: unknown): Records;
