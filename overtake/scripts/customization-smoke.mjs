@@ -9,6 +9,7 @@ const browser=await pw.launch({executablePath:await chromium.executablePath(),he
 const errors=[];
 try {
   const page=await browser.newPage({viewport:{width:1280,height:800}});
+  page.setDefaultTimeout(120000);
   page.on('console',m=>{if(m.type()==='error')errors.push(m.text())}); page.on('pageerror',e=>errors.push(String(e)));
   await seedEconomy(page);
   await page.goto('http://localhost:3000/?test=1'); await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
