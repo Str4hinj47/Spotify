@@ -1,3 +1,5 @@
+import { CAR_CONTENT } from './content/cars.mjs';
+
 // Cooperative car-following, conservative truck passing, predictable
 // oncoming flow, and a time-to-collision hazard radar.
 
@@ -70,8 +72,8 @@ export function hazardAhead(player, traffic) {
 // Target cruising speeds in metres per second. The variation between models is
 // deliberate; trucks are considerably slower and produce natural queues.
 export const TRAFFIC_CRUISE = Object.freeze({
-  golf: 18, mercedes: 22.5, audi: 23, mustang: 21.5,
-  ferrari: 26, r8: 25, challenger: 21, semi: 11.5, kraz: 13,
+  ...Object.fromEntries(CAR_CONTENT.map(car => [car.id, car.trafficCruise])),
+  semi: 11.5, kraz: 13,
 });
 export function isTruck(id) { return id === 'semi' || id === 'kraz'; }
 export function trafficCruise(id, random = Math.random) {

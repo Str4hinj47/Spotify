@@ -1,8 +1,9 @@
 // Local run history and per-mode personal bests. No account, no network.
 import { medalFor, RUN_MODES, eventFor } from './run.mjs';
+import { CAR_CONTENT } from './content/cars.mjs';
 
 const MODES = Object.keys(RUN_MODES);
-const CARS = ['golf', 'mercedes', 'audi', 'mustang', 'ferrari', 'r8', 'challenger'];
+const CARS = CAR_CONTENT.map(car => car.id);
 
 export function emptyRecords() {
   const modes = {};

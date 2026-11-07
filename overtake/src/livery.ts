@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { CarId } from './catalog';
 import type { Customization } from './customization.mjs';
+import { LIVERY_OPTIONS } from './content/cosmetics.mjs';
 
 // Each car gets different stripe widths, placement and flank graphics; these
 // are original procedural designs, not imported logos or branded decals.
@@ -20,7 +21,8 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
   const mat = source.clone();
   const d = LIVERIES[id];
   const upper = config.paintScheme === 'upper' ? 1 : config.paintScheme === 'lower' ? 2 : 0;
-  const pattern = config.livery === 'stripe' ? 1 : config.livery === 'race' ? 2 : 0;
+  const style = LIVERY_OPTIONS.find(option => option.id === config.livery)?.pattern;
+  const pattern = style === 'stripe' ? 1 : style === 'race' ? 2 : 0;
   const secondary = new THREE.Color(config.secondaryColor);
   const livery = new THREE.Color(config.liveryColor);
   mat.onBeforeCompile = shader => {

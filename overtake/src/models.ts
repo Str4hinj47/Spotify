@@ -16,23 +16,6 @@ export interface CarModel {
   height: number;
 }
 
-// Some source models export nose-first along +Z; the game drives toward -Z.
-// The Ferrari source mesh is also yawed ~13.5° inside its own bounding box, so
-// a plain 180° flip leaves it visibly diagonal to the road. Bake the measured
-// PCA correction (paint/tire/glass principal axis) into the same wrapper.
-const FERRARI_SKEW = (13.5 * Math.PI) / 180;
-const ORIENTATION: Record<TrafficId, number> = {
-  golf: 0,
-  mercedes: 0,
-  audi: Math.PI,
-  mustang: 0,
-  ferrari: Math.PI + FERRARI_SKEW,
-  r8: Math.PI,
-  challenger: Math.PI,
-  semi: 0,
-  kraz: 0,
-};
-
 // A few source meshes reuse one "glass" material for both the cabin and lamp
 // lenses (notably the W222). Preserve transparent lenses while making cabin
 // glazing depth-writing. Split triangles only where a mesh actually spans both.
@@ -162,7 +145,8 @@ export class ModelLibrary {
       const gltf: GLTF = await this.loader.loadAsync(`${(import.meta as any).env?.BASE_URL ?? '/'}models/${spec.id}.glb`);
       const scene = gltf.scene;
       scene.name = spec.id;
-      scene.rotation.y = ORIENTATION[spec.id];
+      // Cars store their source orientation in the content registry; trucks face forward.
+      scene.rotation.y = 'orientationDegrees' in spec ? THREE.MathUtils.degToRad(spec.orientationDegrees) : 0;
       scene.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(scene);
       const size = box.getSize(new THREE.Vector3());

@@ -1,4 +1,5 @@
 import { normalizeHex } from './paint.mjs';
+import { LIVERY_OPTIONS } from './content/cosmetics.mjs';
 
 export const BODY_PARTS = ['front', 'rear', 'skirts', 'spoiler', 'exhaust'];
 export const PART_OPTIONS = ['stock', 'street', 'touring', 'sport', 'track'];
@@ -19,7 +20,7 @@ export function sanitizeCustomization(value) {
   }
   if (['single','upper','lower'].includes(raw.paintScheme)) out.paintScheme = raw.paintScheme;
   if (raw.secondaryFinish === 'carbon') out.secondaryFinish = 'carbon';
-  if (['none','stripe','race'].includes(raw.livery)) out.livery = raw.livery;
+  if (LIVERY_OPTIONS.some(option => option.id === raw.livery)) out.livery = raw.livery;
   out.secondaryColor = normalizeHex(raw.secondaryColor) || DEFAULT_CUSTOMIZATION.secondaryColor;
   out.liveryColor = normalizeHex(raw.liveryColor) || DEFAULT_CUSTOMIZATION.liveryColor;
   out.underglow = raw.underglow === true;

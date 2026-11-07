@@ -4,6 +4,7 @@ import { sanitizePaints } from './paint.mjs';
 import { sanitizeCustomizations } from './customization.mjs';
 import { emptyRecords, sanitizeRecords } from './records.mjs';
 import { emptyRanked, sanitizeRanked, RANKED_STORAGE_KEY } from './ranked.mjs';
+import { CONTENT_REVISION } from './content/version.mjs';
 
 const CARS = Object.keys(CAR_PRICES);
 export const CLOUD_BACKUP_KEY = 'overtake-cloud-restore-backup-v1';
@@ -28,6 +29,7 @@ export function normalizeSnapshot(raw) {
       !object(raw.paints) || !object(raw.customizations) || !object(raw.records) || raw.records.version !== 2 || !object(raw.records.modes)) {
     throw new Error('Unsupported or damaged cloud save; nothing was changed.');
   }
+  if (raw.contentRevision != null && (!Number.isSafeInteger(raw.contentRevision) || raw.contentRevision < 0 || raw.contentRevision > CONTENT_REVISION)) throw new Error('This save requires a newer game version; update the game before restoring. Nothing was changed.');
   if (raw.ranked != null && (!object(raw.ranked) || raw.ranked.version !== 1)) throw new Error('Unsupported ranked save; nothing was changed.');
   const progression = sanitizeProgression(raw.progression);
   progression.dev = false; // Never transfer developer access between devices.
@@ -37,7 +39,7 @@ export function normalizeSnapshot(raw) {
     if (typeof value === 'number' && !Number.isFinite(value)) throw new Error('Cloud save contains invalid records.');
     return value;
   });
-  const result = { schema: 1, progression, paints: sanitizePaints(raw.paints, CARS),
+  const result = { schema: 1, contentRevision: CONTENT_REVISION, progression, paints: sanitizePaints(raw.paints, CARS),
     customizations: sanitizeCustomizations(raw.customizations, CARS),
     selectedCar: CARS.includes(raw.selectedCar) ? raw.selectedCar : 'golf', records: JSON.parse(text),
     ranked: raw.ranked == null ? null : sanitizeRanked(raw.ranked) };

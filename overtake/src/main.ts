@@ -12,6 +12,7 @@ import { GameAudio } from './audio';
 import { hexToNumber, sanitizePaints } from './paint.mjs';
 import { BODY_FITS } from './body-kits';
 import { LIVERIES } from './livery';
+import { LIVERY_OPTIONS } from './content/cosmetics.mjs';
 import { BODY_PARTS, DEFAULT_CUSTOMIZATION, sanitizeCustomization, sanitizeCustomizations, type Customization } from './customization.mjs';
 
 createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, Cloud, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor } });
@@ -119,8 +120,10 @@ function syncCustomizationUI() {
   ($('custom-secondary-finish') as HTMLSelectElement).value=config.secondaryFinish;
   ($('custom-secondary-finish') as HTMLSelectElement).disabled=config.paintScheme==='single';
   const livery = $('custom-livery') as HTMLSelectElement;
-  livery.replaceChildren(...[['none','None'],['stripe',LIVERIES[selected].labels[0]],['race',LIVERIES[selected].labels[1]]].map(([value,label]) => {
-    const option=document.createElement('option');option.value=value;option.textContent=label;return option;
+  livery.replaceChildren(...LIVERY_OPTIONS.map(item => {
+    const option=document.createElement('option'); option.value=item.id;
+    option.textContent=item.fittedLabel === null ? item.label : LIVERIES[selected].labels[item.fittedLabel];
+    return option;
   }));
   livery.value=config.livery;
   const liveryColor=$('custom-livery-color') as HTMLInputElement;
@@ -898,7 +901,11 @@ function bindUI() {
     ['custom-paint-scheme','paintScheme','change'], ['custom-secondary-color','secondaryColor','input'],
     ['custom-secondary-finish','secondaryFinish','change'], ['custom-livery','livery','change'], ['custom-livery-color','liveryColor','input'],
   ];
-  for (const [id,key,event] of controls) $(id).addEventListener(event, e => applyCustomization({ ...currentCustomization(), [key]:(e.target as HTMLInputElement | HTMLSelectElement).value } as Customization));
+  for (const [id,key,event] of controls) $(id).addEventListener(event, e => {
+    const value = (e.target as HTMLInputElement | HTMLSelectElement).value;
+    const suggestedColor = key === 'livery' ? LIVERY_OPTIONS.find(item => item.id === value)?.defaultColor : null;
+    applyCustomization({ ...currentCustomization(), [key]:value, ...(suggestedColor ? { liveryColor:suggestedColor } : {}) } as Customization);
+  });
   $('custom-glow-enabled').addEventListener('change', event => applyCustomization({ ...currentCustomization(), underglow:(event.target as HTMLInputElement).checked }));
   $('custom-glow-color').addEventListener('input', event => applyCustomization({ ...currentCustomization(), glowColor:(event.target as HTMLInputElement).value }));
   document.querySelectorAll<HTMLButtonElement>('[data-custom-view]').forEach(button => {
@@ -986,6 +993,7 @@ async function boot() {
     if (customizations[c.id]) library.setCustomization(c.id, customizations[c.id]);
   }
 
+  $('car-count').textContent = `${CARS.length} ${CARS.length === 1 ? 'car' : 'cars'}`;
   const cards = $('car-cards');
   for (const c of CARS) {
     const url = await library.thumbnail(c.id);
