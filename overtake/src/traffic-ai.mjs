@@ -78,8 +78,11 @@ export function trafficCruise(id, random = Math.random) {
   return TRAFFIC_CRUISE[id] * (0.96 + random() * 0.08);
 }
 export function chooseTruck(score, traffic, s, random = Math.random) {
-  if (score < 1500 || traffic.some(t => isTruck(t.id) && Math.abs(t.s - s) < 450)) return null;
-  if (random() >= 0.09) return null;
+  // Trucks are a core traffic feature, not a late-game rarity: they appear
+  // from the opening minute, roughly 1 in 3 same-direction spawns, spaced so
+  // the road can hold two truck queues at once without walling the player in.
+  if (score < 250 || traffic.some(t => isTruck(t.id) && Math.abs(t.s - s) < 300)) return null;
+  if (random() >= 0.32) return null;
   return random() < 0.5 ? 'semi' : 'kraz';
 }
 

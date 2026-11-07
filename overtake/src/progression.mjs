@@ -1,7 +1,7 @@
 // Local, reset-once economy. Dev access never purchases a car or an upgrade.
 export const CAR_PRICES = Object.freeze({ golf: 0, mustang: 3000, challenger: 6000, mercedes: 9500, audi: 14000, r8: 23000, ferrari: 35000 });
 export const UPGRADE_PRICES = Object.freeze({ engine: [700, 1800, 4000], tires: [600, 1600, 3500], brakes: [500, 1300, 3000] });
-export const TUNE_PRICES = Object.freeze({ street: 250, touring: 500, sport: 800, track: 1200, flame: 1500, carbon: 400, upper: 350, lower: 350, stripe: 350, race: 700, underglow: 500, paint: 250 });
+export const TUNE_PRICES = Object.freeze({ street: 250, touring: 500, sport: 800, rally: 950, gt: 1100, track: 1200, wide: 1400, titanium: 1600, flame: 1500, carbon: 400, upper: 350, lower: 350, stripe: 350, race: 700, camo: 650, fade: 650, checker: 750, slash: 750, gloss: 0, metallic: 400, pearlescent: 850, matte: 550, satin: 350, underglow: 500, paint: 250 });
 const MAX = 1_000_000_000;
 const amount = n => typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.min(MAX, Math.floor(n))) : 0;
 const cars = Object.keys(CAR_PRICES);
@@ -44,7 +44,7 @@ export function buyUpgrade(p, car, key) {
 export function tunePrice(key, value) {
   if (key === 'paint') return TUNE_PRICES.paint;
   if (key === 'underglow') return value === 'on' ? TUNE_PRICES.underglow : 0;
-  if (['front','rear','skirts','spoiler','exhaust','frontFinish','rearFinish','skirtsFinish','spoilerFinish','exhaustFinish','paintScheme','secondaryFinish','livery'].includes(key)) return TUNE_PRICES[value] ?? 0;
+  if (['front','rear','skirts','spoiler','exhaust','frontFinish','rearFinish','skirtsFinish','spoilerFinish','exhaustFinish','paintScheme','secondaryFinish','livery','paintFinish'].includes(key)) return TUNE_PRICES[value] ?? 0;
   return 0; // Colors are included once their feature is bought.
 }
 export function buyTune(p, car, key, value) {

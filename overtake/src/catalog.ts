@@ -139,6 +139,16 @@ export const PAINT_COLORS: { name: string; hex: string }[] = [
   { name: 'Arancio', hex: '#ff7a1a' },
   { name: 'Viola', hex: '#5b2a86' },
   { name: 'Grigio', hex: '#4a505a' },
+  { name: 'Midnight Pearl', hex: '#17203a' },
+  { name: 'British Green', hex: '#0d3b2e' },
+  { name: 'Candy Apple', hex: '#8f0f22' },
+  { name: 'Solar Gold', hex: '#c9920e' },
+  { name: 'Ultraviolet', hex: '#3b1470' },
+  { name: 'Ice Blue', hex: '#a8d8e8' },
+  { name: 'Desert Sand', hex: '#c2a878' },
+  { name: 'Hot Pink', hex: '#e83e8c' },
+  { name: 'Stealth', hex: '#23262b' },
+  { name: 'Lime Volt', hex: '#aacc00' },
 ];
 
 export function getCar(id: CarId): CarSpec {

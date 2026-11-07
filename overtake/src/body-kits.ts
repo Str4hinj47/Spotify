@@ -224,8 +224,10 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   const metal=new THREE.MeshStandardMaterial({ color:0xb6c7cf,metalness:.9,roughness:.22 });
   const dark=new THREE.MeshBasicMaterial({ color:0x090d10, side:THREE.DoubleSide });
   const reg=(part:string)=>{const partGroup=new THREE.Group();partGroup.name=`custom-${part}`;g.add(partGroup);return partGroup;};
-  const level=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>({stock:0,street:0,touring:.34,sport:.67,track:1,flame:1}[config[part]]);
-  const isTrack=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>config[part]==='track'||(part==='exhaust' && config.exhaust==='flame');
+  const level=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>({stock:0,street:0,touring:.34,sport:.67,rally:.5,gt:.82,track:1,wide:1,titanium:1,flame:1}[config[part]]);
+  const isTrack=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>config[part]==='track'||config[part]==='wide'||config[part]==='gt'||config[part]==='titanium'||(part==='exhaust' && config.exhaust==='flame');
+  const burnt=new THREE.MeshStandardMaterial({ color:0x8a7cff, metalness:.95, roughness:.18 }); // heat-blued titanium
+  g.userData.titaniumMaterial=burnt;
   if(config.front!=='stock') {
     const a=reg('front'), track=isTrack('front'), amount=level('front'), panel=config.frontFinish==='carbon'?woven:body;
     const nose=f.frontZ-.015;
@@ -247,6 +249,10 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       splitter.name='front-splitter';a.add(splitter);
     }
     if(id==='mercedes') box(f.frontW*1.35,.015,.035,0,f.bumperY+.11,nose+.04,metal,a,'bright-fascia-trim');
+    if(amount>=.8) for(const side of [-1,1]) { // GT/wide/track canards
+      const canard=box(.16,.012,.07,side*(f.frontW*.92),f.bumperY+.12,nose+(id==='golf'||id==='audi'||id==='mustang'?.1:.02),carbon,a,'front-canard');
+      canard.rotation.set(0,side*-.35,-side*.18);
+    }
   }
   if(config.rear!=='stock') {
     const a=reg('rear'),track=isTrack('rear'),amount=level('rear'), tail=f.rearZ-.035, panel=config.rearFinish==='carbon'?woven:body;
@@ -270,7 +276,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       const diffuserWidth=.48;
       const diffuser=new THREE.Mesh(apron(f.rearW*diffuserWidth,tail+.05,f.bumperY-.005,THREE.MathUtils.lerp(.08,.13,amount),.25,.04,true),carbon);
       diffuser.name='rear-diffuser';a.add(diffuser);
-      const finCount=amount<1?3:5;
+      const finCount=config.rear==='wide'?7:amount<1?3:5;
       if(amount>=.67) for(let i=0;i<finCount;i++) {
         const x=(i-(finCount-1)/2)*f.rearW*diffuserWidth*1.6/Math.max(1,finCount-1);
         const fin=box(.016,.09,.24,x,f.bumperY-.015,tail-.025,carbon,a,'diffuser-fin');fin.rotation.x=-.13;
@@ -311,6 +317,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   if(config.exhaust!=='stock') {
     const a=reg('exhaust'),track=isTrack('exhaust'), amount=level('exhaust'), finish=config.exhaustFinish==='carbon'?woven:metal;
     const oval=f.character==='luxury'||f.character==='wagon'||f.character==='midengine';
+    const tipMetal=config.exhaust==='titanium'?burnt:finish;
     // One mouth position is shared by the pipe and flame. The measured rear
     // offsets place the rim just beyond the stock bumper, not inside it.
     const z=id==='mustang' ? 2.240 : id==='ferrari' ? 1.948 : f.rearZ-.06, mouthZ=z+.054, y=id==='mustang' ? .401 : id==='ferrari' ? .334 : f.tipY+.08;
@@ -330,7 +337,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       // The source 458 mesh already contains three outlets. Their centers were
       // measured after its yaw correction; do not layer fake pipes over them.
       for(const x of centers) {const mouth=new THREE.Object3D();mouth.name='exhaust-mouth';mouth.position.set(x,.334,2.002);a.add(mouth);}
-    } else for(const x of centers) tip(a,x,y,z,radius,finish,dark,!track && (config.exhaust==='touring'||oval) && id!=='golf' && config.exhaust!=='sport');
+    } else for(const x of centers) tip(a,x,y,z,radius,tipMetal,dark,!track && (config.exhaust==='touring'||oval) && id!=='golf' && config.exhaust!=='sport');
     if (config.exhaust==='flame') {
       const flames=new THREE.Group(); flames.name='exhaust-flames';
       const flameMaterials:THREE.ShaderMaterial[]=[];
@@ -387,7 +394,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     plane.name='underglow-pool';plane.rotation.x=-Math.PI/2;plane.position.set(0,.035,0);plane.renderOrder=2;a.add(plane);
   }
   // Dispose also the unreferenced materials created for the chosen combination.
-  g.userData.ownedMaterials=[body,carbon,woven,metal,dark];
+  g.userData.ownedMaterials=[body,carbon,woven,metal,dark,burnt];
   return g;
 }
 export function disposeBodyKit(group:THREE.Group) {

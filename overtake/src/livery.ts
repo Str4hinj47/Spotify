@@ -4,7 +4,7 @@ import type { Customization } from './customization.mjs';
 
 // Each car gets different stripe widths, placement and flank graphics; these
 // are original procedural designs, not imported logos or branded decals.
-export const LIVERIES: Record<CarId, { labels:[string,string], stripe:number, offset:number, belt:number, doorZ:number, side:number, roof:number }> = {
+export const LIVERIES: Record<CarId, { labels:string[], stripe:number, offset:number, belt:number, doorZ:number, side:number, roof:number }> = {
   golf: { labels:['Club stripes','Cup rally'], stripe:.105, offset:.17, belt:.43, doorZ:0, side:.79, roof:.92 },
   mercedes: { labels:['Touring pinstripes','Grand touring'], stripe:.065, offset:.22, belt:.39, doorZ:.10, side:.90, roof:.97 },
   audi: { labels:['Avant stripes','Touring circuit'], stripe:.09, offset:.20, belt:.40, doorZ:-.10, side:.90, roof:.98 },
@@ -20,9 +20,24 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
   const mat = source.clone();
   const d = LIVERIES[id];
   const upper = config.paintScheme === 'upper' ? 1 : config.paintScheme === 'lower' ? 2 : 0;
-  const pattern = config.livery === 'stripe' ? 1 : config.livery === 'race' ? 2 : 0;
+  const pattern = config.livery === 'stripe' ? 1 : config.livery === 'race' ? 2
+    : config.livery === 'camo' ? 3 : config.livery === 'fade' ? 4
+    : config.livery === 'checker' ? 5 : config.livery === 'slash' ? 6 : 0;
   const secondary = new THREE.Color(config.secondaryColor);
   const livery = new THREE.Color(config.liveryColor);
+  // Paint finish PBR (MeshPhysicalMaterial carries clearcoat/iridescence).
+  const phys = mat as THREE.MeshPhysicalMaterial;
+  if (config.paintFinish === 'metallic') { mat.metalness = .9; mat.roughness = .24; if ('clearcoat' in phys) { phys.clearcoat = .7; phys.clearcoatRoughness = .12; } }
+  else if (config.paintFinish === 'pearlescent') {
+    mat.metalness = .55; mat.roughness = .28;
+    if ('clearcoat' in phys) { phys.clearcoat = 1; phys.clearcoatRoughness = .06; }
+    if ('iridescence' in phys) { phys.iridescence = .85; phys.iridescenceIOR = 1.6; }
+    // Pearlescent accent: the livery/secondary tones shift toward the pearl tint.
+    livery.lerp(new THREE.Color(config.pearlColor), .45);
+    secondary.lerp(new THREE.Color(config.pearlColor), .3);
+  }
+  else if (config.paintFinish === 'matte') { mat.metalness = .05; mat.roughness = .88; if ('clearcoat' in phys) phys.clearcoat = 0; }
+  else if (config.paintFinish === 'satin') { mat.metalness = .25; mat.roughness = .52; if ('clearcoat' in phys) { phys.clearcoat = .25; phys.clearcoatRoughness = .4; } }
   mat.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, {
       kitMatrix:{value:meshToCar}, kitSecondary:{value:secondary}, kitAccent:{value:livery},
@@ -35,6 +50,7 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
       varying vec3 vKitPos; uniform vec3 kitSecondary; uniform vec3 kitAccent;
       uniform float kitScheme, kitPattern, kitCarbon, kitStripe, kitOffset, kitBelt, kitDoor, kitSide, kitRoof;
       float kitBand(float d,float w) { return 1.0-smoothstep(w,w+0.018,abs(d)); }
+      float kitHash(vec2 p) { return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
       vec3 kitWeave(vec3 p) {
         vec2 q=vec2(p.x+p.z*.23,p.y+p.z*.30)*115.0;
         float a=step(.5,fract(q.x)), b=step(.5,fract(q.y));
@@ -50,11 +66,34 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
       float sideSurface=smoothstep(kitSide*.73,kitSide*.92,ax);
       float stripe=kitBand(ax-kitOffset,kitStripe*.5)*upperSurface*(1.0-sideSurface);
       float belt=kitBand(vKitPos.y-kitBelt,.035)*sideSurface;
-      float roundel=(1.0-smoothstep(.20,.22,length(vec2(vKitPos.z-kitDoor,vKitPos.y-(kitBelt+.28)))))*sideSurface;
-      float graphics=kitPattern < .5 ? 0.0 : (kitPattern < 1.5 ? stripe : max(stripe,max(belt,roundel)));
-      diffuseColor.rgb=mix(diffuseColor.rgb,kitAccent,graphics*.96);`);
+      // Racing (fixed): twin stripes + diagonal door slash + OUTLINE roundel
+      // with a small centre dot — the old filled white disc read as a sticker blob.
+      float doorDist=length(vec2(vKitPos.z-kitDoor,vKitPos.y-(kitBelt+.30)));
+      float ring=(1.0-smoothstep(.028,.045,abs(doorDist-.19)))*sideSurface;
+      float dot=(1.0-smoothstep(.045,.06,doorDist))*sideSurface;
+      float slash=kitBand((vKitPos.y-kitBelt-.22)+(vKitPos.z-kitDoor)*.55,.075)*sideSurface;
+      float race=max(stripe, max(belt, max(ring*.95, max(dot*.9, slash))));
+      // Camo: chunky two-cell procedural blobs across every panel.
+      vec2 cell=floor(vec2(vKitPos.z*3.1+vKitPos.x*1.7, vKitPos.y*4.3));
+      float camo=step(.62,kitHash(cell))*.9 + step(.82,kitHash(cell+7.0))*.5;
+      // Fade: accent washes from nose to tail over the flanks + roof edge.
+      float fade=(smoothstep(-2.2,2.2,vKitPos.z)*.75+.25)*max(sideSurface,upperSurface*.7);
+      // Checker: flag squares confined to the belt line and roof stripe.
+      float sq=mod(floor(vKitPos.x*16.0)+floor(vKitPos.z*16.0),2.0);
+      float checker=max(kitBand(vKitPos.y-kitBelt,.055),stripe)*step(.5,sq);
+      // Slash pack: three rising diagonal blades on each flank.
+      float blades=kitBand(fract((vKitPos.z-kitDoor)*.9+(vKitPos.y-kitBelt)*1.4)-.5,.13)*sideSurface*smoothstep(.05,.25,vKitPos.y-kitBelt);
+      float graphics = kitPattern < .5 ? 0.0
+        : kitPattern < 1.5 ? stripe
+        : kitPattern < 2.5 ? race
+        : kitPattern < 3.5 ? clamp(camo,0.0,1.0)
+        : kitPattern < 4.5 ? fade
+        : kitPattern < 5.5 ? checker : blades;
+      vec3 graphicColor = kitPattern > 3.5 && kitPattern < 4.5
+        ? mix(kitAccent, kitSecondary, smoothstep(-2.2,2.2,vKitPos.z)) : kitAccent;
+      diffuseColor.rgb=mix(diffuseColor.rgb,graphicColor,graphics*.96);`);
   };
-  mat.customProgramCacheKey = () => 'overtake-custom-paint-v2';
+  mat.customProgramCacheKey = () => `overtake-custom-paint-v3-${config.paintFinish}-${config.livery}`;
   mat.name = `custom-paint-${id}`;
   return mat;
 }

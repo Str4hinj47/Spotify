@@ -39,3 +39,20 @@ test('touring and sport options persist independently for every part', () => {
     assert.deepEqual(sanitizeCustomization(JSON.parse(JSON.stringify(loaded.golf))), loaded.golf);
   }
 });
+
+test('expanded tuning options, paint finishes and liveries persist', () => {
+  for (const variant of ['rally','gt','wide']) {
+    const loaded = sanitizeCustomization(Object.fromEntries(BODY_PARTS.map(part=>[part,variant])));
+    for (const part of BODY_PARTS) assert.equal(loaded[part],variant);
+  }
+  assert.equal(sanitizeCustomization({exhaust:'titanium'}).exhaust,'titanium');
+  for (const finish of ['gloss','metallic','pearlescent','matte','satin'])
+    assert.equal(sanitizeCustomization({paintFinish:finish}).paintFinish,finish);
+  assert.equal(sanitizeCustomization({paintFinish:'chrome'}).paintFinish,'gloss');
+  assert.equal(sanitizeCustomization({pearlColor:'#abc'}).pearlColor,'#aabbcc');
+  for (const livery of ['camo','fade','checker','slash'])
+    assert.equal(sanitizeCustomization({livery}).livery,livery);
+  assert.equal(sanitizeCustomization({livery:'sponsored'}).livery,'none');
+  const roundTrip = sanitizeCustomization({front:'gt', exhaust:'titanium', paintFinish:'pearlescent', pearlColor:'#88ccff', livery:'checker'});
+  assert.deepEqual(sanitizeCustomization(JSON.parse(JSON.stringify(roundTrip))), roundTrip);
+});

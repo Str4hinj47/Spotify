@@ -109,6 +109,23 @@ are cosmetic: they do not change handling or traffic cars. Reset car clears
 that car's workshop choices, including its two-tone and livery, but retains
 its separate primary paint color.
 
+### Tuning, liveries & paint finishes (Season 01 expansion)
+
+- **Tuning parts:** every body part (front, rear, skirts, spoiler, exhaust) now
+  offers Factory, car-specific Street, Touring, Sport, Rally, GT aero, Track and
+  Widebody — exhaust adds Titanium quad (heat-blued tips) and Afterfire flames.
+  GT/Wide/Track fronts gain canards, Wide rears a 7-fin diffuser, and each option
+  keeps its per-car fit, carbon/standard finishes and economy pricing.
+- **Liveries:** the old filled-disc "racing" roundel is now an outline ring +
+  centre dot with a diagonal door slash and belt line. New wraps: Camo, Gradient
+  fade (accent → second colour, nose to tail), Checker flag, and Voltage blades —
+  all procedural shader graphics in your chosen livery/pearl colours, per car.
+- **Paint finishes:** Normal gloss, Metallic, Pearlescent (iridescent clearcoat
+  with a pearl-accent tint colour), Matte, and Satin — real PBR material changes,
+  plus 10 new paint presets (Midnight Pearl, Candy Apple, Solar Gold…).
+- **Trucks:** semis and KrAZ now appear from 250 points (was 1,500) at roughly
+  1-in-3 same-direction spawns (was ~9%), spaced 300 m so two queues can form.
+
 ### Paint customization
 
 The garage includes a paint panel for every car: ten swatches, a custom color

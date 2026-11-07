@@ -81,7 +81,7 @@ function syncWorkshopChoices() {
         return button;
       }));
     }
-    const key = ({'custom-paint-scheme':'paintScheme','custom-secondary-finish':'secondaryFinish','custom-livery':'livery'} as Record<string,string>)[select.id]
+    const key = ({'custom-paint-scheme':'paintScheme','custom-secondary-finish':'secondaryFinish','custom-livery':'livery','custom-paint-finish':'paintFinish'} as Record<string,string>)[select.id]
       ?? select.id.replace(/^custom-/, '').replace(/-finish$/, 'Finish');
     const progress = game.getProgression();
     group.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
@@ -102,8 +102,8 @@ function syncCustomizationUI() {
   for (const part of BODY_PARTS) {
     const select = $(`custom-${part}`) as HTMLSelectElement;
     const labels = BODY_FITS[selected].labels[part];
-    const options = [['stock','Factory'], ['street',labels[0]], ['touring','Touring'], ['sport','Sport'], ['track',labels[1]]];
-    if (part === 'exhaust') options.push(['flame','Afterfire flames']);
+    const options = [['stock','Factory'], ['street',labels[0]], ['touring','Touring'], ['sport','Sport'], ['rally','Rally'], ['gt','GT aero'], ['track',labels[1]], ['wide','Widebody']];
+    if (part === 'exhaust') options.push(['titanium','Titanium quad'], ['flame','Afterfire flames']);
     select.replaceChildren(...options.map(([value,label]) => {
       const option=document.createElement('option'); option.value=value; option.textContent=label; return option;
     }));
@@ -118,12 +118,15 @@ function syncCustomizationUI() {
   ($('custom-secondary-finish') as HTMLSelectElement).value=config.secondaryFinish;
   ($('custom-secondary-finish') as HTMLSelectElement).disabled=config.paintScheme==='single';
   const livery = $('custom-livery') as HTMLSelectElement;
-  livery.replaceChildren(...[['none','None'],['stripe',LIVERIES[selected].labels[0]],['race',LIVERIES[selected].labels[1]]].map(([value,label]) => {
+  livery.replaceChildren(...[['none','None'],['stripe',LIVERIES[selected].labels[0]],['race',LIVERIES[selected].labels[1]],['camo','Camo wrap'],['fade','Gradient fade'],['checker','Checker flag'],['slash','Voltage blades']].map(([value,label]) => {
     const option=document.createElement('option');option.value=value;option.textContent=label;return option;
   }));
   livery.value=config.livery;
   const liveryColor=$('custom-livery-color') as HTMLInputElement;
   liveryColor.value=config.liveryColor;liveryColor.disabled=config.livery==='none';
+  ($('custom-paint-finish') as HTMLSelectElement).value = config.paintFinish;
+  const pearl = $('custom-pearl-color') as HTMLInputElement;
+  pearl.value = config.pearlColor; pearl.disabled = config.paintFinish !== 'pearlescent';
   ($('custom-glow-enabled') as HTMLInputElement).checked = config.underglow;
   const color = $('custom-glow-color') as HTMLInputElement;
   color.value = config.glowColor; color.disabled = !config.underglow;
@@ -848,9 +851,10 @@ function bindUI() {
     });
   }
   $('custom-primary-color').addEventListener('change', event => { applyPaint((event.target as HTMLInputElement).value); syncCustomizationUI(); });
-  const controls: [string, 'paintScheme'|'secondaryColor'|'secondaryFinish'|'livery'|'liveryColor', 'input'|'change'][] = [
+  const controls: [string, 'paintScheme'|'secondaryColor'|'secondaryFinish'|'livery'|'liveryColor'|'paintFinish'|'pearlColor', 'input'|'change'][] = [
     ['custom-paint-scheme','paintScheme','change'], ['custom-secondary-color','secondaryColor','input'],
     ['custom-secondary-finish','secondaryFinish','change'], ['custom-livery','livery','change'], ['custom-livery-color','liveryColor','input'],
+    ['custom-paint-finish','paintFinish','change'], ['custom-pearl-color','pearlColor','input'],
   ];
   for (const [id,key,event] of controls) $(id).addEventListener(event, e => applyCustomization({ ...currentCustomization(), [key]:(e.target as HTMLInputElement | HTMLSelectElement).value } as Customization));
   $('custom-glow-enabled').addEventListener('change', event => applyCustomization({ ...currentCustomization(), underglow:(event.target as HTMLInputElement).checked }));

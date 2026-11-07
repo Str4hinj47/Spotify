@@ -7,12 +7,13 @@ const vehicle = (id, s, speed, dir = 1, offset = dir === 1 ? 2.1 : -2.1) => ({
   width: isTruck(id) ? 2.5 : 1.9, ai: createTrafficAI(TRAFFIC_CRUISE[id]),
 });
 
-test('trucks are rare, score-gated and spaced apart; model cruise speeds differ', () => {
-  assert.equal(chooseTruck(1499, [], 200, () => 0), null);
-  assert.equal(chooseTruck(1500, [], 200, () => 0.1), null);
-  assert.equal(chooseTruck(1500, [], 200, () => 0), 'semi');
-  const seq = [0.01, 0.8]; assert.equal(chooseTruck(1500, [], 200, () => seq.shift()), 'kraz');
-  assert.equal(chooseTruck(3000, [vehicle('semi', 350, 11.5)], 200, () => 0), null);
+test('trucks appear early and often, spaced so two queues can form; model cruise speeds differ', () => {
+  assert.equal(chooseTruck(249, [], 200, () => 0), null, 'still gated for the opening seconds');
+  assert.equal(chooseTruck(250, [], 200, () => 0.4), null, 'about 1 in 3 spawns, not every spawn');
+  assert.equal(chooseTruck(250, [], 200, () => 0), 'semi');
+  const seq = [0.01, 0.8]; assert.equal(chooseTruck(250, [], 200, () => seq.shift()), 'kraz');
+  assert.equal(chooseTruck(3000, [vehicle('semi', 350, 11.5)], 200, () => 0), null, 'no truck within 300m');
+  const far = [0, 0]; assert.equal(chooseTruck(3000, [vehicle('semi', 560, 11.5)], 200, () => far.shift()), 'semi', 'a second truck may spawn 360m ahead');
   assert.ok(trafficCruise('kraz', () => 1) < trafficCruise('golf', () => 0));
   assert.notEqual(trafficCruise('golf', () => 0), trafficCruise('golf', () => 1));
   assert.ok(Math.max(TRAFFIC_CRUISE.semi, TRAFFIC_CRUISE.kraz) < TRAFFIC_CRUISE.golf);

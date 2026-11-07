@@ -366,7 +366,7 @@ export class ModelLibrary {
             }
             base = cached;
           }
-          if (config && id !== 'semi' && id !== 'kraz' && (config.paintScheme !== 'single' || config.livery !== 'none')) {
+          if (config && id !== 'semi' && id !== 'kraz' && (config.paintScheme !== 'single' || config.livery !== 'none' || config.paintFinish !== 'gloss')) {
             const meshToCar = new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
             const custom = customPaintMaterial(base, meshToCar, id, config);
             customPaintCopies.push(custom);

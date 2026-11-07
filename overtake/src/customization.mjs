@@ -1,11 +1,13 @@
 import { normalizeHex } from './paint.mjs';
 
 export const BODY_PARTS = ['front', 'rear', 'skirts', 'spoiler', 'exhaust'];
-export const PART_OPTIONS = ['stock', 'street', 'touring', 'sport', 'track'];
+export const PART_OPTIONS = ['stock', 'street', 'touring', 'sport', 'rally', 'gt', 'track', 'wide', 'titanium'];
+export const PAINT_FINISHES = ['gloss', 'metallic', 'pearlescent', 'matte', 'satin'];
+export const LIVERY_OPTIONS = ['none', 'stripe', 'race', 'camo', 'fade', 'checker', 'slash'];
 export const DEFAULT_CUSTOMIZATION = Object.freeze({
   front:'stock', rear:'stock', skirts:'stock', spoiler:'stock', exhaust:'stock',
   frontFinish:'standard', rearFinish:'standard', skirtsFinish:'standard', spoilerFinish:'standard', exhaustFinish:'standard',
-  paintScheme:'single', secondaryColor:'#141b24', secondaryFinish:'paint',
+  paintScheme:'single', secondaryColor:'#141b24', secondaryFinish:'paint', paintFinish:'gloss', pearlColor:'#7dd3fc',
   livery:'none', liveryColor:'#f2f5f7', underglow:false, glowColor:'#00ddff',
 });
 
@@ -19,7 +21,9 @@ export function sanitizeCustomization(value) {
   }
   if (['single','upper','lower'].includes(raw.paintScheme)) out.paintScheme = raw.paintScheme;
   if (raw.secondaryFinish === 'carbon') out.secondaryFinish = 'carbon';
-  if (['none','stripe','race'].includes(raw.livery)) out.livery = raw.livery;
+  if (['none','stripe','race','camo','fade','checker','slash'].includes(raw.livery)) out.livery = raw.livery;
+  if (PAINT_FINISHES.includes(raw.paintFinish)) out.paintFinish = raw.paintFinish;
+  out.pearlColor = normalizeHex(raw.pearlColor) || DEFAULT_CUSTOMIZATION.pearlColor;
   out.secondaryColor = normalizeHex(raw.secondaryColor) || DEFAULT_CUSTOMIZATION.secondaryColor;
   out.liveryColor = normalizeHex(raw.liveryColor) || DEFAULT_CUSTOMIZATION.liveryColor;
   out.underglow = raw.underglow === true;
