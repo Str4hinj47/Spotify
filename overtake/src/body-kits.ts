@@ -251,6 +251,8 @@ function archFlareGeometry(side:number, arch:WheelArch, fallbackX:number, protru
  * stays underneath but is fully covered — no floating panel, no gap. */
 function bumperCoverGeometry(rows: BumperRow[], rear: boolean, offMag = .012, wrapMag = .11, maxTailX = Infinity) {
   const positions:number[]=[], indices:number[]=[];
+  rows = rows.filter(row => row.points.filter(pt => Number.isFinite(pt.z)).length >= 2);
+  if(!rows.length) return new THREE.BufferGeometry();
   const grid = rows.map(row => {
     const pts = row.points.filter(pt => Number.isFinite(pt.z));
     const first = pts[0], last = pts[pts.length-1];
@@ -307,8 +309,13 @@ function bumperPatchGeometry(allRows: BumperRow[], yLo: number, yHi: number, xLo
     for(const r of allRows) { if(r.y<=y) lo=r; if(r.y>=y) { hi=r; break; } }
     const t = hi.y===lo.y ? 0 : (y-lo.y)/(hi.y-lo.y);
     const byX = new Map(hi.points.map(pt=>[Math.round(pt.x*1000), pt.z]));
-    return { y, points: lo.points.filter(pt => pt.x>=xLo && pt.x<=xHi)
-      .map(pt => ({ x:pt.x, z: pt.z + ((byX.get(Math.round(pt.x*1000)) ?? pt.z) - pt.z)*t })) }; };
+    let pts = lo.points.filter(pt => pt.x>=xLo && pt.x<=xHi);
+    if(pts.length < 2) { // patch range beyond this row's measured width: clamp to it
+      const xs = lo.points.map(pt=>pt.x), cLo=Math.max(xLo, Math.min(...xs)), cHi=Math.min(xHi, Math.max(...xs));
+      pts = lo.points.filter(pt => pt.x>=cLo && pt.x<=cHi);
+      if(pts.length < 2) { const c=(xLo+xHi)/2; pts = [...lo.points].sort((a,b)=>Math.abs(a.x-c)-Math.abs(b.x-c)).slice(0,2); }
+    }
+    return { y, points: pts.map(pt => ({ x:pt.x, z: pt.z + ((byX.get(Math.round(pt.x*1000)) ?? pt.z) - pt.z)*t })) }; };
   return bumperCoverGeometry([pick(yLo), pick(yHi)], rear, offMag, 0);
 }
 function bumperZ(rows: BumperRow[], x:number, y:number, rear:boolean) {
@@ -316,7 +323,7 @@ function bumperZ(rows: BumperRow[], x:number, y:number, rear:boolean) {
   for(const r of rows) if(Math.abs(r.y-y)<rd) { rd=Math.abs(r.y-y); row=r; }
   let best = row.points[0], bd = 1e9;
   for(const pt of row.points) if(Number.isFinite(pt.z) && Math.abs(pt.x-x)<bd) { bd=Math.abs(pt.x-x); best=pt; }
-  return best.z + (rear ? .016 : -.016);
+  return best.z + (rear ? .005 : -.005);
 }
 /** Thin shaped plate (canards, fins, endplates, flaps) with a bevelled edge. */
 function plateGeometry(points:[number,number][], thickness:number, bevel=.0025) {
@@ -530,22 +537,14 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
   if(config.front!=='stock') {
     const a=reg('front'), track=isTrack('front'), amount=level('front'), panel=config.frontFinish==='carbon'?woven:body;
     const nose=f.frontZ-.015;
-    if(bumpers) { // full replacement shell over the measured stock bumper
-      const shell=new THREE.Mesh(bumperCoverGeometry(bumpers.front,false,.016,.11,f.sideX-.005),panel);
-      shell.name='front-bumper'; shell.castShadow=true; a.add(shell);
-    } else if(id==='golf') {
-      const fascia=new THREE.Mesh(golfLowerBumper(false,amount),panel);fascia.name='front-fascia';a.add(fascia);
-    } else {
-      const sweep=f.character==='muscle'?.10:.23;
-      const fascia=new THREE.Mesh(apron(f.frontW*THREE.MathUtils.lerp(.97,1.05,amount),nose,f.bumperY+.015,THREE.MathUtils.lerp(.10,.25,amount),.22,sweep),panel);
-      fascia.name='front-fascia';a.add(fascia);
-    }
+    // No wrapper shell: the stock bumper stays and black parts stack on it.
     { const sweep=f.character==='muscle'?.10:.23;
-      const splitter=new THREE.Mesh(taperedBand(f.frontW*THREE.MathUtils.lerp(.96,1.01,amount),nose-THREE.MathUtils.lerp(.06,.13,amount),f.bumperY-.005,THREE.MathUtils.lerp(.30,.58,amount),.028,sweep),carbon);
+      const splitter=new THREE.Mesh(taperedBand(f.frontW*THREE.MathUtils.lerp(.96,1.01,amount),nose-THREE.MathUtils.lerp(.06,.13,amount),f.bumperY-.005,THREE.MathUtils.lerp(.30,.58,amount),.028,sweep),config.frontFinish==='carbon'?woven:carbon);
       splitter.name='front-splitter';a.add(splitter); }
-    if(id==='mercedes') box(f.frontW*1.35,.015,.035,0,f.bumperY+.11,nose+.04,metal,a,'bright-fascia-trim');
+    if(id==='mercedes' && bumpers) { const trim=new THREE.Mesh(bumperPatchGeometry(bumpers.front,.30,.33,-f.frontW*.5,f.frontW*.5,false,.009),metal);
+      trim.name='bright-fascia-trim'; a.add(trim); }
     if(config.front==='touring') { // chrome strip follows the shell surface
-      if(bumpers) { const strip=new THREE.Mesh(bumperPatchGeometry(bumpers.front,.262,.290,-f.frontW*.52,f.frontW*.52,false,.021),metal);
+      if(bumpers) { const strip=new THREE.Mesh(bumperPatchGeometry(bumpers.front,.262,.290,-f.frontW*.52,f.frontW*.52,false,.009),metal);
         strip.name='touring-chrome-strip'; a.add(strip); }
       else { const strip=new THREE.Mesh(new THREE.CylinderGeometry(.011,.011,f.frontW*1.25,16),metal);
         strip.name='touring-chrome-strip'; strip.rotation.z=Math.PI/2; strip.position.set(0,f.bumperY+.17,nose-.01); strip.scale.set(1,1,.55); a.add(strip); }
@@ -581,11 +580,11 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
     const a=g.getObjectByName('custom-front') as THREE.Group;
     if(a) { const nose=f.frontZ-.015;
       if(bumpers) { // intakes are surface patches on the shell, never floating plates
-        const intake=new THREE.Mesh(bumperPatchGeometry(bumpers.front,.235,.355,-.44,.44,false,.0205),dark);
+        const intake=new THREE.Mesh(bumperPatchGeometry(bumpers.front,.235,.355,-.44,.44,false,.010),dark);
         intake.name='front-intake'; a.add(intake);
-        for(const yy of [.275,.315]) { const slat=new THREE.Mesh(bumperPatchGeometry(bumpers.front,yy-.012,yy+.012,-.40,.40,false,.0235),carbon);
+        for(const yy of [.275,.315]) { const slat=new THREE.Mesh(bumperPatchGeometry(bumpers.front,yy-.012,yy+.012,-.40,.40,false,.013),carbon);
           slat.name='intake-slat'; a.add(slat); }
-        for(const side of [-1,1]) { const corner=new THREE.Mesh(bumperPatchGeometry(bumpers.front,.24,.36, side<0?-f.frontW*.96:-f.frontW*.64, side<0?-f.frontW*.64:f.frontW*.96, false,.0205),dark);
+        for(const side of [-1,1]) { const corner=new THREE.Mesh(bumperPatchGeometry(bumpers.front,.24,.36, side<0?-f.frontW*.96:-f.frontW*.64, side<0?-f.frontW*.64:f.frontW*.96, false,.010),dark);
           corner.name='front-corner-intake'; a.add(corner); }
       } else {
         const intake=box(f.frontW*1.02,.12,.025,0,f.bumperY+.09,nose-.01,dark,a,'front-intake'); intake.rotation.x=.06;
@@ -596,13 +595,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
   }
   if(config.rear!=='stock') {
     const a=reg('rear'),track=isTrack('rear'),amount=level('rear'), tail=f.rearZ-.035, panel=config.rearFinish==='carbon'?woven:body;
-    if(bumpers) { // full replacement shell over the measured stock bumper
-      const shell=new THREE.Mesh(bumperCoverGeometry(bumpers.rear,true,.016,.11,f.sideX-.005),panel);
-      shell.name='rear-bumper'; shell.castShadow=true; a.add(shell);
-    }
-    if(id==='golf' && !bumpers) {
-      const valance=new THREE.Mesh(golfLowerBumper(true,amount),panel);valance.name='rear-valance';a.add(valance);
-    } else if(id==='ferrari') {
+    if(id==='ferrari') {
       // Retain the factory diffuser and its fins. A shallow edge extension
       // is tucked into it rather than adding a second, hanging set of fins.
       const blade=new THREE.Mesh(taperedBand(THREE.MathUtils.lerp(.47,.53,amount),1.74,.19,THREE.MathUtils.lerp(.10,.15,amount),.012,0),config.rearFinish==='carbon'?woven:carbon);
@@ -610,15 +603,13 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
     } else if(id==='mustang') {
       // Tuck a shallow lower valance under the factory bumper and keep it
       // below the four exhaust outlets instead of hanging a slab off the tail.
-      const valance=new THREE.Mesh(taperedBand(.68,2.04,.305,.18,THREE.MathUtils.lerp(.045,.060,amount),-.06),panel);
+      const valance=new THREE.Mesh(taperedBand(.68,2.04,.305,.18,THREE.MathUtils.lerp(.045,.060,amount),-.06),config.rearFinish==='carbon'?woven:carbon);
       valance.name='rear-valance';a.add(valance);
       if(amount>=.67) {const diffuser=new THREE.Mesh(taperedBand(THREE.MathUtils.lerp(.40,.46,amount),2.06,.297,.12,.012,0),carbon);diffuser.name='rear-diffuser';a.add(diffuser);}
     } else {
-      if(!bumpers) { const valance=new THREE.Mesh(apron(f.rearW*.98,tail,f.bumperY+.005,THREE.MathUtils.lerp(.11,.16,amount),.20,.16,true),panel);
-        valance.name='rear-valance';a.add(valance); }
       // Keep the diffuser between the exhaust outlets rather than covering them.
       const diffuserWidth=.48;
-      const diffuser=new THREE.Mesh(apron(f.rearW*diffuserWidth,tail+.05,f.bumperY-.005,THREE.MathUtils.lerp(.08,.13,amount),.25,.04,true),carbon);
+      const diffuser=new THREE.Mesh(apron(f.rearW*diffuserWidth,tail+.05,f.bumperY-.005,THREE.MathUtils.lerp(.08,.13,amount),.25,.04,true),config.rearFinish==='carbon'?woven:carbon);
       diffuser.name='rear-diffuser';a.add(diffuser);
       const finCount=config.rear==='wide'?7:amount<1?3:5;
             if(amount>=.67) for(let i=0;i<finCount;i++) {
@@ -633,7 +624,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
   }
   if(config.rear==='touring') {
     const a=g.getObjectByName('custom-rear') as THREE.Group;
-    if(a) { if(bumpers) { const strip=new THREE.Mesh(bumperPatchGeometry(bumpers.rear,.262,.290,-f.rearW*.52,f.rearW*.52,true,.021),metal);
+    if(a) { if(bumpers) { const strip=new THREE.Mesh(bumperPatchGeometry(bumpers.rear,.262,.290,-f.rearW*.52,f.rearW*.52,true,.009),metal);
         strip.name='touring-chrome-strip'; a.add(strip); }
       else { const strip=new THREE.Mesh(new THREE.CylinderGeometry(.011,.011,f.rearW*1.25,16),metal);
         strip.name='touring-chrome-strip'; strip.rotation.z=Math.PI/2; strip.position.set(0,f.bumperY+.17,f.rearZ+.02); strip.scale.set(1,1,.55); a.add(strip); } }
@@ -651,9 +642,9 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
     const a=g.getObjectByName('custom-rear') as THREE.Group;
     if(a) { const tail=f.rearZ-.035;
       if(bumpers) {
-        const surround=new THREE.Mesh(bumperPatchGeometry(bumpers.rear,.215,.345,-.60,.60,true,.0205),carbon);
+        const surround=new THREE.Mesh(bumperPatchGeometry(bumpers.rear,.215,.345,-.60,.60,true,.010),carbon);
         surround.name='exhaust-surround'; a.add(surround);
-        for(const side of [-1,1]) { const vent=new THREE.Mesh(bumperPatchGeometry(bumpers.rear,.25,.37, side<0?-f.rearW*.94:-f.rearW*.62, side<0?-f.rearW*.62:f.rearW*.94, true,.0205),dark);
+        for(const side of [-1,1]) { const vent=new THREE.Mesh(bumperPatchGeometry(bumpers.rear,.25,.37, side<0?-f.rearW*.94:-f.rearW*.62, side<0?-f.rearW*.62:f.rearW*.94, true,.010),dark);
           vent.name='rear-corner-vent'; a.add(vent); }
       } else {
         const surround=box(f.rearW*.86,.17,.02,0,f.tipY+.08,tail+.035,carbon,a,'exhaust-surround'); surround.rotation.x=-.05;
@@ -714,7 +705,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number, arch
     // Seat every outlet on the measured rear surface: mouth target is the
     // stock surface (+ the shell skin when a rear bumper is fitted), so tips
     // can never end up buried inside the bumper shell.
-    const shellSurf=(x:number)=>bumpers?bumperZ(bumpers.rear,x,y,true)-.016:undefined;
+    const shellSurf=(x:number)=>bumpers?bumperZ(bumpers.rear,x,y,true)-.005:undefined;
     const tipZ=(x:number)=>{ const sz=shellSurf(x); if(sz===undefined) return z;
       return sz + (config.rear!=='stock' ? .036 : .02) - .054; };
     const mouthAt=(x:number)=>{ const sz=shellSurf(x); return sz===undefined?mouthZ:sz+(config.rear!=='stock'?.036:.02); };
