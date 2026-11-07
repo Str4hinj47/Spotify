@@ -240,6 +240,9 @@ function syncProgressionUI() {
   buy.disabled = progress.money < CAR_PRICES[selected];
   ($('btn-start') as HTMLButtonElement).disabled = !available;
   ($('btn-customize') as HTMLButtonElement).disabled = !available;
+  document.querySelectorAll<HTMLButtonElement>('.paint-swatch').forEach(button => { button.disabled = !available; });
+  ($('paint-custom') as HTMLInputElement).disabled = !available;
+  ($('paint-reset') as HTMLButtonElement).disabled = !available;
   $('start-label').textContent = available ? 'Start engine' : 'Buy car to drive';
   document.querySelectorAll<HTMLButtonElement>('.car-card').forEach(card => {
     const id = card.dataset.car as CarId, hasCar = earnedCar(progress, id);
@@ -743,6 +746,7 @@ function bindUI() {
     button.addEventListener('click', () => game.setGarageView(button.dataset.customView as 'front'|'side'|'rear'));
   });
   syncPaintUI(selected);
+  syncProgressionUI();
 
   $('signal-left').addEventListener('click', () => game.toggleSignal('left'));
   $('signal-right').addEventListener('click', () => game.toggleSignal('right'));
