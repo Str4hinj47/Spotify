@@ -68,6 +68,7 @@ export interface HudState {
   mult: number;
   best: number;
   overtakes: number;
+  nearMisses: number;
   oncoming: number | null; // metres to nearest oncoming car, if relevant
   offroad: boolean;
   throttle: number;
@@ -1678,7 +1679,7 @@ export class OvertakeGame {
     this.cb.onHud({
       score: this.score, speed: this.speed * 3.6, distance: this.distance,
       combo: this.combo, mult: multiplierFor(this.combo), best: this.best,
-      overtakes: this.overtakes, oncoming, offroad: Math.abs(this.offset) > ROAD_HALF - 0.4,
+      overtakes: this.overtakes, nearMisses: this.nearMisses, oncoming, offroad: Math.abs(this.offset) > ROAD_HALF - 0.4,
       throttle: this.input.throttle ? 1 : 0,
       brake: this.input.brake || this.input.handbrake ? 1 : 0,
       time: formatHour(this.worldClock.hour),

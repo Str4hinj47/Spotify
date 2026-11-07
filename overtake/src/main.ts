@@ -4,6 +4,8 @@ import { ModelLibrary } from './models';
 import { OvertakeGame, CAMERA_ORDER, type Mode, type HudState, type RunStats, type CameraPreset } from './game';
 import { RUN_MODES, eventFor, type RunMode } from './run.mjs';
 import { bestFor } from './records.mjs';
+import { RANKS, SCENARIOS, rankFor, type ScenarioId } from './ranked.mjs';
+import { rankBadge } from './rank-badges';
 import { CAR_PRICES, UPGRADE_PRICES, earnedCar, upgradeLevels, tunePrice, emptyProgression, type Upgrade } from './progression.mjs';
 import { CARS, getCar, PAINT_COLORS, type CarId } from './catalog';
 import { GameAudio } from './audio';
@@ -243,7 +245,7 @@ function syncProgressionUI() {
   document.querySelectorAll<HTMLButtonElement>('.paint-swatch').forEach(button => { button.disabled = !available; });
   ($('paint-custom') as HTMLInputElement).disabled = !available;
   ($('paint-reset') as HTMLButtonElement).disabled = !available;
-  $('start-label').textContent = available ? 'Start engine' : 'Buy car to drive';
+  $('start-label').textContent = available ? game.getRunMode() === 'ranked' ? 'Start ranked attack' : 'Start engine' : 'Buy car to drive';
   document.querySelectorAll<HTMLButtonElement>('.car-card').forEach(card => {
     const id = card.dataset.car as CarId, hasCar = earnedCar(progress, id);
     const status = card.querySelector<HTMLElement>('.cc-unlock')!;
@@ -276,7 +278,7 @@ function selectCar(id: CarId) {
 
 function setMode(m: Mode) {
   audio.setActive(m === 'driving');
-  if (m === 'garage') { syncModeUI(); syncProgressionUI(); }
+  if (m === 'garage') { syncModeUI(); syncProgressionUI(); syncRankUI(); }
   $('garage').classList.toggle('hidden', m !== 'garage');
   $('hud').classList.toggle('hidden', m === 'garage');
   $('pause').classList.toggle('hidden', m !== 'paused');
@@ -383,10 +385,43 @@ function syncModeUI() {
   }
 }
 
+let lastUnranked: RunMode = 'endless';
+function showGarageTab(tab: string) {
+  if (tab === 'ranked' && game.getRunMode() !== 'ranked') { lastUnranked = game.getRunMode(); selectMode('ranked'); }
+  if (tab === 'drive' && game.getRunMode() === 'ranked') selectMode(lastUnranked);
+  document.querySelectorAll<HTMLButtonElement>('[data-garage-tab]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.garageTab === tab)));
+  for (const section of ['drive', 'ranked', 'upgrades', 'style']) $('garage-' + section).classList.toggle('hidden', section !== tab);
+  syncRankUI(); syncProgressionUI();
+}
+function syncRankUI() {
+  if (!game) return;
+  const state = game.getRanked(), info = rankFor(state.points), selectedScenario = game.getRankedScenario();
+  const hero = $('rank-hero'); hero.style.setProperty('--rank-color', info.rank.color); hero.style.setProperty('--rank-glow', info.rank.glow);
+  $('rank-badge').innerHTML = rankBadge(info.index); $('rank-name').textContent = info.rank.name;
+  $('rank-points').textContent = fmt(state.points); $('rank-progress-fill').style.width = `${info.progress * 100}%`;
+  $('rank-next').textContent = info.next ? `${fmt(info.next.min - state.points)} RP to ${info.next.name}` : 'Top rank reached';
+  const list = $('rank-scenarios'); list.replaceChildren();
+  for (const scenario of SCENARIOS) {
+    const button = document.createElement('button'); button.type = 'button'; button.dataset.scenario = scenario.id;
+    button.className = `rank-scenario${scenario.id === selectedScenario.id ? ' active' : ''}`;
+    button.setAttribute('aria-pressed', String(scenario.id === selectedScenario.id));
+    const best = state.scenarios[scenario.id];
+    button.innerHTML = `<span class="rank-scenario-top"><span>${scenario.kicker}</span><span>GOLD +${Math.round(40 * scenario.multiplier)} RP</span></span><strong>${scenario.title}</strong><small>${(scenario.distance / 1000).toFixed(1)} km in ${scenario.limit}s · ${scenario.objective}</small><small>Gold ≤ ${scenario.gold}s · Silver ≤ ${scenario.silver}s${best?.bestTime ? ` · Best ${formatTime(best.bestTime)}` : ''}</small>`;
+    button.addEventListener('click', () => { game.setRankedScenario(scenario.id as ScenarioId); syncRankUI(); list.querySelector<HTMLButtonElement>(`[data-scenario="${scenario.id}"]`)?.focus(); audio.click(); });
+    list.appendChild(button);
+  }
+  const road = $('rank-road-grid'); road.replaceChildren();
+  RANKS.forEach((rank, i) => {
+    const item = document.createElement('div'); item.className = `road-rank${i === info.index ? ' current' : ''}${i > info.index ? ' locked' : ''}`;
+    item.innerHTML = `<div class="road-badge">${rankBadge(i)}</div><b>${rank.name}</b><small>${fmt(rank.min)} RP${i === info.index ? ' · CURRENT' : i > info.index ? ' · LOCKED' : ' · REACHED'}</small>`;
+    road.appendChild(item);
+  });
+}
+
 function selectMode(mode: RunMode) {
   game.setRunMode(mode);
-  syncModeUI();
-  $('best-top').textContent = fmt(game.getBest());
+  syncModeUI(); syncProgressionUI();
+  $('best-top').textContent = fmt(mode === 'ranked' ? game.getRanked().points : game.getBest());
   audio.click();
 }
 
@@ -398,7 +433,7 @@ function onHud(h: HudState) {
   $('speed-arc').style.strokeDashoffset = String(100 * (1 - Math.min(1, Math.max(0, h.speed / maxSpeed))));
   $('hud-dist').textContent = (h.distance / 1000).toFixed(2);
   $('hud-overtakes').textContent = String(h.overtakes);
-  $('best-top').textContent = fmt(h.best);
+  $('best-top').textContent = fmt(h.runMode === 'ranked' ? game.getRanked().points : h.best);
   const combo = $('hud-combo');
   if (h.combo >= 2) {
     combo.classList.remove('hidden');
@@ -426,7 +461,14 @@ function onHud(h: HudState) {
   $('run-clock').classList.toggle('rush', h.runMode === 'rush');
   $('run-clock').classList.toggle('urgent', h.timeLeft !== null && h.timeLeft <= 15);
   const card = $('contract-card');
-  if (h.contract) {
+  if (h.runMode === 'ranked') {
+    const scenario = game.getRankedScenario(); const value = scenario.metric === 'overtakes' ? h.overtakes : h.nearMisses;
+    card.classList.remove('hidden'); $('contract-index').textContent = 'RANKED · TIME ATTACK'; $('contract-reward').textContent = `${scenario.limit}s LIMIT`;
+    $('contract-title').textContent = scenario.title;
+    $('contract-desc').textContent = `${scenario.objective} · ${(h.distance / 1000).toFixed(2)} / ${(scenario.distance / 1000).toFixed(1)} km`;
+    $('contract-fill').style.width = `${Math.min(100, h.distance / scenario.distance * 100)}%`;
+    $('contract-count').textContent = `${Math.min(value, scenario.target)} / ${scenario.target} ${scenario.metric === 'overtakes' ? 'overtakes' : 'near misses'}`;
+  } else if (h.contract) {
     card.classList.remove('hidden');
     $('contract-index').textContent = `Contract ${h.contract.index}/${h.contract.total}`;
     $('contract-reward').textContent = `+${fmt(h.contract.reward)}`;
@@ -502,18 +544,30 @@ function onGameOver(s: RunStats) {
   $('final-near').textContent = String(s.nearMisses);
   $('final-dist').textContent = (s.distance / 1000).toFixed(1);
   $('final-top').textContent = String(Math.round(s.topSpeed));
-  $('final-contracts').textContent = `${s.contractsDone}/${s.contractsTotal}`;
-  $('final-best').textContent = s.mode === 'trial' ? (s.bestTime === null ? '—' : formatTime(s.bestTime)) : fmt(s.best);
-  $('final-best-label').textContent = s.mode === 'trial' ? 'Fastest time' : 'Personal best';
+  const ranked = s.ranked;
+  $('final-contracts').textContent = ranked ? `${Math.min(ranked.scenario.metric === 'overtakes' ? s.overtakes : s.nearMisses, ranked.scenario.target)}/${ranked.scenario.target}` : `${s.contractsDone}/${s.contractsTotal}`;
+  $('final-contract-label').textContent = ranked ? (ranked.scenario.metric === 'overtakes' ? 'overtakes goal' : 'near miss goal') : 'contracts';
+  const rankPanel = $('final-ranked'); rankPanel.classList.toggle('hidden', !ranked);
+  if (ranked) {
+    const change = ranked.change, current = change.after;
+    rankPanel.style.setProperty('--rank-color', current.rank.color);
+    $('final-rank-badge').innerHTML = rankBadge(current.index);
+    $('final-rank-label').textContent = `${ranked.scenario.title} · ${current.rank.name.toUpperCase()}`;
+    $('final-rank-change').textContent = s.devRun ? '0 RP · DEV PREVIEW' : `${change.delta > 0 ? '+' : ''}${change.delta} RP`;
+    $('final-rank-message').textContent = s.devRun ? 'Dev runs do not affect rank' : current.index > change.before.index ? `PROMOTED TO ${current.rank.name.toUpperCase()}!` : current.index < change.before.index ? `Rank changed to ${current.rank.name}` : `${fmt(current.points)} RP · local, unverified`;
+  }
+  const rankedBest = ranked ? game.getRanked().scenarios[ranked.scenario.id]?.bestTime ?? null : null;
+  $('final-best').textContent = ranked ? (rankedBest === null ? '—' : formatTime(rankedBest)) : s.mode === 'trial' ? (s.bestTime === null ? '—' : formatTime(s.bestTime)) : fmt(s.best);
+  $('final-best-label').textContent = ranked || s.mode === 'trial' ? 'Fastest time' : 'Personal best';
   $('new-best').classList.toggle('hidden', !s.newBest);
-  $('best-top').textContent = fmt(s.best);
-  $('final-title').textContent = s.reason === 'crash' ? 'Wrecked' : s.reason === 'objective' ? 'Challenge complete' : s.reason === 'distance' ? `Finished · ${formatTime(s.elapsed)}` : 'Time up';
+  $('best-top').textContent = fmt(ranked ? ranked.change.after.points : s.best);
+  $('final-title').textContent = s.reason === 'crash' ? 'Wrecked' : s.reason === 'objective' ? 'Challenge complete' : s.reason === 'distance' ? `Finished · ${formatTime(s.elapsed)}` : s.reason === 'objective_failed' ? 'Objective missed' : 'Time up';
   $('final-title').classList.toggle('finish-title', s.reason !== 'crash');
   const medal = $('final-medal');
   medal.className = `final-medal ${s.medal ?? ''}`.trim();
   medal.classList.toggle('hidden', !s.medal);
   medal.textContent = s.medal ? `${s.medal} medal` : '';
-  syncModeUI();
+  syncModeUI(); syncRankUI();
 }
 
 function startRun() {
@@ -631,7 +685,7 @@ function bindUI() {
       for (const car of CARS) { library.setPaint(car.id, paints[car.id] ? hexToNumber(paints[car.id]) : null); library.setCustomization(car.id, customizations[car.id] ?? { ...DEFAULT_CUSTOMIZATION }); void refreshThumbnail(car.id); }
       game.setSelectedCar(selected); syncPaintUI(selected);
     }
-    syncProgressionUI(); audio.click();
+    syncProgressionUI(); syncRankUI(); audio.click();
   });
   $('buy-car').addEventListener('click', () => { if (game.purchaseCar(selected)) { syncProgressionUI(); audio.click(); } });
   document.querySelectorAll<HTMLButtonElement>('.mode-card').forEach((b) => {
@@ -679,15 +733,15 @@ function bindUI() {
   $('cam-auto-center').addEventListener('change', e => game.setFreeCameraSettings({autoCenter:(e.target as HTMLInputElement).checked}));
   $('btn-resume').addEventListener('click', () => game.resume());
   $('btn-quit').addEventListener('click', () => game.toGarage());
-  document.querySelectorAll<HTMLButtonElement>('[data-garage-tab]').forEach(button => button.addEventListener('click', () => {
-    const tab = button.dataset.garageTab!;
-    document.querySelectorAll<HTMLButtonElement>('[data-garage-tab]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
-    for (const section of ['drive', 'upgrades', 'style']) $('garage-' + section).classList.toggle('hidden', section !== tab);
-  }));
+  document.querySelectorAll<HTMLButtonElement>('[data-garage-tab]').forEach(button => button.addEventListener('click', () => showGarageTab(button.dataset.garageTab!)));
+  const rankRoad = $('rank-road') as HTMLDialogElement;
+  $('rank-road-open').addEventListener('click', () => { syncRankUI(); rankRoad.showModal(); $('rank-road-close').focus(); });
+  $('rank-road-close').addEventListener('click', () => rankRoad.close());
+  rankRoad.addEventListener('close', () => $('rank-road-open').focus());
   $('btn-share-result').addEventListener('click', async () => {
     if (!latestResult) return;
     const s = latestResult;
-    const detail = s.mode === 'trial' && s.reason === 'distance' ? `3 km in ${formatTime(s.elapsed)}` : `${fmt(s.score)} points · ${(s.distance / 1000).toFixed(1)} km`;
+    const detail = s.ranked ? `${s.ranked.scenario.title} · ${s.reason === 'distance' ? formatTime(s.elapsed) : 'unfinished'} · ${s.ranked.change.delta > 0 ? '+' : ''}${s.ranked.change.delta} RP` : s.mode === 'trial' && s.reason === 'distance' ? `3 km in ${formatTime(s.elapsed)}` : `${fmt(s.score)} points · ${(s.distance / 1000).toFixed(1)} km`;
     const text = `OVERTAKE · ${RUN_MODES[s.mode].label}\n${detail} · ${s.overtakes} overtakes\n${s.devRun ? 'Dev run, excluded from records' : 'Local result, not globally verified'}\n${location.origin}/`;
     try {
       if (navigator.share) { await navigator.share({ title: 'OVERTAKE', text }); $('share-status').textContent = 'Shared'; }
@@ -712,10 +766,10 @@ function bindUI() {
     c.fillStyle = '#f4f7f3'; c.font = 'bold 38px sans-serif'; c.fillText('OVERTAKE', 72, 82);
     c.fillStyle = '#ff713d'; c.font = 'bold 24px sans-serif'; c.fillText(RUN_MODES[s.mode].label.toUpperCase(), 72, 170);
     c.fillStyle = '#f4f7f3'; c.font = 'bold 100px sans-serif';
-    const primary = s.mode === 'trial' && s.reason === 'distance' ? formatTime(s.elapsed) : fmt(s.score);
+    const primary = (s.mode === 'trial' || s.ranked) && s.reason === 'distance' ? formatTime(s.elapsed) : s.ranked ? `${s.ranked.change.delta > 0 ? '+' : ''}${s.ranked.change.delta} RP` : fmt(s.score);
     c.fillText(primary, 72, 290, 700);
     c.fillStyle = '#a9bab6'; c.font = 'bold 24px sans-serif';
-    c.fillText(s.mode === 'trial' && s.reason === 'distance' ? '3 KM TIME' : 'POINTS', 76, 330);
+    c.fillText(s.ranked ? (s.reason === 'distance' ? `${s.ranked.scenario.title.toUpperCase()} · TIME` : 'RANKED ATTACK') : s.mode === 'trial' && s.reason === 'distance' ? '3 KM TIME' : 'POINTS', 76, 330, 700);
     c.fillStyle = '#f4f7f3'; c.font = 'bold 27px sans-serif'; c.fillText(`${s.overtakes} OVERTAKES   /   ${s.nearMisses} NEAR MISSES   /   ${(s.distance / 1000).toFixed(1)} KM`, 72, 423, 720);
     c.fillStyle = '#ff9b76'; c.font = 'bold 22px sans-serif'; c.fillText(s.devRun ? 'DEV RUN · EXCLUDED FROM RECORDS' : 'LOCAL RESULT · NOT GLOBALLY VERIFIED', 72, 535, 720);
     c.fillStyle = '#9cafaa'; c.font = '20px sans-serif'; c.fillText(location.origin, 72, 575, 720);
@@ -824,6 +878,7 @@ function bindUI() {
     ' ': 'handbrake',
   };
   window.addEventListener('keydown', (e) => {
+    if (($('rank-road') as HTMLDialogElement).open) return;
     const target = e.target as HTMLElement | null;
     if (e.key === 'Escape' && !$('graphics-panel').classList.contains('hidden')) {
       e.preventDefault(); closeGraphicsPanel(); $(game.mode === 'paused' ? 'btn-pause-graphics' : 'btn-graphics').focus(); return;
@@ -923,6 +978,7 @@ async function boot() {
   syncSoundUI();
 
   bindUI();
+  if (game.getRunMode() === 'ranked') showGarageTab('ranked'); else lastUnranked = game.getRunMode();
   setMode('garage');
   $('loading').classList.add('hidden');
   $('topbar').classList.remove('hidden');
