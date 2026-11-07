@@ -1245,6 +1245,21 @@ export class OvertakeGame {
   }
 
   private buildGarage() {
+    if (this.liteMode) {
+      // Preview-only: the full studio showroom (canvas wall, 24 ribs, 3 spot
+      // lights, shadow maps) is removed. An invisible contact-shadow stand-in
+      // keeps setSelectedCar() working; the car sits on plain ground/sky.
+      const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+      shadow.name = 'showroom-contact-shadow'; shadow.rotation.x = -Math.PI / 2; shadow.position.y = .006;
+      const contacts = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }), 4);
+      contacts.count = 0; contacts.frustumCulled = false;
+      shadow.userData.tireContacts = contacts;
+      this.garageGroup.add(shadow, contacts, new THREE.HemisphereLight(0xdfe8ff, 0x20242c, 1.1));
+      this.showroomShadow = shadow;
+      return;
+    }
     this.showroomShadow = createShowroom(this.garageGroup);
 
     // A broad fill reveals dark paints without flattening the key and rims.

@@ -19,6 +19,8 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
 
 const audio = new GameAudio();
+/** Arena live preview host (or ?lite=1): phones skip every garage render. */
+const LITE_PREVIEW = new URLSearchParams(location.search).has('lite') || /(^|\.)e2b\.app$/i.test(location.hostname);
 (window as any).__audio = audio; // test/debug hook
 let game: OvertakeGame;
 let library: ModelLibrary;
@@ -176,6 +178,7 @@ function syncPaintUI(id: CarId) {
 }
 
 async function refreshThumbnail(id: CarId) {
+  if (LITE_PREVIEW) return; // no per-car WebGL thumbnail renders in the preview
   const img = document.querySelector<HTMLImageElement>(`.car-card[data-car="${id}"] img`);
   if (!img) return;
   img.src = await library.thumbnail(id);
@@ -928,7 +931,7 @@ async function boot() {
   try {
     await library.loadAll((done, total, label) => {
       $('load-bar').style.width = `${(done / total) * 90}%`;
-      $('load-label').textContent = done < total ? `Loading ${label}…` : 'Building garage…';
+      $('load-label').textContent = LITE_PREVIEW || done < total ? `Loading ${label}…` : 'Building garage…';
     });
   } catch (err) {
     $('load-label').textContent = 'Failed to load models. Please refresh.';
@@ -944,7 +947,7 @@ async function boot() {
 
   const cards = $('car-cards');
   for (const c of CARS) {
-    const url = await library.thumbnail(c.id);
+    const url = LITE_PREVIEW ? '/icon.svg' : await library.thumbnail(c.id);
     const btn = document.createElement('button');
     btn.className = 'car-card';
     btn.dataset.car = c.id;
