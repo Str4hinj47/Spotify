@@ -19,6 +19,7 @@
     "three": "^0.180.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.15",
     "@gltf-transform/core": "^4.5.1",
     "@gltf-transform/extensions": "^4.5.1",
     "@gltf-transform/functions": "^4.5.1",
