@@ -681,3 +681,22 @@ button.season-card{ cursor:pointer; } button.season-card:hover{ border-color:var
 .rankings-local{ display:flex; justify-content:space-between; padding:11px 12px; border:1px solid var(--border); border-radius:8px;
   font-size:12px; color:var(--muted); } .rankings-local b{ color:var(--warm); font-size:15px; }
 @media (max-width:700px){ .hud-value{ font-size:34px; } .season-hub{ margin-bottom:8px; } .season-card{ padding:8px 9px; } .season-card b{ font-size:11px; } }
+
+/* Supabase rankings + account (Phase 1) */
+.rankings-status{ color:var(--muted); font-size:12px; text-align:center; padding:4px 0; }
+.rankings-list{ list-style:none; display:flex; flex-direction:column; gap:5px; max-height:260px; overflow-y:auto; }
+.rankings-list li{ display:grid; grid-template-columns:34px 1fr auto auto; gap:8px; align-items:center;
+  padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:rgba(255,255,255,.04); font-size:12.5px; }
+.rankings-list li:nth-child(-n+3){ border-color:rgba(255,176,46,.55); }
+.rankings-list .rk-rank{ font-weight:900; font-style:italic; color:var(--warm); }
+.rankings-list .rk-name{ font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rankings-list .rk-car{ color:var(--muted); font-size:11px; text-transform:capitalize; }
+.rankings-list .rk-score{ font-weight:900; font-variant-numeric:tabular-nums; }
+.rankings-list li.me{ border-color:var(--volt); background:rgba(215,255,63,.10); }
+.rankings-tabs button[data-board]{ cursor:pointer; } .rankings-tabs button[data-board].active{ background:var(--volt); color:var(--ink); }
+.auth-box{ border-top:1px solid var(--border); padding-top:12px; display:flex; flex-direction:column; gap:7px; }
+.auth-box input{ width:100%; padding:10px 11px; border-radius:8px; border:1px solid var(--border);
+  background:rgba(255,255,255,.05); color:var(--text); font:inherit; font-size:13px; }
+.auth-box input:focus{ outline:2px solid var(--volt); outline-offset:1px; }
+.auth-actions{ display:grid; grid-template-columns:1fr 1fr; gap:7px; } .auth-actions button{ padding:10px; font-size:12px; }
+.auth-message{ font-size:12px; color:var(--warm); min-height:16px; } .auth-message.ok{ color:var(--good); }

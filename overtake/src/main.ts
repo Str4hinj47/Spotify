@@ -1,5 +1,6 @@
 import '@fontsource-variable/inter';
-import { createIcons, Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor } from 'lucide';
+import { createIcons, Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor, Globe, CalendarClock } from 'lucide';
+import { fetchLeaderboard, onAuthChange, signIn, signOut, signUp, submitScore, type OnlineUser } from './online';
 import { ModelLibrary } from './models';
 import { OvertakeGame, CAMERA_ORDER, type Mode, type HudState, type RunStats, type CameraPreset } from './game';
 import { RUN_MODES, type RunMode } from './run.mjs';
@@ -12,7 +13,7 @@ import { BODY_FITS } from './body-kits';
 import { LIVERIES } from './livery';
 import { BODY_PARTS, DEFAULT_CUSTOMIZATION, sanitizeCustomization, sanitizeCustomizations, type Customization } from './customization.mjs';
 
-createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor } });
+createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor, Globe, CalendarClock } });
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
@@ -695,9 +696,54 @@ function bindUI() {
   $('sound-indicator').addEventListener('change', e => audio.setIndicatorSounds((e.target as HTMLInputElement).checked));
   $('btn-help').addEventListener('click', openHelp);
   $('btn-close-help').addEventListener('click', closeHelp);
+  // --- Supabase: world rankings + accounts -------------------------------
+  let boardMode: 'endless' | 'rush' | 'daily' = 'endless';
+  let onlineUser: OnlineUser | null = null;
+  const authMsg = (text: string, ok = false) => {
+    const el = $('auth-message'); el.textContent = text; el.classList.toggle('ok', ok);
+  };
+  const syncAuthUI = () => {
+    $('auth-signed-out').classList.toggle('hidden', !!onlineUser);
+    $('auth-signed-in').classList.toggle('hidden', !onlineUser);
+    if (onlineUser) $('auth-who').textContent = `🏆 ${onlineUser.user_metadata?.display_name ?? onlineUser.email ?? 'Driver'}`;
+  };
+  const renderBoard = async () => {
+    const status = $('rankings-status'), list = $('rankings-list');
+    status.textContent = 'Loading world board…'; list.innerHTML = '';
+    try {
+      const rows = await fetchLeaderboard(boardMode as never, 20);
+      if (!rows.length) { status.textContent = 'No world scores yet — be the first on this board.'; return; }
+      status.textContent = `${boardMode === 'daily' ? 'Daily' : boardMode === 'rush' ? 'Rush' : 'Endless'} · best run per driver · top ${rows.length}`;
+      list.innerHTML = rows.map((r) =>
+        `<li class="${onlineUser && r.display_name === (onlineUser.user_metadata?.display_name) ? 'me' : ''}"><span class="rk-rank">#${r.rank}</span><span class="rk-name"></span><span class="rk-car">${r.car_id}</span><span class="rk-score">${fmt(r.score)}</span></li>`).join('');
+      list.querySelectorAll('.rk-name').forEach((el, i) => { el.textContent = rows[i].display_name; });
+    } catch (err) {
+      status.textContent = `World board unavailable (${err instanceof Error ? err.message : 'offline'}). Your device scores still save locally.`;
+    }
+  };
+  document.querySelectorAll<HTMLButtonElement>('[data-board]').forEach((b) => b.addEventListener('click', () => {
+    boardMode = b.dataset.board as typeof boardMode;
+    document.querySelectorAll('[data-board]').forEach((x) => x.classList.toggle('active', x === b));
+    void renderBoard();
+  }));
+  onAuthChange((user) => { onlineUser = user; syncAuthUI(); });
+  const authBusy = async (fn: () => Promise<unknown>, okText: string) => {
+    try { await fn(); authMsg(okText, true); void renderBoard(); }
+    catch (err) { authMsg(err instanceof Error ? err.message : 'Something went wrong'); }
+  };
+  $('btn-sign-up').addEventListener('click', () => void authBusy(async () => {
+    const name = ($('auth-name') as HTMLInputElement).value.trim();
+    if (name.length < 2) throw new Error('Pick a driver name (2+ characters) first.');
+    await signUp(($('auth-email') as HTMLInputElement).value.trim(), ($('auth-password') as HTMLInputElement).value, name);
+  }, 'Account created — check your email if confirmation is asked, then sign in.'));
+  $('btn-sign-in').addEventListener('click', () => void authBusy(async () => {
+    await signIn(($('auth-email') as HTMLInputElement).value.trim(), ($('auth-password') as HTMLInputElement).value);
+  }, 'Signed in. Finished runs now submit worldwide.'));
+  $('btn-sign-out').addEventListener('click', () => void authBusy(() => signOut(), 'Signed out.'));
   const openRankings = () => {
     closeSoundPanel(); closeGraphicsPanel();
     $('rankings-local-best').textContent = fmt(game.getBest());
+    syncAuthUI(); void renderBoard();
     $('rankings').classList.remove('hidden');
     $('btn-close-rankings').focus();
   };

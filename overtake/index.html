@@ -28,6 +28,7 @@
       </div>
       <div class="top-actions">
         <div class="best-pill"><i data-lucide="trophy"></i><span id="best-top">0</span></div>
+        <button id="btn-rankings" class="rankings-btn" type="button"><i data-lucide="globe"></i> World rankings</button>
         <button id="btn-sound" class="icon-btn" aria-label="Toggle sound">
           <i data-lucide="volume-2" class="ic-on"></i>
           <i data-lucide="volume-x" class="ic-off hidden"></i>
@@ -313,6 +314,38 @@
         <div id="final-progress" class="final-progress" aria-live="polite"></div>
         <button id="btn-retry" class="primary"><i data-lucide="rotate-ccw"></i> Drive again</button>
         <button id="btn-garage" class="ghost"><i data-lucide="home"></i> Change car</button>
+      </div>
+    </div>
+
+    <!-- World rankings (Supabase) -->
+    <div id="rankings" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rankings-title">
+      <div class="modal rankings-modal">
+        <div class="rankings-head">
+          <div><div class="custom-kicker">Season 01 · World Tour</div><h2 id="rankings-title">World rankings</h2></div>
+          <button id="btn-close-rankings" class="mini-btn" type="button" aria-label="Close world rankings">✕</button>
+        </div>
+        <div class="rankings-tabs" role="group" aria-label="Ranking board">
+          <button type="button" data-board="endless" class="active">Endless</button><button type="button" data-board="rush">Rush</button><button type="button" data-board="daily">Daily</button><button type="button" disabled>Friends</button>
+        </div>
+        <div id="rankings-status" class="rankings-status" aria-live="polite">Loading world board…</div>
+        <ol id="rankings-list" class="rankings-list"></ol>
+        <div class="rankings-local"><span>Your device best</span><b id="rankings-local-best">0</b></div>
+        <section class="auth-box" aria-label="Player account">
+          <div id="auth-signed-out">
+            <div class="paint-head"><span>Player account</span><span class="count">Free</span></div>
+            <input id="auth-name" type="text" maxlength="24" placeholder="Driver name (sign-up only)" autocomplete="nickname" />
+            <input id="auth-email" type="email" placeholder="Email" autocomplete="email" />
+            <input id="auth-password" type="password" placeholder="Password (6+ characters)" autocomplete="current-password" />
+            <div class="auth-actions"><button id="btn-sign-in" class="primary" type="button">Sign in</button><button id="btn-sign-up" class="ghost" type="button">Create account</button></div>
+            <p class="sound-hint">Signed in? Finished runs submit to the world board automatically.</p>
+          </div>
+          <div id="auth-signed-in" class="hidden">
+            <div class="rankings-local"><span id="auth-who">Signed in</span><button id="btn-sign-out" class="mini-btn" type="button">Sign out</button></div>
+            <p class="sound-hint">🏆 Your finished runs now submit automatically.</p>
+          </div>
+          <p id="auth-message" class="auth-message" aria-live="polite"></p>
+        </section>
+        <button id="btn-rankings-drive" class="primary" type="button"><i data-lucide="play"></i> Set a score to beat</button>
       </div>
     </div>
 

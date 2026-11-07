@@ -101,6 +101,7 @@ export interface RunStats {
   medal: Medal;
   reason: string | null;
   moneyGained: number;
+  seed: number;
 }
 
 export interface GameCallbacks {
@@ -1845,7 +1846,7 @@ export class OvertakeGame {
       score: this.score, distance: this.distance, overtakes: this.overtakes, nearMisses: this.nearMisses,
       best: this.best, newBest: result.newBest, mode: this.run.mode, car: this.selected,
       topSpeed: this.run.topSpeed, contractsDone: this.run.contractsDone, elapsed: this.run.elapsed,
-      medal: result.medal, reason, moneyGained: progress.gain,
+      medal: result.medal, reason, moneyGained: progress.gain, seed: this.run.seed,
     });
   }
 

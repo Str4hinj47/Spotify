@@ -9,7 +9,13 @@
 - New design tokens in `src/style.css` (`--volt #d7ff3f` on near-black, italic 900 arcade type, 8–10px radii, panel top-accent) — layered as an override block so every existing ID/class and smoke-test selector is preserved.
 - Garage hero ("EVERY PASS COUNTS"), Season hub (Daily Overtake + World Rankings cards), top-bar **World rankings** button, broadcast-style HUD score/combo, volt mode/contract/results accents.
 - **World rankings dialog**: Global/Weekly/Daily/Friends tabs (latter three disabled until accounts), honest empty state + device best. Wired in `src/main.ts` (open/close/backdrop, focus return). No fake data.
-- Next UI steps: extract tokens to `src/ui/tokens.css`, componentise modals/panels, motion pass, then Supabase auth + `scores` table + signed run submission (Phase 1).
+- Next UI steps: extract tokens to `src/ui/tokens.css`, componentise modals/panels, motion pass.
+
+### Phase 1 — Supabase LIVE (2026-11-07)
+- Project `ezvavdcntqjzcxpjyfku` (eu-west-2) restored from pause; email auto-confirm ON (frictionless sign-up; turn OFF + custom SMTP before public launch).
+- Migration `overtake_rankings` (repo copy: `supabase/migrations/20261107000000_rankings.sql`): `profiles` + `scores` tables, RLS (public read, insert-own only, plausibility CHECKs), `handle_new_user` trigger, `leaderboard(mode, limit)` RPC = best run per driver.
+- Client `src/online.ts` (@supabase/supabase-js, publishable key only — no secrets in repo): sign-up/in/out, board fetch, auto-submit on game over (`seed` now flows through `RunStats` for future replay verification). Rankings dialog is fully wired (Endless/Rush/Daily boards); offline/signed-out = local records still save.
+- Still to do: server-signed run tickets / replay anti-cheat (`is_verified` column ready), Weekly board, Daily Seed mode itself, set production Site URL + redirect allowlist in Supabase Auth once the website domain exists.
 
 ## 1. Honest audit: what you already have (better than you think)
 | Asset | Status |
