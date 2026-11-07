@@ -951,7 +951,7 @@ function bindUI() {
   });
   window.addEventListener('keyup', (e) => {
     const name = keyMap[e.key];
-    if (name) { e.preventDefault(); game.setInput(name, false); }
+    if (name) { if (game.mode === 'driving') e.preventDefault(); game.setInput(name, false); }
   });
   window.addEventListener('blur', () => {
     for (const n of ['throttle', 'brake', 'left', 'right', 'handbrake'] as const) game.setInput(n, false);
