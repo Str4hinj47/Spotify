@@ -36,6 +36,7 @@ import { createRun, tickRun, registerPass, finishRun, runSummary, contractProgre
 import { createTrafficAI, findLeader, stepTraffic, hazardAhead, trafficCruise, chooseTruck, canOvertakeTruck, startOvertake, stepOvertake, type TrafficAI, type Hazard } from './traffic-ai.mjs';
 import { chooseTrafficModel, chooseTrafficPaint } from './traffic-appearance.mjs';
 import { emptyRecords, sanitizeRecords, recordRun, bestFor, type Records } from './records.mjs';
+import { emptyRanked, sanitizeRanked, getScenario, applyRankedResult, RANKED_STORAGE_KEY, type RankedState, type ScenarioId, type RankChange, type RankedScenario } from './ranked.mjs';
 import { emptyProgression, sanitizeProgression, canDriveCar, awardProgress, buyCar, buyUpgrade, buyTune, effectiveUpgrades, type Progression, type Upgrade } from './progression.mjs';
 
 export type Mode = 'garage' | 'driving' | 'paused' | 'gameover';
@@ -101,6 +102,7 @@ export interface RunStats {
   medal: Medal;
   reason: string | null;
   moneyGained: number;
+  ranked: { change: RankChange; scenario: RankedScenario; newBest: boolean } | null;
 }
 
 export interface GameCallbacks {
@@ -279,6 +281,9 @@ export class OvertakeGame {
   private run: RunState = createRun('endless');
   private runMode: RunMode = 'endless';
   private runUsedDev = false;
+  private ranked: RankedState = emptyRanked();
+  private rankedScenario: ScenarioId = 'slipstream';
+  private rankSettled = true;
   private records: Records = emptyRecords();
   private progression: Progression = emptyProgression();
   private progressionSettled = true;
@@ -326,6 +331,7 @@ export class OvertakeGame {
 
     this.loadRecords();
     this.loadProgression();
+    try { this.ranked = sanitizeRanked(JSON.parse(localStorage.getItem(RANKED_STORAGE_KEY) || 'null')); this.rankedScenario = getScenario(localStorage.getItem('overtake-ranked-scenario')).id; } catch { /* local storage may be unavailable */ }
     this.best = bestFor(this.records, this.runMode);
 
     this.buildEnvironments();
@@ -1380,12 +1386,13 @@ export class OvertakeGame {
     if ((this.mode !== 'garage' && this.mode !== 'gameover') || !this.canDrive(this.selected)) return false;
     this.progressionSettled = false;
     this.runUsedDev = this.progression.dev;
+    this.rankSettled = false;
     this.clearTraffic();
     this.signal = null; this.signalElapsed = 0;
     this.updatePlayerLights(0);
     this.setEnvironment('road');
     this.playerS = 0;
-    this.run = createRun(this.runMode, (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0);
+    this.run = createRun(this.runMode, (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0, Date.now(), this.rankedScenario);
     this.hazard = null;
     this.best = bestFor(this.records, this.runMode);
     this.vehicle = createVehicleState();
@@ -1416,7 +1423,7 @@ export class OvertakeGame {
   resume() { if (this.mode === 'paused') this.setMode('driving'); }
 
   toGarage() {
-    if (this.mode === 'driving' || this.mode === 'paused') this.settleProgression();
+    if (this.mode === 'driving' || this.mode === 'paused') { this.settleProgression(); if (this.run.mode === 'ranked') { finishRun(this.run, 'quit'); this.settleRank(); } }
     this.clearTraffic();
     this.setEnvironment('garage');
     this.signal = null; this.clearDrivingInput();
@@ -1465,6 +1472,24 @@ export class OvertakeGame {
     try { localStorage.setItem('overtake-mode', mode); } catch { /* ignore */ }
   }
   getRunMode() { return this.runMode; }
+  getRanked() { return sanitizeRanked(this.ranked); }
+  getRankedScenario() { return getScenario(this.rankedScenario); }
+  setRankedScenario(id: ScenarioId) {
+    if (this.mode !== 'garage' && this.mode !== 'gameover') return;
+    this.rankedScenario = getScenario(id).id;
+    try { localStorage.setItem('overtake-ranked-scenario', this.rankedScenario); } catch { /* storage unavailable */ }
+  }
+  private settleRank() {
+    if (this.run.mode !== 'ranked' || this.rankSettled) return null;
+    this.rankSettled = true;
+    const scenario = getScenario(this.run.rankedScenario);
+    const previous = this.ranked.scenarios[scenario.id]?.bestTime ?? null;
+    const change = applyRankedResult(this.ranked, this.run, this.runUsedDev);
+    this.ranked = change.state;
+    if (change.outcome.eligible) { try { localStorage.setItem(RANKED_STORAGE_KEY, JSON.stringify(this.ranked)); } catch { /* in-memory rank remains */ } }
+    const newBest = change.outcome.success && (previous === null || this.run.elapsed < previous);
+    return {change, scenario, newBest};
+  }
   getRecords() { return this.records; }
 
   getProgression(): Progression { return sanitizeProgression(this.progression); }
@@ -1840,16 +1865,17 @@ export class OvertakeGame {
     this.setMode('gameover');
     const progress = this.settleProgression();
     const summary = runSummary(this.run, this.selected);
-    const result = this.runUsedDev ? { records: this.records, newBest: false, medal: null } : recordRun(this.records, summary);
+    const ranked = this.settleRank();
+    const result = this.runUsedDev || this.run.mode === 'ranked' ? { records: this.records, newBest: ranked?.newBest ?? false, medal: ranked?.change.outcome.medal ?? null } : recordRun(this.records, summary);
     this.records = result.records;
     this.saveRecords();
     this.best = bestFor(this.records, this.runMode);
-    if (reason !== 'crash') this.cb.onEvent({ kind: 'finish', text: reason === 'objective' ? 'CHALLENGE COMPLETE' : reason === 'distance' ? 'FINISH LINE' : 'TIME UP' });
+    if (reason !== 'crash') this.cb.onEvent({ kind: 'finish', text: reason === 'objective' ? 'CHALLENGE COMPLETE' : reason === 'distance' ? 'FINISH LINE' : reason === 'objective_failed' ? 'OBJECTIVE MISSED' : 'TIME UP' });
     this.cb.onGameOver({
       score: this.score, distance: this.distance, overtakes: this.overtakes, nearMisses: this.nearMisses,
       best: this.best, newBest: result.newBest, mode: this.run.mode, car: this.selected,
       topSpeed: this.run.topSpeed, contractsDone: this.run.contractsDone, contractsTotal: this.run.contracts.length, bestTime: this.records.modes.trial.bestTime, devRun: this.runUsedDev, elapsed: this.run.elapsed,
-      medal: result.medal, reason, moneyGained: progress.gain,
+      medal: result.medal, reason, moneyGained: progress.gain, ranked,
     });
   }
 
