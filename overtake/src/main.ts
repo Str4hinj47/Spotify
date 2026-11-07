@@ -789,7 +789,7 @@ function bindUI() {
   };
   const closeRankings = () => { $('rankings').classList.add('hidden'); $('btn-rankings').focus(); };
   $('btn-rankings').addEventListener('click', openRankings);
-  $('btn-rankings-hub').addEventListener('click', openRankings);
+  document.getElementById('btn-rankings-hub')?.addEventListener('click', openRankings);
   $('btn-close-rankings').addEventListener('click', closeRankings);
   $('btn-rankings-drive').addEventListener('click', () => { closeRankings(); $('car-detail').scrollTop = 0; $('btn-start').focus(); });
   $('rankings').addEventListener('click', (e) => { if (e.target === $('rankings')) closeRankings(); });
