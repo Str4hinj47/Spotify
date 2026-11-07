@@ -18,8 +18,8 @@ npm test         # gameplay rule unit tests
 
 See [LAUNCH.md](LAUNCH.md) for Vercel setup, optional Supabase email sign-in,
 manual cloud saves, security boundaries, and the work still required before global
-rankings. Cloud saves are implemented but require project setup; no verified
-leaderboard is enabled.
+rankings. Cloud saves are implemented but require project setup; offline save-file
+export/import works without an account. No verified leaderboard is enabled.
 
 ## Controls
 

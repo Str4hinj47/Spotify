@@ -70,6 +70,15 @@
       </div>
       <p id="cloud-status" role="status" aria-live="polite"></p>
     </section>
+    <section class="local-backup" aria-label="Offline save file">
+      <h3>OFFLINE SAVE FILE</h3>
+      <p>Download or import your garage and unverified personal records without signing in. Close game tabs first.</p>
+      <div class="cloud-actions">
+        <button id="backup-export" type="button">DOWNLOAD SAVE FILE</button>
+        <label class="backup-import">IMPORT SAVE FILE<input id="backup-import" type="file" accept=".json,application/json" /></label>
+      </div>
+      <p id="backup-status" role="status" aria-live="polite"></p>
+    </section>
     <button id="cloud-undo" class="account-signout" type="button" hidden>UNDO LAST LOCAL RESTORE</button>
     <p class="account-disclaimer">Sign-in and cloud saves require project setup. Close game tabs before saving or restoring. Backups and scores are not verified.</p>
   </dialog>

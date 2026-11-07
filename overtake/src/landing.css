@@ -26,3 +26,9 @@
 .cloud-actions button:hover { border-color:#ff713d; }
 .cloud-actions button:disabled { opacity:.5; cursor:wait; }
 #cloud-status { margin-top:10px; }
+.local-backup { border-top:1px solid #33413f; margin-top:20px; padding-top:18px; }
+.local-backup h3 { font-size:11px; letter-spacing:.12em; margin:0 0 10px; }
+.backup-import { display:block; background:#1a292b; border:1px solid #536763; color:#f2f7f3; font-size:10px; font-weight:700; letter-spacing:.06em; padding:12px; cursor:pointer; }
+.backup-import:hover, .backup-import:focus-within { border-color:#ff713d; }
+.backup-import input { display:block; width:100%; margin-top:8px; color:#aebbb8; font:inherit; }
+#backup-status { margin-top:10px; }

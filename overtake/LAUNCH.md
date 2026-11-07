@@ -9,7 +9,10 @@ and cars can vary, and the clock is local. Results are **not verified** or globa
 Sharing uses the native share sheet or clipboard, with a selectable-text fallback.
 Players can also download an unverified result card as a PNG.
 Developer-option runs are excluded from new personal records. Older personal
-records cannot be retrospectively verified.
+records cannot be retrospectively verified. The website's Account dialog also
+provides an offline JSON export/import without sign-in. Import replaces local
+garage data and records after confirmation and keeps one local undo backup; close
+game tabs first. The file is unencrypted and contains user-controlled game data.
 
 Optional email-link sign-in and manual cloud save/restore are implemented on the
 website but **not connected or deployed yet**. Once configured, signed-in players

@@ -13,6 +13,8 @@ const status = $('account-status');
 const cloudControls = $('cloud-controls');
 const cloudStatus = $('cloud-status');
 const cloudUndo = $('cloud-undo') as HTMLButtonElement;
+const backupStatus = $('backup-status');
+const backupImport = $('backup-import') as HTMLInputElement;
 const cloudButtons = ['cloud-upload', 'cloud-restore', 'cloud-delete'].map(id => $(id) as HTMLButtonElement);
 function refreshUndo() { try { cloudUndo.hidden = !localStorage.getItem(CLOUD_BACKUP_KEY); } catch { cloudUndo.hidden = true; } }
 refreshUndo();
@@ -20,8 +22,32 @@ $('account-open').addEventListener('click', () => { refreshUndo(); dialog.showMo
 if (location.hash === '#account') dialog.showModal();
 cloudUndo.addEventListener('click', () => {
   if (!confirm('Close all Overtake game tabs first. Swap this device’s current garage and personal records with its last pre-restore backup?')) return;
-  try { undoRestore(localStorage); refreshUndo(); cloudStatus.textContent = 'Local restore undone. Reopen the game to use the restored data.'; status.textContent = cloudStatus.textContent; }
+  try { undoRestore(localStorage); refreshUndo(); cloudStatus.textContent = 'Local restore undone. Reopen the game to use the restored data.'; status.textContent = cloudStatus.textContent; backupStatus.textContent = cloudStatus.textContent; }
   catch (e) { status.textContent = e instanceof Error ? e.message : 'Could not restore the local backup.'; }
+});
+
+$('backup-export').addEventListener('click', () => {
+  try {
+    const snapshot = captureSnapshot(localStorage);
+    const url = URL.createObjectURL(new Blob([JSON.stringify(snapshot)], { type: 'application/json' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'overtake-save.json'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    backupStatus.textContent = 'Save file downloaded. Keep it somewhere safe; it is not encrypted.';
+  } catch (e) { backupStatus.textContent = e instanceof Error ? e.message : 'Could not download a save file.'; }
+});
+backupImport.addEventListener('change', async () => {
+  const file = backupImport.files?.[0];
+  backupImport.value = '';
+  if (!file) return;
+  try {
+    if (file.size > 100_000) throw new Error('Save file is too large.');
+    let raw: unknown;
+    try { raw = JSON.parse(await file.text()); } catch { throw new Error('Save file is not valid JSON.'); }
+    const snapshot = normalizeSnapshot(raw);
+    if (!confirm('Close all Overtake game tabs first. Importing replaces this device’s garage and personal records. One local undo backup will be kept. Continue?')) { backupStatus.textContent = 'No changes made.'; return; }
+    restoreSnapshot(localStorage, snapshot); refreshUndo();
+    backupStatus.textContent = 'Save imported. Reopen the game to use it. You can undo the last local restore below.';
+  } catch (e) { backupStatus.textContent = e instanceof Error ? e.message : 'Could not import the save file.'; }
 });
 
 // Only public, browser-safe keys belong in VITE_ variables. Never put a service key here.
