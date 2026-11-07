@@ -42,10 +42,20 @@ Touch devices get on-screen steering, throttle and brake buttons.
 ## Gameplay
 
 - **Run modes:** Endless (survival), Rush (120-second score attack), Time Trial
-  (race to 3 km), and Near Miss (90 seconds; close passes score more). Daily and
+  (race to 3 km), Near Miss (90 seconds; close passes score more), and Ranked
+  Attack (timed distance plus an overtake/near-miss objective). Daily and
   weekly objectives rotate at UTC midnight and Monday UTC respectively; each
   ends on objective completion or timeout. Traffic and conditions vary and the
   objectives and results are local, not a fair or verified online competition.
+- **Ranked Attack:** choose Slipstream Sprint (2 km / 60 s / 4 overtakes),
+  Thread the Needle (2.8 km / 82 s / 3 near misses) or Redline Gauntlet
+  (4 km / 110 s / 8 overtakes). Meet the objective before the finish line to
+  earn bronze, silver or gold RP based on time; harder scenarios pay more.
+  Failing or quitting costs 12 RP, floored at zero, and Dev runs don't count.
+  Seven original automotive badges mark Rookie through Road Legend. Rank and
+  scenario bests are local, unverified and user-editable; cars, upgrades,
+  weather and traffic vary. Closing/reloading the browser can evade a loss.
+  This is not an online leaderboard or anti-cheat system.
 - **Records:** personal bests and recent history are kept in `localStorage`;
   daily/weekly bests reset per period, and completed Time Trials track fastest
   time. Dev-option runs are excluded from new records. Existing records are not

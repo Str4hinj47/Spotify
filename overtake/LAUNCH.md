@@ -4,8 +4,10 @@
 
 The landing site is `/`; the game is `/play.html`. Play, progression, cosmetics,
 events and records work without an account and live in the browser's localStorage.
-Daily/weekly objective selection rotates in UTC; traffic is random, world settings
-and cars can vary, and the clock is local. Results are **not verified** or global.
+Daily/weekly objective selection rotates in UTC; ranked time attacks award local
+rank points and original automotive badges. Traffic is random, world settings
+and cars can vary, and the clock is local. Local ranks can be edited or losses
+avoided by closing the browser, and are not evidence of competitive play. Results are **not verified** or global.
 Sharing uses the native share sheet or clipboard, with a selectable-text fallback.
 Players can also download an unverified result card as a PNG.
 Developer-option runs are excluded from new personal records. Older personal
@@ -16,8 +18,8 @@ game tabs first. The file is unencrypted and contains user-controlled game data.
 
 Optional email-link sign-in and manual cloud save/restore are implemented on the
 website but **not connected or deployed yet**. Once configured, signed-in players
-can explicitly upload or restore their garage, cosmetics, selected car and local
-personal records. There is no automatic sync or merging. Device settings stay
+can explicitly upload or restore their garage, cosmetics, selected car, local
+rank and personal records. There is no automatic sync or merging. Device settings stay
 local; developer access is not transferred. Saves and scores are unverified and
 cannot be used for competitive rankings. The profile migration is not used by the
 app; there is no leaderboard or score-submission endpoint.
