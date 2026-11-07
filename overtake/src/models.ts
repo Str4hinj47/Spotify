@@ -396,6 +396,10 @@ export class ModelLibrary {
             // Outboard of the wheel, the bumper surface must stay on the
             // bumper side of the arch (plus a small wrap allowance).
             if (Math.abs(point.x) > Math.abs(arch.x) && (rear ? point.z < arch.z - arch.r - .02 : point.z > arch.z + arch.r + .02)) { inArch = true; break; }
+            // A bumper ends at the arch: quarter/fender surface above the
+            // wheel centre within the arch's halo is bodywork, not bumper.
+            // Sampling it drapes the shell over the wheel like a blanket.
+            if (dy > -.02 && dy * dy + dz * dz < (arch.r + .20) * (arch.r + .20)) { inArch = true; break; }
           }
           if (inArch) continue;
           const cell = points[Math.round((point.x + 1.02) / .03)];
@@ -403,6 +407,21 @@ export class ModelLibrary {
           cell.z = rear ? Math.max(cell.z, point.z) : Math.min(cell.z, point.z);
         }
       });
+      // A bumper ends at the arch: surface that has travelled far back
+      // from the bumper face, high beside the wheel, is quarter/fender
+      // bodywork. Dropping it stops the shell draping over the wheel.
+      {
+        let extreme = rear ? -Infinity : Infinity;
+        for (const pt of points) if (Number.isFinite(pt.z)) extreme = rear ? Math.max(extreme, pt.z) : Math.min(extreme, pt.z);
+        for (const arch of arches) {
+          if (rear !== (arch.z > 0)) continue;
+          for (const pt of points) {
+            if (!Number.isFinite(pt.z) || (pt.x > 0) !== (arch.x > 0)) continue;
+            const travel = rear ? extreme - pt.z : pt.z - extreme;
+            if (y > arch.y - .02 && travel > .38 && Math.abs(pt.x) > Math.abs(arch.x) - .05) pt.z = rear ? -Infinity : Infinity;
+          }
+        }
+      }
       // Real measured extent of this row (before gap filling).
       let extent = 0;
       for (const pt of points) if (Number.isFinite(pt.z)) extent = Math.max(extent, Math.abs(pt.x));

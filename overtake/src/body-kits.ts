@@ -266,7 +266,7 @@ function bumperCoverGeometry(rows: BumperRow[], rear: boolean, offMag = .012, wr
     if(excess > .03) wf *= Math.max(.45, 1 - (excess - .03) * 5);
     // Wrap tails never stick out past the flank (some bumpers are wider
     // than the body behind them, e.g. classic chrome bumpers).
-    const tailLim = excess > .03 ? maxTailX - .025 : maxTailX;
+    const tailLim = maxTailX - .025; // tail tips tuck behind the arch lip
     const tailL=-Math.min(Math.abs(first.x+tuck),tailLim), tailR=Math.min(Math.abs(last.x-tuck),tailLim);
     const midL=-Math.min(Math.abs(first.x+tuck1),maxTailX), midR=Math.min(Math.abs(last.x-tuck1),maxTailX);
     return wrapMag > 0
