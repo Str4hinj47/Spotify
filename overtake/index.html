@@ -12,7 +12,7 @@
   <header class="site-header">
     <a class="wordmark" href="#top" aria-label="Overtake home">OVER<span>TAKE</span><i>.</i></a>
     <nav aria-label="Main navigation"><a href="#the-drive">The drive</a><a href="#modes">Game modes</a><a href="#garage-section">Garage</a></nav>
-    <a class="header-play" href="/play.html">PLAY FREE <span>↗</span></a>
+    <div class="header-actions"><button id="account-open" class="account-open" type="button">ACCOUNT</button><a class="header-play" href="/play.html">PLAY FREE <span>↗</span></a></div>
   </header>
   <main id="top">
     <section class="hero" aria-labelledby="hero-heading">
@@ -48,5 +48,20 @@
     <section class="closing"><p class="overline">THE NEXT RUN STARTS HERE</p><h2>READY TO<br><em>OVERTAKE?</em></h2><a class="button primary" href="/play.html">PLAY FREE <span>↗</span></a><p>No download. Just you and the road.</p></section>
   </main>
   <footer><a class="wordmark" href="#top">OVER<span>TAKE</span><i>.</i></a><p>MADE FOR THE LOVE OF THE DRIVE.</p><div><a href="/play.html">PLAY</a><a href="/THIRD_PARTY_NOTICES.md">CREDITS</a><a href="https://github.com/Str4hinj47/Spotify">GITHUB ↗</a></div></footer>
+  <dialog id="account-dialog" class="account-dialog" aria-labelledby="account-title">
+    <form method="dialog" class="account-close-form"><button aria-label="Close account dialog">×</button></form>
+    <p class="overline">YOUR OVERTAKE ACCOUNT</p>
+    <h2 id="account-title">WELCOME<br><em>BACK.</em></h2>
+    <p id="account-info">Accounts aren't connected yet. You can still play and save progress on this device.</p>
+    <form id="account-form" hidden>
+      <label for="account-email">EMAIL ADDRESS</label>
+      <input id="account-email" type="email" autocomplete="email" required maxlength="254" placeholder="you@example.com" />
+      <button class="button primary" id="account-submit" type="submit">SEND SIGN-IN LINK ↗</button>
+    </form>
+    <button id="account-signout" class="account-signout" type="button" hidden>SIGN OUT</button>
+    <p id="account-status" role="status" aria-live="polite"></p>
+    <p class="account-disclaimer">Signing in does not sync your garage or scores yet. They remain on this device.</p>
+  </dialog>
+  <script type="module" src="/src/account.ts"></script>
 </body>
 </html>
