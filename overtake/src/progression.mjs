@@ -4,7 +4,7 @@ import { LIVERY_OPTIONS } from './content/cosmetics.mjs';
 import { SEASON_TIERS, PREMIUM_TIERS, PREMIUM_PASS_PRICE, sanitizeSeasonPass, currentSeasonPass } from './season-pass.mjs';
 export const CAR_PRICES = Object.freeze(Object.fromEntries(ACTIVE_CAR_CONTENT.map(car => [car.id, car.price])));
 export const UPGRADE_PRICES = Object.freeze({ engine: [700, 1800, 4000], tires: [600, 1600, 3500], brakes: [500, 1300, 3000] });
-export const TUNE_PRICES = Object.freeze({ street: 5, touring: 10, sport: 16, track: 24, 'golf-r32': 30, 'golf-clean': 26, 'golf-diffuser': 30, 'golf-wide': 26, 'golf-wing': 30, 'golf-quad-flame': 35, 'golf-vented': 14, 'golf-rally': 20, 'golf-roof-scoop': 18, 'golf-roof-vents': 16, smoked: 8, halo: 14, flame: 30, carbon: 8, upper: 7, lower: 7, 'roof-only': 7, underglow: 10, paint: 5 });
+export const TUNE_PRICES = Object.freeze({ street: 5, touring: 10, sport: 16, track: 24, 'golf-r32': 30, 'golf-clean': 26, 'golf-diffuser': 30, 'golf-wide': 26, 'golf-splitter': 28, 'golf-superwide': 35, afterfire: 30, 'golf-wing': 30, 'golf-quad-flame': 35, 'golf-vented': 14, 'golf-rally': 20, 'golf-roof-scoop': 18, 'golf-roof-vents': 16, smoked: 8, halo: 14, flame: 30, carbon: 8, upper: 7, lower: 7, 'roof-only': 7, underglow: 10, paint: 5 });
 const MAX = 1_000_000_000;
 const amount = n => typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.min(MAX, Math.floor(n))) : 0;
 const cars = CAR_CONTENT.map(car => car.id);
@@ -78,6 +78,7 @@ export function buyUpgrade(p, car, key) {
 export function tunePrice(key, value) {
   if (key === 'paint') return TUNE_PRICES.paint;
   if (key === 'livery') return LIVERY_OPTIONS.find(option => option.id === value)?.price ?? 0;
+  if (key === 'afterfire') return value === 'on' ? TUNE_PRICES.afterfire : 0;
   if (key === 'underglow') return value === 'on' ? TUNE_PRICES.underglow : 0;
   if (['front','rear','skirts','spoiler','exhaust','frontFinish','rearFinish','skirtsFinish','spoilerFinish','exhaustFinish','hood','roof','hoodFinish','roofFinish','paintScheme','secondaryFinish','headlights','mirrors'].includes(key)) return TUNE_PRICES[value] ?? 0;
   return 0; // Colors are included once their feature is bought.

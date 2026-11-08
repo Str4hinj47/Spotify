@@ -39,3 +39,11 @@ test('new Golf rear IDs and purchase ownership survive backup and restore',()=>{
   assert.equal(JSON.parse(target.getItem('overtake-customization-v1')).golf.rear,rear);assert.ok(JSON.parse(target.getItem('overtake-progression-v2')).tunes.golf.includes(`rear:${rear}`));
  }
 });
+
+
+test('new Golf styling, plate visibility and independent afterfire survive backup',()=>{
+ const config={front:'golf-splitter',skirts:'golf-superwide',exhaust:'sport',afterfire:true,removePlates:true,flameColor:'#0088ff'};
+ const source=makeStorage({'overtake-progression-v2':JSON.stringify(progression),'overtake-customization-v1':JSON.stringify({golf:config})}), target=makeStorage({'overtake-progression-v2':JSON.stringify(progression)});
+ const snapshot=captureSnapshot(source);restoreSnapshot(target,snapshot);const result=JSON.parse(target.getItem('overtake-customization-v1')).golf;
+ for(const [key,value] of Object.entries(config))assert.equal(result[key],value,key);
+});

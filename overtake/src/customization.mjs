@@ -5,13 +5,13 @@ export const BODY_PARTS = ['front', 'rear', 'skirts', 'spoiler', 'exhaust', 'hoo
 export const PART_OPTIONS = ['stock', 'street', 'touring', 'sport', 'track'];
 export const PAINT_SCHEMES = ['single','upper','lower','roof-only'];
 export const GOLF_REAR_OPTIONS = ['golf-r32', 'golf-clean', 'golf-diffuser'];
-export const GOLF_PART_OPTIONS = Object.freeze({front:['golf-wide'],rear:GOLF_REAR_OPTIONS,spoiler:['golf-wing'],exhaust:['golf-quad-flame'],hood:['golf-vented','golf-rally'],roof:['golf-roof-scoop','golf-roof-vents']});
+export const GOLF_PART_OPTIONS = Object.freeze({front:['golf-wide','golf-splitter'],rear:GOLF_REAR_OPTIONS,skirts:['golf-superwide'],spoiler:['golf-wing'],exhaust:['golf-quad-flame'],hood:['golf-vented','golf-rally'],roof:['golf-roof-scoop','golf-roof-vents']});
 export const DEFAULT_CUSTOMIZATION = Object.freeze({
   front:'stock', rear:'stock', skirts:'stock', spoiler:'stock', exhaust:'stock', hood:'stock', roof:'stock',
   frontFinish:'standard', rearFinish:'standard', skirtsFinish:'standard', spoilerFinish:'standard', exhaustFinish:'standard', hoodFinish:'standard', roofFinish:'standard',
   paintScheme:'single', secondaryColor:'#141b24', secondaryFinish:'paint',
   livery:'none', liveryColor:'#f2f5f7', underglow:false, glowColor:'#00ddff',
-  rim:'stock', rimColor:'', tireWidth:'standard', tireProfile:'standard', flameColor:'#ff6a1a', headlights:'stock', mirrors:'stock',
+  afterfire:false, removePlates:false, rim:'stock', rimColor:'', tireWidth:'standard', tireProfile:'standard', flameColor:'#ff6a1a', headlights:'stock', mirrors:'stock',
 });
 
 /** Sanitize untrusted local storage, including older saved configurations. */
@@ -31,6 +31,8 @@ export function sanitizeCustomization(value) {
   out.rimColor = normalizeHex(raw.rimColor) || '';
   if (['narrow','standard','wide'].includes(raw.tireWidth)) out.tireWidth = raw.tireWidth;
   if (['low','standard','thick'].includes(raw.tireProfile)) out.tireProfile = raw.tireProfile;
+  out.afterfire = raw.afterfire === true;
+  out.removePlates = raw.removePlates === true;
   out.flameColor = normalizeHex(raw.flameColor) || DEFAULT_CUSTOMIZATION.flameColor;
   if (['stock','smoked','halo'].includes(raw.headlights)) out.headlights=raw.headlights;
   if (['stock','sport','carbon'].includes(raw.mirrors)) out.mirrors=raw.mirrors;

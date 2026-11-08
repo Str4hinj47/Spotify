@@ -73,7 +73,7 @@ export function validateContent({ cars = CAR_CONTENT, liveries = LIVERY_OPTIONS,
   if (!Array.isArray(liveries) || liveries.find(item => item?.id === 'none')?.price !== 0) errors.push('The no-livery option must remain free.');
   if (checkFiles) {
     if (!Array.isArray(released.golfRear) || released.golfRear.some(id => !GOLF_REAR_OPTIONS.includes(id)) || GOLF_REAR_OPTIONS.some(id => !released.golfRear.includes(id))) errors.push('Golf rear IDs must match the released ID ledger.');
-    for(const part of ['front','spoiler','exhaust','hood','roof']) {const ledger=released.golfParts?.[part], options=GOLF_PART_OPTIONS[part] || [];if(!Array.isArray(ledger)||ledger.some(id=>!options.includes(id))||options.some(id=>!ledger.includes(id)))errors.push(`Golf ${part} IDs must match the released ID ledger.`);}
+    for(const part of ['front','skirts','spoiler','exhaust','hood','roof']) {const ledger=released.golfParts?.[part], options=GOLF_PART_OPTIONS[part] || [];if(!Array.isArray(ledger)||ledger.some(id=>!options.includes(id))||options.some(id=>!ledger.includes(id)))errors.push(`Golf ${part} IDs must match the released ID ledger.`);}
     if (!Array.isArray(released.paintSchemes) || released.paintSchemes.some(id=>!PAINT_SCHEMES.includes(id)) || PAINT_SCHEMES.some(id=>!released.paintSchemes.includes(id))) errors.push('Paint scheme IDs must match the released ID ledger.');
     if (!Array.isArray(released.rims) || released.rims.some(id => !RIM_OPTIONS.includes(id)) || RIM_OPTIONS.some(id => !released.rims.includes(id))) errors.push('Rim IDs must match the released ID ledger.');
     try { const rimAsset=fs.readFileSync(new URL('public/models/custom-rims.glb',root)); if(rimAsset.toString('ascii',0,4)!=='glTF') errors.push('Invalid rim GLB.'); }

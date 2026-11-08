@@ -58,6 +58,23 @@ function separateLampLenses(scene: THREE.Group, id: TrafficId) {
   });
 }
 
+// Mercedes plates share a photo-texture primitive with other details. Remove
+// only the measured front/rear plate triangles on the player clone; retain
+// the painted surfaces beneath, the rest of the texture mesh and all traffic.
+function removeMercedesPlates(inner:THREE.Group,wrapper:THREE.Group):THREE.BufferGeometry[] {
+  const mesh=inner.getObjectByName('mercedes_mesh_4') as THREE.Mesh | undefined;
+  if(!mesh?.isMesh || !mesh.geometry.index)return [];
+  wrapper.updateMatrixWorld(true);
+  const source=mesh.geometry,index=source.index!,position=source.getAttribute('position');
+  const transform=new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld), v=new THREE.Vector3(),keep:number[]=[];
+  const plate=(p:THREE.Vector3)=>Math.abs(p.x)<.273 && ((p.z< -2.58 && p.y>.35 && p.y<.47) || (p.z>2.49 && p.y>.77 && p.y<.895));
+  for(let i=0;i+2<index.count;i+=3) {
+    const ids=[index.getX(i),index.getX(i+1),index.getX(i+2)];
+    if(!ids.every(n=>plate(v.fromBufferAttribute(position,n).applyMatrix4(transform))))keep.push(...ids);
+  }
+  const copy=source.clone();copy.setIndex(keep);copy.clearGroups();mesh.geometry=copy;return [copy];
+}
+
 // Mustang's original pedestal wing is merged into two trim primitives. Filter
 // only its Blender-identified rear-deck components on the player clone; the
 // stock source and traffic retain their unmodified buffers and window louvers.
@@ -483,6 +500,10 @@ export class ModelLibrary {
     });
     if (opts.player && isPlayableCar(id)) {
       if (config) {
+        if(config.removePlates) {
+          inner.traverse(o=>{const mesh=o as THREE.Mesh;if(mesh.isMesh && !Array.isArray(mesh.material) && mesh.material.name.startsWith('plate__'))mesh.visible=false;});
+          if(id==='mercedes')customGeometries.push(...removeMercedesPlates(inner,wrapper));
+        }
         // These separate rear outlet meshes belong to the source R8, not the
         // bumper. Hide them only when this player clone has replacement tips.
         if (id === 'mustang' && config.exhaust !== 'stock' && config.exhaust !== 'flame') {

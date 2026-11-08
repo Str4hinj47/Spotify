@@ -1,0 +1,5 @@
+# Golf and exhaust references
+
+- The user-provided screenshot is the visual direction for the low front splitter, corner fins and support rods. The new geometry stays below the headlights and replaces the fitted lower bumper area rather than overlaying the stock painted bumper.
+- [Golf Mk4 fender flare set](https://ezsplitters.com/product/volkswagen-jetta-golf-gti-mk4-widebody-fender-flares/) and [Golf Mk4 widebody kit](https://mozygarage.com/designer_collabs/rob3rtdesign-volkswagen-golf-mk4-wide-body-kit/) show independent wheel-arch flares and side skirts. The in-game design is an original exaggerated interpretation, not a copy of a product mesh.
+- `public/textures/effects/kenney-flame.png` is `flame_05.png` from [Kenney Particle Pack, mirrored by Calinou](https://github.com/Calinou/kenney-particle-pack), by Kenney, under [CC0 1.0 Universal](https://github.com/Calinou/kenney-particle-pack/blob/master/LICENSE.txt). The original sprite is used with a colored animated material for afterfire.

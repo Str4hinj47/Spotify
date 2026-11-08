@@ -28,3 +28,10 @@ test('quad afterfire uses four distinct symmetric outlets regardless of rear bum
   assert.deepEqual(layout.centers,[-.57,-.47,.47,.57]);assert.ok(layout.radius>0);assert.equal(layout.y,.29);
  }
 });
+
+test('independent afterfire purchase is reusable across exhaust styles',()=>{
+ const initial={...emptyProgression(),gems:100};
+ const first=buyTune(initial,'golf','afterfire','on');assert.equal(first.ok,true);assert.equal(first.progress.gems,100-tunePrice('afterfire','on'));
+ const again=buyTune(first.progress,'golf','afterfire','on');assert.equal(again.progress.gems,first.progress.gems);
+ assert.equal(tunePrice('afterfire','off'),0);
+});

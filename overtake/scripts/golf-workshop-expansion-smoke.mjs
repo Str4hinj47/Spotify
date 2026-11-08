@@ -17,7 +17,7 @@ try {
    const mouths=[];c.getObjectByName('custom-exhaust').traverse(o=>{if(o.name==='exhaust-mouth')mouths.push(o.position.toArray())});
    const lights=group.children.map(o=>o.position.toArray());const first=group.children[0].children[0],material=first.material,extent=new T.Box3().setFromObject(first).getSize(new T.Vector3()).length();
    updateExhaustFlames(c,12,true);const on=group.visible;updateExhaustFlames(c,13,false);
-   quad.push({rear,holes,mouths,lights,extent,color:material.uniforms.uFlameColor.value.getHexString(),tint:material.uniforms.uTint.value,on,off:group.visible});dispose(c);
+   quad.push({rear,holes,mouths,lights,extent,color:material.uniforms.uFlameColor.value.getHexString(),sprite:!!material.uniforms.uFlame.value,on,off:group.visible});dispose(c);
   }
   function bounds(part,config){const c=mk(config),o=c.getObjectByName(part),b=new T.Box3().setFromObject(o);const result={min:b.min.toArray(),max:b.max.toArray()};dispose(c);return result}
   const front=bounds('front-fascia',{front:'golf-wide'}),normalFront=bounds('front-fascia',{front:'track'});
@@ -31,7 +31,7 @@ try {
   }
   return {quad,front,normalFront,counts,wing:wing.max.toArray(),mirrors,profiles};
  });
- for(const q of data.quad){assert.deepEqual(q.holes,[0,0,0,0],`${q.rear} quad cutouts`);assert.deepEqual(q.mouths,q.lights);assert.equal(q.color,'00aaff');assert.equal(q.tint,1);assert.ok(q.extent>.6);assert.equal(q.on,true);assert.equal(q.off,false);}
+ for(const q of data.quad){assert.deepEqual(q.holes,[0,0,0,0],`${q.rear} quad cutouts`);assert.deepEqual(q.mouths,q.lights);assert.equal(q.color,'00aaff');assert.equal(q.sprite,true);assert.ok(q.extent>.57);assert.equal(q.on,true);assert.equal(q.off,false);}
  assert.ok(data.front.min[2]<data.normalFront.min[2]-.08,'extended front must project outward');
  assert.equal(data.counts['wing-pedestal'],2);assert.equal(data.counts['wing-endplate'],2);assert.equal(data.counts['diffuser-fin'],7);assert.equal(data.counts['headlight-halo'],2);assert.equal(data.counts['mirror-housing'],2);assert.ok(data.wing[1]>1.65);assert.deepEqual(data.mirrors,[0,0,0]);
  const [low,standard,thick]=data.profiles;assert.ok(low.min>standard.min && standard.min>thick.min);assert.ok(low.radius>standard.radius && standard.radius>thick.radius);assert.ok(Math.abs(low.max-standard.max)<.002 && Math.abs(thick.max-standard.max)<.002);

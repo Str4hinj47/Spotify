@@ -64,3 +64,13 @@ test('roof-only paint survives sanitizing without changing legacy schemes',()=>{
   assert.equal(sanitizeCustomization({paintScheme:'upper'}).paintScheme,'upper');
   assert.equal(sanitizeCustomization({paintScheme:'lower'}).paintScheme,'lower');
 });
+
+test('new Golf bodywork, independent exhaust flames and plate preference round-trip safely',()=>{
+  const raw={front:'golf-splitter',skirts:'golf-superwide',exhaust:'touring',afterfire:true,removePlates:true,flameColor:'#abcdef'};
+  const saved=sanitizeCustomizations({golf:raw,audi:raw},['golf','audi']);
+  for(const [key,value] of Object.entries(raw)) assert.equal(saved.golf[key],value,key);
+  assert.equal(saved.audi.front,'stock');assert.equal(saved.audi.skirts,'stock');assert.equal(saved.audi.afterfire,true);
+  assert.equal(sanitizeCustomization({afterfire:'yes',removePlates:1}).afterfire,false);
+  assert.equal(sanitizeCustomization({afterfire:'yes',removePlates:1}).removePlates,false);
+  assert.equal(sanitizeCustomization({exhaust:'flame'}).exhaust,'flame');
+});

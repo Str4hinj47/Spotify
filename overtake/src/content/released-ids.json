@@ -1,5 +1,5 @@
 {
-  "revision": 12,
+  "revision": 13,
   "cars": [
     "golf",
     "mercedes",
@@ -45,7 +45,8 @@
   ],
   "golfParts": {
     "front": [
-      "golf-wide"
+      "golf-wide",
+      "golf-splitter"
     ],
     "spoiler": [
       "golf-wing"
@@ -60,6 +61,9 @@
     "roof": [
       "golf-roof-scoop",
       "golf-roof-vents"
+    ],
+    "skirts": [
+      "golf-superwide"
     ]
   },
   "paintSchemes": [

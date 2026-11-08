@@ -39,7 +39,7 @@ function regions(config:Customization):Region[] {
   return r;
 }
 function shape(p:THREE.Vector3, region:Region, config:Customization):THREE.Vector3 {
-  const result=p.clone(), level={street:0,touring:1,sport:2,track:3,stock:0,flame:3,'golf-r32':2,'golf-clean':1,'golf-diffuser':3,'golf-wide':3}[config[region.part]];
+  const result=p.clone(), level={street:0,touring:1,sport:2,track:3,stock:0,flame:3,'golf-r32':2,'golf-clean':1,'golf-diffuser':3,'golf-wide':3,'golf-splitter':3,'golf-superwide':3}[config[region.part]];
   if(region.part==='rear') {
     const w=smooth(0,.15,.39-p.y)*smooth(0,.22,p.z-1.55);
     if(config.rear!=='stock') {result.y-=(.035+level*.011)*w;result.z+=(.015+level*.012)*w;}
@@ -172,7 +172,7 @@ export function fitGolfBodywork(inner:THREE.Group,wrapper:THREE.Group,kit:THREE.
   materials.push(diffuser);
   areas.forEach((area,i)=>{
     const group=kit.getObjectByName(`custom-${area.part}`);if(!group||!fitted[i].length)return;
-    const finish=config[`${area.part}Finish`]==='carbon'?materials[2]:materials[0];
+    const finish=config[`${area.part}Finish`]==='carbon' ? materials[2] : area.part==='skirts' && config.skirts==='golf-superwide' ? materials[1] : materials[0];
     const replacement=new THREE.Mesh(build(fitted[i],area),[finish,diffuser]);
     replacement.name=area.part==='skirts'?'side-skirt':area.part==='rear'?'rear-valance':'front-fascia';
     replacement.matrix.copy(matrix);replacement.matrixAutoUpdate=false;replacement.castShadow=true;group.add(replacement);
