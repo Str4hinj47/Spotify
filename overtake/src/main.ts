@@ -224,6 +224,7 @@ function syncCustomizationUI() {
       options.push(...(extra[part] ?? []));
     }
     if(selected==='mercedes') { const extra:Partial<Record<string,string[][]>>={front:[['mercedes-aero','Executive lower fascia'],['mercedes-splitter','Canard splitter fascia']],rear:[['mercedes-clean','Clean rear fascia'],['mercedes-diffuser','Touring diffuser rear']],skirts:[['mercedes-wide','Superwide spike skirts']]};options.push(...(extra[part]??[])); }
+    if(selected==='audi') { const extra:Partial<Record<string,string[][]>>={front:[['audi-aero','Avant aero fascia'],['audi-splitter','Canard splitter fascia']],rear:[['audi-clean','Clean rear valance'],['audi-diffuser','Sport diffuser valance']],skirts:[['audi-wide','Superwide spike skirts']]};options.push(...(extra[part]??[])); }
     if (part === 'exhaust') options.push(['flame','Afterfire flames']);
     select.replaceChildren(...options.map(([value,label]) => {
       const option=document.createElement('option'); option.value=value; option.textContent=label; return option;

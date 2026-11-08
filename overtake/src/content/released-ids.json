@@ -1,5 +1,5 @@
 {
-  "revision": 14,
+  "revision": 15,
   "cars": [
     "golf",
     "mercedes",
@@ -83,6 +83,19 @@
     ],
     "skirts": [
       "mercedes-wide"
+    ]
+  },
+  "audiParts": {
+    "front": [
+      "audi-aero",
+      "audi-splitter"
+    ],
+    "rear": [
+      "audi-clean",
+      "audi-diffuser"
+    ],
+    "skirts": [
+      "audi-wide"
     ]
   }
 }

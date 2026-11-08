@@ -7,6 +7,7 @@ import { createBodyKit, disposeBodyKit, BODY_FITS } from './body-kits';
 import { rigWheels } from './wheels';
 import { fitGolfBodywork } from './golf-bodywork';
 import { fitMercedesBodywork } from './mercedes-bodywork';
+import { fitAudiBodywork } from './audi-bodywork';
 import { createCarbonMaterial, customPaintMaterial } from './livery';
 import { GOLF_PART_OPTIONS, sanitizeCustomization, type Customization } from './customization.mjs';
 
@@ -402,6 +403,7 @@ export class ModelLibrary {
       clean.headlights='stock';clean.mirrors='stock';clean.tireProfile='standard';
     }
     if(id!=='mercedes') { for(const part of ['front','rear','skirts'] as const) if(clean[part].startsWith('mercedes-')) (clean as unknown as Record<string,string>)[part]='stock'; }
+    if(id!=='audi') { for(const part of ['front','rear','skirts'] as const) if(clean[part].startsWith('audi-')) (clean as unknown as Record<string,string>)[part]='stock'; }
     this.customization.set(id, clean);
   }
 
@@ -539,6 +541,7 @@ export class ModelLibrary {
         if (BODY_FITS[id]) {
           const kit=createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080);
           wrapper.add(kit);
+          if(id==='audi') customGeometries.push(...fitAudiBodywork(inner,wrapper,kit,config));
           if(id==='mercedes') customGeometries.push(...fitMercedesBodywork(inner,wrapper,kit,config));
           if(id==='golf') {
             customGeometries.push(...fitGolfBodywork(inner,wrapper,kit,config));
@@ -633,9 +636,9 @@ export class ModelLibrary {
       const config=sanitizeCustomization({[part]:value});
       kit=createBodyKit(id,config,0x91a9ba);
       let temporary:THREE.BufferGeometry[]=[];
-      if((id==='golf'||id==='mercedes') && ['front','rear','skirts'].includes(part)) {
+      if((id==='golf'||id==='mercedes'||id==='audi') && ['front','rear','skirts'].includes(part)) {
         const wrapper=new THREE.Group(), inner=this.get(id).scene.clone(true);wrapper.add(inner,kit);wrapper.updateMatrixWorld(true);
-        temporary=id==='golf'?fitGolfBodywork(inner,wrapper,kit,config):fitMercedesBodywork(inner,wrapper,kit,config);wrapper.remove(kit);
+        temporary=id==='golf'?fitGolfBodywork(inner,wrapper,kit,config):id==='mercedes'?fitMercedesBodywork(inner,wrapper,kit,config):fitAudiBodywork(inner,wrapper,kit,config);wrapper.remove(kit);
       }
       for(const geometry of temporary)geometry.dispose();
       object=kit.getObjectByName(`custom-${part}`); scene.add(kit);
