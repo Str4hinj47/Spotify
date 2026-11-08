@@ -1077,3 +1077,11 @@ body:has(#main-menu:not(.hidden)) .tag, body:has(#main-menu:not(.hidden)) .site-
 .top-wallet .currency-icon { width:14px; height:14px; flex-basis:14px; }
 @media (max-width:700px) { .top-wallet { gap:4px; padding:6px; font-size:10px; } .top-wallet .currency-icon { width:12px; height:12px; flex-basis:12px; } }
 @media (max-width:480px) { #topbar .brand { display:none; } #topbar { justify-content:flex-end; } }
+/* Subtle, clearly readable resets for per-part paint controls. */
+.custom-panel [data-part-color-reset], .custom-panel [data-door-color-reset], .custom-panel #custom-diffuser-reset {
+  display:inline-flex; align-items:center; justify-content:center; min-height:30px; margin:0 0 10px;
+  padding:5px 9px; color:#c8e2ea; background:#203542; border:1px solid rgba(164,198,212,.22);
+  border-radius:6px; font-size:11px; font-weight:600;
+}
+.custom-panel [data-part-color-reset]:hover:not(:disabled), .custom-panel [data-door-color-reset]:hover:not(:disabled), .custom-panel #custom-diffuser-reset:hover { border-color:#71d9f0; }
+.custom-panel [data-part-color-reset]:disabled, .custom-panel [data-door-color-reset]:disabled { opacity:.45; cursor:default; }
