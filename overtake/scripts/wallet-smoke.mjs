@@ -1,0 +1,10 @@
+import {chromium as pw} from '@playwright/test';import chromium from '@sparticuz/chromium';import assert from 'node:assert/strict';
+const browser=await pw.launch({executablePath:await chromium.executablePath(),headless:true,args:chromium.args.filter(a=>a!=='--single-process').concat(['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox']),env:{...process.env,LD_LIBRARY_PATH:`/home/user/.local/lib/chromium-deps:${process.env.LD_LIBRARY_PATH||''}`}});
+try {
+ const page=await browser.newPage({viewport:{width:1280,height:800}}),errors=[];page.setDefaultTimeout(120000);page.on('pageerror',e=>errors.push(String(e)));
+ await page.addInitScript(()=>{if(!sessionStorage.getItem('seed')) {localStorage.setItem('overtake-progression-v2',JSON.stringify({version:2,walletVersion:1,coins:12345,credits:23456,gems:345,dev:false,owned:['golf'],upgrades:{},tunes:{}}));sessionStorage.setItem('seed','1')}});
+ await page.goto(`${process.env.BASE_URL||'http://localhost:4187'}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
+ for(const label of ['12,345 coins','23,456 credits','345 gems'])assert.equal(await page.locator(`#top-wallet [aria-label="${label}"]`).count(),1);
+ await page.click('#menu-garage');await page.click('[data-garage-tab=upgrades]');await page.click('[data-upgrade=engine]');assert.equal(await page.locator('#top-wallet [aria-label="11,645 coins"]').count(),1);
+ await page.setViewportSize({width:390,height:844});assert.ok(await page.locator('#top-wallet').isVisible());assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);const bounds=await page.locator('#top-wallet').boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=390);assert.deepEqual(errors,[]);console.log('Wallet balances, purchase update and mobile layout passed.');
+}finally{await browser.close()}

@@ -1903,10 +1903,11 @@ export class OvertakeGame {
     const spec=getCar(this.selected), upgrades=effectiveUpgrades(this.progression,this.selected);
     const params={...vehicleParameters(spec,upgrades,this.library.getCustomization(this.selected).tireWidth,weatherGrip(this.weather)), roadAssist:false};
     const previous=this.vehicle.s, steps=Math.max(1,Math.ceil(dt/(1/120))), h=dt/steps;
-    for(let i=0;i<steps;i++) (isDriftCar(this.selected)?stepCircuitDriftVehicle:stepVehicle)(this.vehicle,this.input,params,h,trackSample(this.vehicle.s,this.raceTrack).curvature);
     const track=getTrack(this.raceTrack), raceDistance=track.length*track.laps;
-    if(resolveCircuitWall(this.vehicle,track,this.playerMeta.width,this.playerMeta.length)) {
-      this.shake=Math.max(this.shake,.22);
+    for(let i=0;i<steps;i++) {
+      (isDriftCar(this.selected)?stepCircuitDriftVehicle:stepVehicle)(this.vehicle,this.input,params,h,trackSample(this.vehicle.s,this.raceTrack).curvature);
+      // Resolve each physics substep, so an impact never rewinds a whole frame.
+      if(resolveCircuitWall(this.vehicle,track,this.playerMeta.width,this.playerMeta.length)) this.shake=Math.max(this.shake,.22);
     }
     this.speed=this.vehicle.speed;this.steer=this.vehicle.steer;this.playerS=this.vehicle.s;this.offset=this.vehicle.offset;
     const p=trackPoint(this.playerS,this.offset,this.raceTrack);this.yaw=p.yaw+this.vehicle.heading+(this.vehicle.driftAngle??0);this.pos.set(p.x,0,p.z);
@@ -1927,7 +1928,7 @@ export class OvertakeGame {
     // Several short passes settle a player caught between cars instead of
     // leaving a fresh overlap with a rival handled earlier in the frame.
     for(let pass=0;pass<3;pass++) for(const rival of this.circuitRivals)
-      if(resolveCircuitCarContact(playerActor,rival,track.length)) this.shake=Math.max(this.shake,.12);
+      if(resolveCircuitCarContact(playerActor,rival,track.length,true)) this.shake=Math.max(this.shake,.12);
     this.circuitRivals.forEach((rival,i)=>{
       const old=field[i].progress;
       // Once finished, keep circulating rather than parking on the finish line.

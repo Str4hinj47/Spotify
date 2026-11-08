@@ -5,8 +5,8 @@ import {stepCircuitDriftVehicle} from '../src/drift.mjs';
 const car=(offset=0,heading=0)=>({...createVehicleState(),offset,heading,speed:20});
 test('kerb and runoff are traversable; impact occurs at the visible wall and deflects the car',()=>{
  let v=car(10.5,-.1);assert.equal(resolveCircuitWall(v,{halfWidth:10},2,4.5),false);assert.equal(v.offset,10.5);
- v=car(12.3,-.3);assert.equal(resolveCircuitWall(v,{halfWidth:10},2,4.5),true);assert.ok(v.offset>10);assert.ok(v.heading>0);assert.ok(v.speed<20);
- v=car(-12.3,.3);assert.equal(resolveCircuitWall(v,{halfWidth:10},2,4.5),true);assert.ok(v.offset< -10);assert.ok(v.heading<0);
+ v=car(12.3,-.3);assert.equal(resolveCircuitWall(v,{halfWidth:10},2,4.5),true);assert.ok(v.offset>10);assert.equal(v.heading,-.3);assert.ok(v.speed<20);
+ v=car(-12.3,.3);assert.equal(resolveCircuitWall(v,{halfWidth:10},2,4.5),true);assert.ok(v.offset< -10);assert.equal(v.heading,.3);
 });
 test('car impacts transfer speed and push both participants apart',()=>{
  let a={progress:100,offset:0,speed:30,length:4.5,width:2},b={progress:104,offset:0,speed:10,length:4.5,width:2};assert.equal(resolveCircuitCarContact(a,b,1000),true);assert.ok(a.speed<30&&a.speed>10);assert.ok(b.speed>10);assert.ok(b.progress-a.progress>=4.5);
@@ -38,4 +38,13 @@ test('angled, grazing and lap-seam contacts remain stable and dissipate energy',
    assert.ok(a.speed**2+b.speed**2<=energy+1e-8,'contact should not inject kinetic energy');
    assert.equal(circuitCarOverlap(a,b,1000),null,'iterative solver should separate rotated footprints at the seam');
  }
+});
+
+test('player impact keeps the driver heading and a rear impact pushes forward',()=>{
+ const p={progress:100,offset:0,speed:15,length:4.5,width:2,heading:.18};
+ const behind={progress:95.7,offset:0,speed:28,length:4.5,width:2,heading:0};
+ assert.ok(resolveCircuitCarContact(p,behind,1000,true));
+ assert.equal(p.heading,.18,'the game must not steer the player away from the impact');
+ assert.ok(p.progress>=100,'a rear hit must not move the player backwards');
+ assert.ok(p.speed>15,'a rear impact transfers forward momentum');
 });

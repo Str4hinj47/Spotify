@@ -12,11 +12,11 @@ export function resolveCircuitWall(state,track,width,length) {
  // Only an outward-moving car receives an impulse. Tangential travel continues
  // with friction; an oblique hit does not glue the car to the kerb.
  if(normalSpeed>0){
-  const forward=state.speed*Math.cos(state.heading)*.93;
-  const lateral=-side*normalSpeed*.18;
-  state.speed=Math.hypot(forward,lateral);
-  state.heading=clamp(Math.atan2(-lateral,Math.max(.001,forward)),-.9,.9);
-  state.yawRate*=.35;state.driftAngle*=.35;
+  // A wall removes speed but does not steer or teleport the car into the lane.
+  // Keep its heading and steering so the driver must recover deliberately.
+  const incidence=Math.abs(Math.sin(state.heading));
+  state.speed*=Math.max(.08,1-incidence*incidence*.92);
+  state.yawRate*=.65;
  }
  return normalSpeed>0;
 }
@@ -47,7 +47,12 @@ function velocity(car) {
  const heading=car.heading||0;
  return [car.speed*Math.cos(heading),-car.speed*Math.sin(heading)];
 }
-function setVelocity(car,v) {
+function setVelocity(car,v,preserveHeading=false) {
+ if(preserveHeading) {
+  const heading=car.heading||0;
+  car.speed=Math.max(0,v[0]*Math.cos(heading)-v[1]*Math.sin(heading));
+  return;
+ }
  // Vehicles cannot drive backwards in this arcade model. Constrain reverse
  // impulse rather than incorrectly turning it into forward acceleration.
  const forward=Math.max(0,v[0]), lateral=v[1];
@@ -57,7 +62,7 @@ function setVelocity(car,v) {
 /** Equal-mass, low-restitution arcade impulse. Only approaching cars receive
  * a velocity impulse; resting/separating contacts get positional correction
  * without an artificial bounce. This is not damage or rigid-body simulation. */
-export function resolveCircuitCarContact(a,b,length) {
+export function resolveCircuitCarContact(a,b,length,preservePlayerHeading=false) {
  const contact=circuitCarOverlap(a,b,length);if(!contact)return false;
  const n=contact.normal, correction=(contact.depth+.01)*.5;
  a.progress-=n[0]*correction;a.offset-=n[1]*correction;
@@ -67,7 +72,7 @@ export function resolveCircuitCarContact(a,b,length) {
   const impulse=closing*.55; // equal masses, restitution 0.1
   const tangent=[-n[1],n[0]],friction=clamp(dot(relative,tangent)*.15,-impulse*.25,impulse*.25);
   for(let i=0;i<2;i++){const change=impulse*n[i]+friction*tangent[i];va[i]-=change;vb[i]+=change;}
-  setVelocity(a,va);setVelocity(b,vb);
+  setVelocity(a,va,preservePlayerHeading);setVelocity(b,vb);
  }
  return true;
 }

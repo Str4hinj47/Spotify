@@ -1071,3 +1071,9 @@ body:has(#main-menu:not(.hidden)) .tag, body:has(#main-menu:not(.hidden)) .site-
  .season-road-viewport { padding-bottom:2px; }
  .pass-fineprint { margin-top:1px; font-size:8px; line-height:1.15; }
 }
+
+/* Wallet stays visible with the trophy and settings in the garage and race. */
+.top-wallet { display:flex; align-items:center; gap:7px; padding:7px 10px; border-radius:99px; background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; }
+.top-wallet .currency-icon { width:14px; height:14px; flex-basis:14px; }
+@media (max-width:700px) { .top-wallet { gap:4px; padding:6px; font-size:10px; } .top-wallet .currency-icon { width:12px; height:12px; flex-basis:12px; } }
+@media (max-width:480px) { #topbar .brand { display:none; } #topbar { justify-content:flex-end; } }

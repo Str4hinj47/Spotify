@@ -355,9 +355,16 @@ function updateDetail(id: CarId) {
   syncProgressionUI();
 }
 
+function syncTopWallet() {
+  if (!game) return;
+  const p=game.getProgression();
+  $('top-wallet').innerHTML=`${currency(p.coins,'coin')} ${currency(p.credits,'credit')} ${currency(p.gems,'gem')}`;
+}
+
 function syncProgressionUI() {
   if (!game) return;
   const progress = game.getProgression();
+  syncTopWallet();
   const stats = performanceStats(getCar(selected), effectiveUpgrades(progress, selected), library.getCustomization(selected).tireWidth);
   $('stat-speed').textContent = String(Math.round(stats.topSpeed * 3.6));
   $('stat-accel').textContent = stats.sprint === null ? '—' : stats.sprint.toFixed(1);
@@ -770,6 +777,7 @@ function onHud(h: HudState) {
 }
 
 function onEvent(e: { kind: 'overtake' | 'near' | 'combo' | 'crash' | 'oncoming' | 'contract' | 'finish'; text: string; points?: number }) {
+  if(e.kind==='contract' || e.kind==='finish') syncTopWallet();
   if (e.kind === 'contract' || (e.kind === 'finish' && game.getRunMode()!=='circuit' && game.getRunMode()!=='ranked')) {
     audio.overtake(true);
   }
@@ -810,6 +818,7 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape' && !$('rank-
 
 let latestResult: RunStats | null = null;
 function onGameOver(s: RunStats) {
+  syncTopWallet();
   latestResult = s;
   hidePromotion();
   $('share-status').textContent = s.devRun ? 'Dev run · excluded from personal records' : 'Local result · not globally verified';
