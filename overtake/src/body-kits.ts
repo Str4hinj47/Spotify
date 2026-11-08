@@ -213,6 +213,24 @@ function golfSkirtSpike(side:number,z:number) {
   }
   return loft(sections,side>0,.10);
 }
+// Mercedes W222: the long rocker and 0.342m wheels differ from the Golf.
+function mercedesWideBlade(side:number) {
+  const sections:Point3[][]=[];
+  for(let i=0;i<=64;i++){const t=i/64,z=THREE.MathUtils.lerp(-1.33,1.02,t),taper=Math.pow(Math.sin(Math.PI*t),.4),outer=.94+.18*taper;
+    sections.push([[side*.89,.20,z],[side*outer,.18,z],[side*outer,.105,z],[side*.89,.105,z]]);}
+  return loft(sections,side>0,.10);
+}
+function mercedesArch(side:number,z:number) {
+  const sections:Point3[][]=[];
+  for(let i=0;i<=64;i++){const a=-.35+(Math.PI+.70)*i/64,c=Math.cos(a),s=Math.sin(a);
+    sections.push([[side*.94,.342+s*.39,z+c*.39],[side*1.10,.342+s*.39,z+c*.39],[side*1.10,.342+s*.46,z+c*.46],[side*.94,.342+s*.46,z+c*.46]]);}
+  return loft(sections,side>0,.06);
+}
+function mercedesSpike(side:number,z:number) {
+  const sections:Point3[][]=[];
+  for(let i=0;i<=12;i++){const t=i/12,x=side*(1.10+.15*t),half=.065*(1-t)+.004;sections.push([[x,.105,z-half],[x,.15,z-half],[x,.15,z+half],[x,.105,z+half]]);}
+  return loft(sections,side>0,.10);
+}
 function supportRod(a:THREE.Vector3,b:THREE.Vector3,mat:THREE.Material,group:THREE.Group) {
   const delta=b.clone().sub(a),rod=new THREE.Mesh(new THREE.CylinderGeometry(.006,.006,delta.length(),10),mat);
   rod.name='splitter-support';rod.position.copy(a).add(b).multiplyScalar(.5);rod.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());group.add(rod);
@@ -301,7 +319,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   const metal=new THREE.MeshStandardMaterial({ color:0xb6c7cf,metalness:.9,roughness:.22 });
   const dark=new THREE.MeshBasicMaterial({ color:0x090d10, side:THREE.DoubleSide });
   const reg=(part:string)=>{const partGroup=new THREE.Group();partGroup.name=`custom-${part}`;g.add(partGroup);return partGroup;};
-  const level=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>({stock:0,street:0,touring:.34,sport:.67,track:1,flame:1,'golf-r32':.67,'golf-clean':.34,'golf-diffuser':1,'golf-wide':1,'golf-splitter':1,'golf-superwide':1,'golf-wing':1,'golf-quad-flame':1}[config[part]]);
+  const level=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>({stock:0,street:0,touring:.34,sport:.67,track:1,flame:1,'golf-r32':.67,'golf-clean':.34,'golf-diffuser':1,'golf-wide':1,'golf-splitter':1,'golf-superwide':1,'golf-wing':1,'golf-quad-flame':1,'mercedes-aero':.34,'mercedes-splitter':1,'mercedes-clean':.34,'mercedes-diffuser':1,'mercedes-wide':1}[config[part]]);
   const isTrack=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>config[part]==='track'||(part==='exhaust' && (config.exhaust==='flame'||config.exhaust==='golf-quad-flame'));
   const top=TOP_FITS[id];
   if(config.hood!=='stock') {
@@ -360,6 +378,13 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
           for(let i=0;i<3;i++){const fin=box(.18,.014,.17,side*(.61+i*.008),.24+i*.045,-1.88+i*.025,carbon,a,'front-canard');fin.rotation.y=side*.22;}
         }
       }
+    } else if(id==='mercedes' && (config.front==='mercedes-aero'||config.front==='mercedes-splitter')) {
+      // The replacement itself is cut from the player body in fitMercedesBodywork.
+      const blade=new THREE.Mesh(taperedBand(.91,config.front==='mercedes-splitter'?-2.75:-2.68,.115,.27,.018,.23),config.frontFinish==='carbon'?woven:carbon);blade.name='front-splitter';a.add(blade);
+      if(config.front==='mercedes-splitter')for(const side of [-1,1]){
+        supportRod(new THREE.Vector3(side*.52,.31,-2.60),new THREE.Vector3(side*.55,.135,-2.72),metal,a);
+        for(let i=0;i<2;i++){const fin=box(.15,.012,.14,side*.75,.19+i*.055,-2.49+i*.04,carbon,a,'front-canard');fin.rotation.y=side*.18;}
+      }
     } else if(id==='audi') {
       const lip=new THREE.Mesh(audiFrontLip(amount),config.frontFinish==='carbon'?woven:carbon);lip.name='front-fascia';a.add(lip);
     } else if(id==='bmw-m3'||id==='skyline'||id==='aventador'||id==='aventador-game'||id==='bugatti') {
@@ -377,7 +402,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       const splitter=new THREE.Mesh(taperedBand(f.frontW*THREE.MathUtils.lerp(.99,1.04,amount),nose-THREE.MathUtils.lerp(.06,.10,amount),f.bumperY-.005,THREE.MathUtils.lerp(.35,.46,amount),.028,sweep),carbon);
       splitter.name='front-splitter';a.add(splitter);
     }
-    if(id==='mercedes') box(f.frontW*1.35,.015,.035,0,f.bumperY+.11,nose+.04,metal,a,'bright-fascia-trim');
+    if(id==='mercedes' && config.front!=='mercedes-aero' && config.front!=='mercedes-splitter') box(f.frontW*1.35,.015,.035,0,f.bumperY+.11,nose+.04,metal,a,'bright-fascia-trim');
   }
   if(config.rear!=='stock' || (id==='golf' && config.exhaust==='golf-quad-flame')) {
     const a=reg('rear'),track=isTrack('rear'),amount=level('rear'), tail=f.rearZ-.035, panel=config.rearFinish==='carbon'?woven:body;
@@ -387,6 +412,11 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       // they do not sit over any retained factory bumper surface.
       if(amount>=.67 && config.rear!=='golf-r32') for(const x of (config.rear==='golf-diffuser' ? [-.36,-.24,-.12,0,.12,.24,.36] : track ? [-.29,-.10,.10,.29] : [-.23,0,.23])) {
         const fin=box(.012,.075,.10,x,.245,1.98,carbon,a,'diffuser-fin');fin.rotation.x=-.18;
+      }
+    } else if(id==='mercedes' && (config.rear==='mercedes-clean'||config.rear==='mercedes-diffuser')) {
+      if(config.rear==='mercedes-diffuser') {
+        const diffuser=new THREE.Mesh(taperedBand(.45,2.46,.275,.17,.018,-.025),config.rearFinish==='carbon'?woven:carbon);diffuser.name='rear-diffuser';a.add(diffuser);
+        for(const x of [-.35,-.175,0,.175,.35]) {const fin=box(.014,.07,.16,x,.255,2.53,carbon,a,'diffuser-fin');fin.rotation.x=-.1;}
       }
     } else if(id==='bugatti') {
       const blade=new THREE.Mesh(taperedBand(.58,2.02,.23,THREE.MathUtils.lerp(.08,.13,amount),.015,-.04),config.rearFinish==='carbon'?woven:carbon);
@@ -424,7 +454,12 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       for(const z of [-1.182,1.347]) {const arch=new THREE.Mesh(golfArch(side,z),wideFinish);arch.name='wheel-arch-flare';a.add(arch);}
       for(const z of [-.57,-.20,.17,.54,.84]) {const spike=new THREE.Mesh(golfSkirtSpike(side,z),wideFinish);spike.name='skirt-spike';a.add(spike);}
     }
-    for(const side of id==='golf' ? [] : [-1,1]) {
+    if(id==='mercedes' && config.skirts==='mercedes-wide')for(const side of [-1,1]){
+      const blade=new THREE.Mesh(mercedesWideBlade(side),wideFinish);blade.name='superwide-skirt';a.add(blade);
+      for(const z of [-1.739,1.422]){const arch=new THREE.Mesh(mercedesArch(side,z),wideFinish);arch.name='wheel-arch-flare';a.add(arch);}
+      for(const z of [-.94,-.52,-.10,.32,.74]){const spike=new THREE.Mesh(mercedesSpike(side,z),wideFinish);spike.name='skirt-spike';a.add(spike);}
+    }
+    for(const side of id==='golf' || (id==='mercedes' && config.skirts==='mercedes-wide') ? [] : [-1,1]) {
       const skirt=new THREE.Mesh(skirtShell(id,side,amount),panel);skirt.name='side-skirt';a.add(skirt);
       if(amount>=.67) {
         const blade=new THREE.Mesh(skirtBlade(id,side,amount),carbon);blade.name='sill-blade';a.add(blade);

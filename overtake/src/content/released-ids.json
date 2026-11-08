@@ -1,5 +1,5 @@
 {
-  "revision": 13,
+  "revision": 14,
   "cars": [
     "golf",
     "mercedes",
@@ -71,5 +71,18 @@
     "upper",
     "lower",
     "roof-only"
-  ]
+  ],
+  "mercedesParts": {
+    "front": [
+      "mercedes-aero",
+      "mercedes-splitter"
+    ],
+    "rear": [
+      "mercedes-clean",
+      "mercedes-diffuser"
+    ],
+    "skirts": [
+      "mercedes-wide"
+    ]
+  }
 }

@@ -223,6 +223,7 @@ function syncCustomizationUI() {
       const extra:Partial<Record<string,string[][]>>={front:[['golf-wide','Extended front'],['golf-splitter','Canard splitter']],skirts:[['golf-superwide','Superwide spike skirts']],rear:[['golf-r32','R32-inspired full rear'],['golf-clean','Clean full rear'],['golf-diffuser','Seven-fin diffuser']],spoiler:[['golf-wing','High roof wing']],exhaust:[['golf-quad-flame','Quad afterfire']],hood:[['golf-vented','Twin louver hood'],['golf-rally','Rally scoop hood']],roof:[['golf-roof-scoop','Roof air scoop'],['golf-roof-vents','Twin roof vents']]};
       options.push(...(extra[part] ?? []));
     }
+    if(selected==='mercedes') { const extra:Partial<Record<string,string[][]>>={front:[['mercedes-aero','Executive lower fascia'],['mercedes-splitter','Canard splitter fascia']],rear:[['mercedes-clean','Clean rear fascia'],['mercedes-diffuser','Touring diffuser rear']],skirts:[['mercedes-wide','Superwide spike skirts']]};options.push(...(extra[part]??[])); }
     if (part === 'exhaust') options.push(['flame','Afterfire flames']);
     select.replaceChildren(...options.map(([value,label]) => {
       const option=document.createElement('option'); option.value=value; option.textContent=label; return option;
