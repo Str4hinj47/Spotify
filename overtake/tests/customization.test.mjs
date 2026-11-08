@@ -81,3 +81,8 @@ test('Golf diffuser colors survive sanitization and cannot leak to other cars',(
  assert.equal(value.golf.rearDiffuserColor,'#cc4422');assert.equal(value.audi.rearDiffuserColor,'');
  assert.equal(sanitizeCustomization({rearDiffuserColor:'bad color'}).rearDiffuserColor,'');
 });
+
+test('Golf taillight styles are validated and scoped',()=>{
+ const c=sanitizeCustomizations({golf:{taillights:'led'},audi:{taillights:'smoked'}},['golf','audi']);
+ assert.equal(c.golf.taillights,'led');assert.equal(c.audi.taillights,'stock');assert.equal(sanitizeCustomization({taillights:'invalid'}).taillights,'stock');
+});

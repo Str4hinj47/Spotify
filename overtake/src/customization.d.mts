@@ -10,7 +10,7 @@ export interface Customization {
   frontFinish:'standard'|'carbon'; rearFinish:'standard'|'carbon'; skirtsFinish:'standard'|'carbon'; spoilerFinish:'standard'|'carbon'; exhaustFinish:'standard'|'carbon'; hoodFinish:'standard'|'carbon'; roofFinish:'standard'|'carbon';
   paintScheme:'single'|'upper'|'lower'|'roof-only'; secondaryColor:string; secondaryFinish:'paint'|'carbon';
   afterfire:boolean; removePlates:boolean;
-  rim:string; rimColor:string; tireWidth:'narrow'|'standard'|'wide'; tireProfile:'low'|'standard'|'thick'; flameColor:string; rearDiffuserColor:string; headlights:'stock'|'smoked'|'halo'; mirrors:'stock'|'sport'|'carbon';
+  rim:string; rimColor:string; tireWidth:'narrow'|'standard'|'wide'; tireProfile:'low'|'standard'|'thick'; flameColor:string; rearDiffuserColor:string; headlights:'stock'|'smoked'|'halo'; taillights:'stock'|'smoked'|'led'; mirrors:'stock'|'sport'|'carbon';
   livery:(typeof import('./content/cosmetics.mjs').LIVERY_OPTIONS)[number]['id']; liveryColor:string; underglow:boolean; glowColor:string;
 }
 export const BODY_PARTS: readonly BodyPart[];

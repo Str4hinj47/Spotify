@@ -260,8 +260,9 @@ function syncCustomizationUI() {
   $('golf-diffuser-color-row').classList.toggle('hidden',selected!=='golf');
   $('custom-diffuser-reset').classList.toggle('hidden',selected!=='golf');
   ($('custom-headlights') as HTMLSelectElement).value=config.headlights;
+  ($('custom-taillights') as HTMLSelectElement).value=config.taillights;
   ($('custom-mirrors') as HTMLSelectElement).value=config.mirrors;
-  for(const id of ['golf-tire-profile-row','golf-headlights-row','golf-mirrors-row']) $(id).classList.toggle('hidden',selected!=='golf');
+  for(const id of ['golf-tire-profile-row','golf-headlights-row','golf-taillights-row','golf-mirrors-row']) $(id).classList.toggle('hidden',selected!=='golf');
   $('custom-plate-row').classList.toggle('hidden',selected!=='golf' && selected!=='mercedes');
   ($('custom-glow-enabled') as HTMLInputElement).checked = config.underglow;
   const color = $('custom-glow-color') as HTMLInputElement;
@@ -1237,7 +1238,7 @@ function bindUI() {
     const suggestedColor = key === 'livery' ? LIVERY_OPTIONS.find(item => item.id === value)?.defaultColor : null;
     applyCustomization({ ...currentCustomization(), [key]:value, ...(suggestedColor ? { liveryColor:suggestedColor } : {}) } as Customization);
   });
-  for (const [id,key,event] of [['custom-rim','rim','change'],['custom-rim-color','rimColor','change'],['custom-tire-width','tireWidth','change'],['custom-tire-profile','tireProfile','change'],['custom-flame-color','flameColor','change'],['custom-headlights','headlights','change'],['custom-mirrors','mirrors','change']] as const) $(id).addEventListener(event, e => applyCustomization({ ...currentCustomization(), [key]:(e.target as HTMLInputElement | HTMLSelectElement).value } as Customization));
+  for (const [id,key,event] of [['custom-rim','rim','change'],['custom-rim-color','rimColor','change'],['custom-tire-width','tireWidth','change'],['custom-tire-profile','tireProfile','change'],['custom-flame-color','flameColor','change'],['custom-headlights','headlights','change'],['custom-taillights','taillights','change'],['custom-mirrors','mirrors','change']] as const) $(id).addEventListener(event, e => applyCustomization({ ...currentCustomization(), [key]:(e.target as HTMLInputElement | HTMLSelectElement).value } as Customization));
   $('custom-diffuser-color').addEventListener('change', event => applyCustomization({ ...currentCustomization(), rearDiffuserColor:(event.target as HTMLInputElement).value }));
   $('custom-diffuser-reset').addEventListener('click', () => applyCustomization({ ...currentCustomization(), rearDiffuserColor:'' }));
   $('custom-afterfire').addEventListener('change', event => applyCustomization({ ...currentCustomization(), afterfire:(event.target as HTMLInputElement).checked }));

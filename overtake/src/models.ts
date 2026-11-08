@@ -400,7 +400,7 @@ export class ModelLibrary {
     const clean=sanitizeCustomization(config);
     if(id!=='golf') {
       for(const [part, options] of Object.entries(GOLF_PART_OPTIONS)) if(options?.includes(clean[part as keyof typeof GOLF_PART_OPTIONS] as never)) (clean as unknown as Record<string,string>)[part]='stock';
-      clean.rearDiffuserColor='';clean.headlights='stock';clean.mirrors='stock';clean.tireProfile='standard';
+      clean.rearDiffuserColor='';clean.headlights='stock';clean.taillights='stock';clean.mirrors='stock';clean.tireProfile='standard';
     }
     if(id!=='mercedes') { for(const part of ['front','rear','skirts'] as const) if(clean[part].startsWith('mercedes-')) (clean as unknown as Record<string,string>)[part]='stock'; }
     if(id!=='audi') { for(const part of ['front','rear','skirts'] as const) if(clean[part].startsWith('audi-')) (clean as unknown as Record<string,string>)[part]='stock'; }
@@ -546,6 +546,28 @@ export class ModelLibrary {
           if(id==='golf') {
             customGeometries.push(...fitGolfBodywork(inner,wrapper,kit,config));
             if(config.mirrors!=='stock')customGeometries.push(...removeGolfMirrors(inner,wrapper));
+            if(config.taillights!=='stock') {
+              // The indicator/brake material is already unique to this player.
+              // Keep its signal shader and original texture while tinting it.
+              const lens=inner.getObjectByName('golf_mesh_13') as THREE.Mesh | undefined;
+              if(lens && !Array.isArray(lens.material)) {
+                const material=lens.material as THREE.MeshStandardMaterial;
+                material.color.multiplyScalar(config.taillights==='smoked' ? .30 : .65);
+                if(config.taillights==='led') {
+                  wrapper.updateMatrixWorld(true);
+                  const led=new THREE.MeshBasicMaterial({color:0xff2424});customPaintCopies.push(led);
+                  const geo=new THREE.BoxGeometry(.035,.009,.006);customGeometries.push(geo);
+                  const ray=new THREE.Raycaster();
+                  for(const side of [-1,1]) for(const y of [.72,.76,.82]) for(const x of [.47,.51,.55,.59,.63,.67]) {
+                    const origin=wrapper.localToWorld(new THREE.Vector3(side*x,y,2.5));
+                    const direction=new THREE.Vector3(0,0,-1).transformDirection(wrapper.matrixWorld);
+                    ray.set(origin,direction);const hit=ray.intersectObject(lens,false)[0];if(!hit)continue;
+                    const strip=new THREE.Mesh(geo,led);strip.name='golf-tail-led';
+                    strip.position.copy(wrapper.worldToLocal(hit.point.clone()));strip.position.z+=.007;wrapper.add(strip);
+                  }
+                }
+              }
+            }
             if(config.headlights!=='stock') {
               const lens=inner.getObjectByName('golf_mesh_4') as THREE.Mesh | undefined;
               if(lens && !Array.isArray(lens.material)) {
