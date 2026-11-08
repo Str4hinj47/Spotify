@@ -556,15 +556,27 @@ export class ModelLibrary {
                 material.color.multiplyScalar(config.taillights==='smoked' ? .30 : .65);
                 if(config.taillights==='led') {
                   wrapper.updateMatrixWorld(true);
-                  const led=new THREE.MeshBasicMaterial({color:0xff2424});customPaintCopies.push(led);
-                  const geo=new THREE.BoxGeometry(.035,.009,.006);customGeometries.push(geo);
-                  const ray=new THREE.Raycaster();
-                  for(const side of [-1,1]) for(const y of [.72,.76,.82]) for(const x of [.47,.51,.55,.59,.63,.67]) {
-                    const origin=wrapper.localToWorld(new THREE.Vector3(side*x,y,2.5));
-                    const direction=new THREE.Vector3(0,0,-1).transformDirection(wrapper.matrixWorld);
-                    ray.set(origin,direction);const hit=ray.intersectObject(lens,false)[0];if(!hit)continue;
-                    const strip=new THREE.Mesh(geo,led);strip.name='golf-tail-led';
-                    strip.position.copy(wrapper.worldToLocal(hit.point.clone()));strip.position.z+=.007;wrapper.add(strip);
+                  // Trace each light guide onto the original lens, rather than
+                  // floating independent rectangular LEDs in front of it.
+                  const led=new THREE.MeshBasicMaterial({color:0xe82226,side:THREE.DoubleSide});customPaintCopies.push(led);
+                  const ray=new THREE.Raycaster(),direction=new THREE.Vector3(0,0,-1).transformDirection(wrapper.matrixWorld);
+                  for(const side of [-1,1]) for(const y of [.72,.76,.82]) {
+                    const points:(THREE.Vector3|null)[]=[],positions:number[]=[],indices:number[]=[],steps=36;
+                    for(let i=0;i<=steps;i++) for(const dy of [-.0035,.0035]) {
+                      const x=THREE.MathUtils.lerp(.47,.69,i/steps);
+                      ray.set(wrapper.localToWorld(new THREE.Vector3(side*x,y+dy,2.5)),direction);
+                      const hit=ray.intersectObject(lens,false)[0];
+                      const point=hit ? wrapper.worldToLocal(hit.point.clone()) : null;
+                      if(point)point.z+=.0015;
+                      points.push(point);positions.push(point?.x??0,point?.y??0,point?.z??0);
+                    }
+                    for(let i=0;i<steps;i++) {
+                      const a=i*2,b=a+1,c=a+2,d=a+3;
+                      if(points[a]&&points[b]&&points[c]&&points[d])indices.push(a,c,b,b,c,d);
+                    }
+                    if(!indices.length)continue;
+                    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeBoundingSphere();customGeometries.push(geo);
+                    const strip=new THREE.Mesh(geo,led);strip.name='golf-tail-led';wrapper.add(strip);
                   }
                 }
               }
