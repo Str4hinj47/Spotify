@@ -168,7 +168,8 @@ export function fitGolfBodywork(inner:THREE.Group,wrapper:THREE.Group,kit:THREE.
     }
   }
   const materials=kit.userData.ownedMaterials as THREE.Material[];
-  const diffuser=new THREE.MeshStandardMaterial({color:0x4b5357,metalness:.25,roughness:.58,emissive:0x182024,emissiveIntensity:.5});
+  const diffuser=new THREE.MeshStandardMaterial({color:config.rearDiffuserColor || 0x4b5357,metalness:.25,roughness:.58,emissive:config.rearDiffuserColor ? 0x000000 : 0x182024,emissiveIntensity:.5});
+  diffuser.name='golf-rear-diffuser-color';
   materials.push(diffuser);
   areas.forEach((area,i)=>{
     const group=kit.getObjectByName(`custom-${area.part}`);if(!group||!fitted[i].length)return;

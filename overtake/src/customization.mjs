@@ -13,7 +13,7 @@ export const DEFAULT_CUSTOMIZATION = Object.freeze({
   frontFinish:'standard', rearFinish:'standard', skirtsFinish:'standard', spoilerFinish:'standard', exhaustFinish:'standard', hoodFinish:'standard', roofFinish:'standard',
   paintScheme:'single', secondaryColor:'#141b24', secondaryFinish:'paint',
   livery:'none', liveryColor:'#f2f5f7', underglow:false, glowColor:'#00ddff',
-  afterfire:false, removePlates:false, rim:'stock', rimColor:'', tireWidth:'standard', tireProfile:'standard', flameColor:'#ff6a1a', headlights:'stock', mirrors:'stock',
+  afterfire:false, removePlates:false, rim:'stock', rimColor:'', tireWidth:'standard', tireProfile:'standard', flameColor:'#ff6a1a', rearDiffuserColor:'', headlights:'stock', mirrors:'stock',
 });
 
 /** Sanitize untrusted local storage, including older saved configurations. */
@@ -36,6 +36,7 @@ export function sanitizeCustomization(value) {
   out.afterfire = raw.afterfire === true;
   out.removePlates = raw.removePlates === true;
   out.flameColor = normalizeHex(raw.flameColor) || DEFAULT_CUSTOMIZATION.flameColor;
+  out.rearDiffuserColor = normalizeHex(raw.rearDiffuserColor) || '';
   if (['stock','smoked','halo'].includes(raw.headlights)) out.headlights=raw.headlights;
   if (['stock','sport','carbon'].includes(raw.mirrors)) out.mirrors=raw.mirrors;
   out.underglow = raw.underglow === true;
@@ -45,6 +46,6 @@ export function sanitizeCustomization(value) {
 export function sanitizeCustomizations(value, ids) {
   const raw = value && typeof value === 'object' ? value : {};
   const out = {};
-  for (const id of ids) if (raw[id] && typeof raw[id] === 'object') { out[id] = sanitizeCustomization(raw[id]); if (id !== 'golf') { for (const [part, options] of Object.entries(GOLF_PART_OPTIONS)) if(options.includes(out[id][part])) out[id][part] = 'stock'; out[id].headlights='stock'; out[id].mirrors='stock'; out[id].tireProfile='standard'; } if(id!=='mercedes') for(const [part, options] of Object.entries(MERCEDES_PART_OPTIONS)) if(options.includes(out[id][part])) out[id][part]='stock'; if(id!=='audi') for(const [part, options] of Object.entries(AUDI_PART_OPTIONS)) if(options.includes(out[id][part])) out[id][part]='stock'; }
+  for (const id of ids) if (raw[id] && typeof raw[id] === 'object') { out[id] = sanitizeCustomization(raw[id]); if (id !== 'golf') { for (const [part, options] of Object.entries(GOLF_PART_OPTIONS)) if(options.includes(out[id][part])) out[id][part] = 'stock'; out[id].rearDiffuserColor=''; out[id].headlights='stock'; out[id].mirrors='stock'; out[id].tireProfile='standard'; } if(id!=='mercedes') for(const [part, options] of Object.entries(MERCEDES_PART_OPTIONS)) if(options.includes(out[id][part])) out[id][part]='stock'; if(id!=='audi') for(const [part, options] of Object.entries(AUDI_PART_OPTIONS)) if(options.includes(out[id][part])) out[id][part]='stock'; }
   return out;
 }

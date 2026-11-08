@@ -256,6 +256,9 @@ function syncCustomizationUI() {
   ($('custom-afterfire') as HTMLInputElement).disabled=config.exhaust==='flame' || config.exhaust==='golf-quad-flame' || (selected==='golf' && config.exhaust==='sport');
   ($('custom-remove-plates') as HTMLInputElement).checked=config.removePlates;
   ($('custom-flame-color') as HTMLInputElement).value=config.flameColor;
+  ($('custom-diffuser-color') as HTMLInputElement).value=config.rearDiffuserColor || '#4b5357';
+  $('golf-diffuser-color-row').classList.toggle('hidden',selected!=='golf');
+  $('custom-diffuser-reset').classList.toggle('hidden',selected!=='golf');
   ($('custom-headlights') as HTMLSelectElement).value=config.headlights;
   ($('custom-mirrors') as HTMLSelectElement).value=config.mirrors;
   for(const id of ['golf-tire-profile-row','golf-headlights-row','golf-mirrors-row']) $(id).classList.toggle('hidden',selected!=='golf');
@@ -1235,6 +1238,8 @@ function bindUI() {
     applyCustomization({ ...currentCustomization(), [key]:value, ...(suggestedColor ? { liveryColor:suggestedColor } : {}) } as Customization);
   });
   for (const [id,key,event] of [['custom-rim','rim','change'],['custom-rim-color','rimColor','change'],['custom-tire-width','tireWidth','change'],['custom-tire-profile','tireProfile','change'],['custom-flame-color','flameColor','change'],['custom-headlights','headlights','change'],['custom-mirrors','mirrors','change']] as const) $(id).addEventListener(event, e => applyCustomization({ ...currentCustomization(), [key]:(e.target as HTMLInputElement | HTMLSelectElement).value } as Customization));
+  $('custom-diffuser-color').addEventListener('change', event => applyCustomization({ ...currentCustomization(), rearDiffuserColor:(event.target as HTMLInputElement).value }));
+  $('custom-diffuser-reset').addEventListener('click', () => applyCustomization({ ...currentCustomization(), rearDiffuserColor:'' }));
   $('custom-afterfire').addEventListener('change', event => applyCustomization({ ...currentCustomization(), afterfire:(event.target as HTMLInputElement).checked }));
   $('custom-remove-plates').addEventListener('change', event => applyCustomization({ ...currentCustomization(), removePlates:(event.target as HTMLInputElement).checked }));
   $('custom-glow-enabled').addEventListener('change', event => applyCustomization({ ...currentCustomization(), underglow:(event.target as HTMLInputElement).checked }));

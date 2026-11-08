@@ -400,7 +400,7 @@ export class ModelLibrary {
     const clean=sanitizeCustomization(config);
     if(id!=='golf') {
       for(const [part, options] of Object.entries(GOLF_PART_OPTIONS)) if(options?.includes(clean[part as keyof typeof GOLF_PART_OPTIONS] as never)) (clean as unknown as Record<string,string>)[part]='stock';
-      clean.headlights='stock';clean.mirrors='stock';clean.tireProfile='standard';
+      clean.rearDiffuserColor='';clean.headlights='stock';clean.mirrors='stock';clean.tireProfile='standard';
     }
     if(id!=='mercedes') { for(const part of ['front','rear','skirts'] as const) if(clean[part].startsWith('mercedes-')) (clean as unknown as Record<string,string>)[part]='stock'; }
     if(id!=='audi') { for(const part of ['front','rear','skirts'] as const) if(clean[part].startsWith('audi-')) (clean as unknown as Record<string,string>)[part]='stock'; }

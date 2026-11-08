@@ -74,3 +74,10 @@ test('new Golf bodywork, independent exhaust flames and plate preference round-t
   assert.equal(sanitizeCustomization({afterfire:'yes',removePlates:1}).removePlates,false);
   assert.equal(sanitizeCustomization({exhaust:'flame'}).exhaust,'flame');
 });
+
+test('Golf diffuser colors survive sanitization and cannot leak to other cars',()=>{
+ const raw={golf:{rear:'golf-diffuser',rearDiffuserColor:'#CC4422'},audi:{rearDiffuserColor:'#cc4422'}};
+ const value=sanitizeCustomizations(raw,['golf','audi']);
+ assert.equal(value.golf.rearDiffuserColor,'#cc4422');assert.equal(value.audi.rearDiffuserColor,'');
+ assert.equal(sanitizeCustomization({rearDiffuserColor:'bad color'}).rearDiffuserColor,'');
+});
