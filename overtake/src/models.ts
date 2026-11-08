@@ -488,7 +488,7 @@ export class ModelLibrary {
             }
             base = cached;
           }
-          if (config && isPlayableCar(id) && (config.paintScheme !== 'single' || config.livery !== 'none' || !!config.hoodColor || !!config.roofColor || !!config.leftFrontDoorColor || !!config.rightFrontDoorColor || !!config.leftRearDoorColor || !!config.rightRearDoorColor)) {
+          if (config && isPlayableCar(id) && (config.paintScheme !== 'single' || config.livery !== 'none' || !!config.hoodColor || !!config.roofColor || !!config.leftFrontDoorColor || !!config.rightFrontDoorColor || !!config.leftRearDoorColor || !!config.rightRearDoorColor || (id==='golf' && (!!config.frontColor || !!config.rearColor || !!config.skirtsColor)))) {
             const meshToCar = new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
             const custom = customPaintMaterial(base, meshToCar, id, config);
             customPaintCopies.push(custom);

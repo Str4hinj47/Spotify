@@ -236,7 +236,7 @@ function syncCustomizationUI() {
   for(const part of ['front','rear','skirts','spoiler','hood','roof'] as const) {
     const input=$(`custom-${part}-color`) as HTMLInputElement;
     input.value=config[`${part}Color`] || paints[selected] || getCar(selected).color;
-    input.disabled=part!=='hood' && part!=='roof' && config[part]==='stock';
+    input.disabled=part!=='hood' && part!=='roof' && config[part]==='stock' && !(selected==='golf' && ['front','rear','skirts'].includes(part));
     const reset=document.querySelector<HTMLButtonElement>(`[data-part-color-reset="${part}"]`)!;
     reset.disabled=!config[`${part}Color`];
   }
