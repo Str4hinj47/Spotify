@@ -29,11 +29,14 @@ try {
    const rim=pivot.getObjectByName('custom-rim'),radius=rim.scale.x;spinWheels(c,1);c.updateMatrixWorld(true);const axis=new T.Vector3(0,0,1).applyQuaternion(rim.getWorldQuaternion(new T.Quaternion()));
    profiles.push({profile,min,max,radius,axis:axis.toArray(),brakeVisible:c.getObjectByName('golf_mesh_9').visible});dispose(c);
   }
-  return {quad,front,normalFront,counts,wing:wing.max.toArray(),mirrors,profiles};
+  const matching=mk({rim:'rim-1',tireProfile:'low',tireWidth:'narrow'});
+  const wheelOffsets=matching.userData.wheels.map(w=>Math.abs(w.getObjectByName('custom-rim').position.x));dispose(matching);
+  return {quad,front,normalFront,counts,wing:wing.max.toArray(),mirrors,profiles,wheelOffsets};
  });
  for(const q of data.quad){assert.deepEqual(q.holes,[0,0,0,0],`${q.rear} quad cutouts`);assert.deepEqual(q.mouths,q.lights);assert.equal(q.color,'00aaff');assert.equal(q.sprite,true);assert.ok(q.extent>.57);assert.equal(q.on,true);assert.equal(q.off,false);}
  assert.ok(data.front.min[2]<data.normalFront.min[2]-.08,'extended front must project outward');
  assert.equal(data.counts['wing-pedestal'],2);assert.equal(data.counts['wing-endplate'],2);assert.equal(data.counts['diffuser-fin'],7);assert.equal(data.counts['headlight-halo'],2);assert.equal(data.counts['mirror-housing'],2);assert.ok(data.wing[1]>1.65);assert.deepEqual(data.mirrors,[0,0,0]);
+ assert.ok(Math.min(...data.wheelOffsets)>.04 && Math.max(...data.wheelOffsets)-Math.min(...data.wheelOffsets)<.001,`front/rear rim offsets must match: ${data.wheelOffsets}`);
  const [low,standard,thick]=data.profiles;assert.ok(low.min>standard.min && standard.min>thick.min);assert.ok(low.radius>standard.radius && standard.radius>thick.radius);assert.ok(Math.abs(low.max-standard.max)<.002 && Math.abs(thick.max-standard.max)<.002);
  for(const w of data.profiles){assert.ok(w.radius <= w.min+.012,`rim must fit the tire opening: ${w.profile} ${w.radius} vs ${w.min}`);assert.ok(Math.abs(w.axis[0])>.999 && Math.abs(w.axis[1])<.001 && Math.abs(w.axis[2])<.001,`rim axle tilted: ${w.axis}`);assert.equal(w.brakeVisible,false)}
  // Exercise the actual workshop controls, then reload the local save.

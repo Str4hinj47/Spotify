@@ -632,7 +632,12 @@ export class ModelLibrary {
           // and inset the outer face inside the sidewall, including narrow tires.
           const depth=radius*.55;
           rim.name='custom-rim';rim.rotation.y=side*Math.PI/2;rim.scale.set(radius,radius,depth);
-          rim.position.x=side*Math.max(0,pivot.userData.wheelHalfWidth-depth*.33-.065);
+          // Golf's front pivot bounds include brake geometry, whereas the
+          // rear bounds only include rubber. Using those unlike bounds inset
+          // the rear rim to the axle and made its sidewall appear much thicker.
+          // Its four measured tire half-widths are all approximately .105.
+          const inset=id==='golf' ? .105-depth*.33-.012 : pivot.userData.wheelHalfWidth-depth*.33-.065;
+          rim.position.x=side*Math.max(0,inset);
 
           pivot.add(rim);
         }
