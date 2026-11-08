@@ -206,12 +206,22 @@ export function fitGolfBodywork(inner:THREE.Group,wrapper:THREE.Group,kit:THREE.
     }
     const section=kit.getObjectByName('custom-front');
     if(section) {
-      const positions:number[]=[],indices:number[]=[];const columns=64;
-      for(let i=0;i<=columns;i++) for(const y of [.205,.405]) {
-        const x=(i/columns*2-1)*.675,z=-2.04+.47*x*x-.24*(y-.34);
+      // A multi-row sculpted fascia rather than the old two-row flat patch.
+      // The surface blends to the original seams and carries pressed-in
+      // aerodynamic shoulders and a subtle central lower crease, without
+      // exposing the factory grille openings behind it.
+      const positions:number[]=[],indices:number[]=[],columns=96,rows=32;
+      for(let i=0;i<=columns;i++) for(let j=0;j<=rows;j++) {
+        const x=(i/columns*2-1)*.675,t=j/rows,y=THREE.MathUtils.lerp(.205,.405,t);
+        const seamFade=Math.sin(Math.PI*t)*Math.pow(Math.max(0,1-Math.pow(Math.abs(x)/.675,8)),2);
+        const shoulders=Math.exp(-Math.pow((Math.abs(x)-.47)/.105,2));
+        const ridge=Math.exp(-Math.pow((t-.29)/.11,2))*Math.exp(-Math.pow(x/.42,4));
+        const z=-2.04+.47*x*x-.24*(y-.34)+seamFade*(.020*shoulders-.012*ridge);
         positions.push(x,y,z);
       }
-      for(let i=0;i<columns;i++){const a=i*2,b=a+1,c=a+2,d=a+3;indices.push(a,b,c,b,d,c);}
+      for(let i=0;i<columns;i++)for(let j=0;j<rows;j++){
+        const a=i*(rows+1)+j,b=a+1,c=a+rows+1,d=c+1;indices.push(a,b,c,b,d,c);
+      }
       const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setIndex(indices);geometry.computeVertexNormals();
       const cover=new THREE.Mesh(geometry,kit.userData.partMaterials?.front ?? (kit.userData.ownedMaterials as THREE.Material[])[0]);cover.name='golf-filled-front-grille';section.add(cover);
     }
