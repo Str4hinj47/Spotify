@@ -3,6 +3,7 @@ import { LIVERY_OPTIONS, RIM_OPTIONS } from './content/cosmetics.mjs';
 
 export const BODY_PARTS = ['front', 'rear', 'skirts', 'spoiler', 'exhaust', 'hood', 'roof'];
 export const PART_OPTIONS = ['stock', 'street', 'touring', 'sport', 'track'];
+export const GOLF_REAR_OPTIONS = ['golf-r32', 'golf-clean'];
 export const DEFAULT_CUSTOMIZATION = Object.freeze({
   front:'stock', rear:'stock', skirts:'stock', spoiler:'stock', exhaust:'stock', hood:'stock', roof:'stock',
   frontFinish:'standard', rearFinish:'standard', skirtsFinish:'standard', spoilerFinish:'standard', exhaustFinish:'standard', hoodFinish:'standard', roofFinish:'standard',
@@ -16,7 +17,7 @@ export function sanitizeCustomization(value) {
   const raw = value && typeof value === 'object' ? value : {};
   const out = { ...DEFAULT_CUSTOMIZATION };
   for (const part of BODY_PARTS) {
-    if (PART_OPTIONS.includes(raw[part]) || (part === 'exhaust' && raw[part] === 'flame')) out[part] = raw[part];
+    if (PART_OPTIONS.includes(raw[part]) || (part === 'exhaust' && raw[part] === 'flame') || (part === 'rear' && GOLF_REAR_OPTIONS.includes(raw[part]))) out[part] = raw[part];
     if (raw[`${part}Finish`] === 'carbon') out[`${part}Finish`] = 'carbon';
   }
   if (['single','upper','lower'].includes(raw.paintScheme)) out.paintScheme = raw.paintScheme;
@@ -34,6 +35,6 @@ export function sanitizeCustomization(value) {
 export function sanitizeCustomizations(value, ids) {
   const raw = value && typeof value === 'object' ? value : {};
   const out = {};
-  for (const id of ids) if (raw[id] && typeof raw[id] === 'object') out[id] = sanitizeCustomization(raw[id]);
+  for (const id of ids) if (raw[id] && typeof raw[id] === 'object') { out[id] = sanitizeCustomization(raw[id]); if (id !== 'golf' && GOLF_REAR_OPTIONS.includes(out[id].rear)) out[id].rear = 'stock'; }
   return out;
 }

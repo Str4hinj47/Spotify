@@ -22,9 +22,16 @@ test('premium costs earned gems, retroactively grants cosmetics, and never grant
  assert.equal(buyPremiumPass(p,now).ok,false);assert.equal(awardQuestXp(p,'endless',false,now).gemsGained,5);
  const rolled=awardQuestXp(p,'endless',false,next).progress;assert.equal(rolled.seasonPass.premium,false);assert.equal(rolled.seasonPass.xp,100);assert.ok(rolled.tunes.challenger.includes('hood:track'));assert.equal(currentSeasonPass(p.seasonPass,next).premium,false);
 });
-test('premium and wallet survive snapshot restore; dev quests never earn currency',()=>{
+test('premium and wallet survive snapshot restore; dev quests earn currency',()=>{
  let p={...emptyProgression(),gems:50};p=buyPremiumPass(p,now).progress;p=awardQuestXp(p,'seasonal',false,now).progress;
  const store=()=>{const m=new Map();return {getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,String(v)),removeItem:k=>m.delete(k)}};
  const a=store(),b=store();a.setItem('overtake-progression-v2',JSON.stringify(p));restoreSnapshot(b,captureSnapshot(a));assert.deepEqual(JSON.parse(b.getItem('overtake-progression-v2')),p);
- assert.deepEqual(awardQuestXp(p,'endless',true,now).progress,p);assert.equal(awardQuestXp(p,'ranked',false,now).gemsGained,0);
+ assert.equal(awardQuestXp(p,'endless',true,now).gemsGained,5);assert.equal(awardQuestXp(p,'ranked',false,now).gemsGained,0);
+});
+
+test('driving distance pays even without score, score bonus remains additive',()=>{
+ const p=emptyProgression();
+ assert.deepEqual([awardProgress(p,{score:0,distance:1250}).coinsGained,awardProgress(p,{score:0,distance:1250}).creditsGained],[125,125]);
+ assert.equal(awardProgress(p,{score:1000,distance:1000}).gain,1350);
+ assert.equal(awardProgress(p,{score:0,distance:0}).gain,0);
 });

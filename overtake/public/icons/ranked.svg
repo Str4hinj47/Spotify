@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 112">
+ <defs><linearGradient id="rim" x2="1" y2="1"><stop stop-color="#fff3b6"/><stop offset=".5" stop-color="#f2ba42"/><stop offset="1" stop-color="#986322"/></linearGradient><linearGradient id="face" x2="0" y2="1"><stop stop-color="#354b5e"/><stop offset="1" stop-color="#101d2d"/></linearGradient></defs>
+ <path d="M50 3 89 17v33c0 26-15 45-39 58C26 95 11 76 11 50V17Z" fill="url(#face)" stroke="url(#rim)" stroke-width="5"/>
+ <path d="M50 11 82 22v27c0 22-12 38-32 50C30 87 18 71 18 49V22Z" fill="none" stroke="#f6d67a" stroke-opacity=".65" stroke-width="1.5"/>
+ <path d="M50 23 54 32l10 1-8 7 2 10-8-5-8 5 2-10-8-7 10-1Z" fill="#f9d978"/>
+ <path d="M23 57h54v19H23z" fill="#e4b34d"/><path d="M23 57h54v4H23z" fill="#ffe3a0"/>
+ <text x="50" y="71" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="900" letter-spacing="1" fill="#182638">RANKED</text>
+ <path d="M35 83h30M39 88h22" stroke="#e6bd62" stroke-width="2" stroke-linecap="round"/>
+</svg>

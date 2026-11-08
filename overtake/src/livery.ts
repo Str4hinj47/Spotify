@@ -55,14 +55,15 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
       float kitDigitSeven(vec2 p) {
         return max(kitBox(p-vec2(0.0,.066),vec2(.050,.012),.004),kitBand(p.x - (.02 + p.y*.42),.012)*step(abs(p.y),.075));
       }
-      // Long tapered tongues run back from the front fender along each flank.
+      // Rounded, swept pinstripe tongues with a tapered tip. The curvature
+      // changes along each stroke rather than making angular wedges.
       float kitTongue(vec2 p, vec2 a, vec2 b, float width, float bend) {
         float t=clamp((p.x-a.x)/(b.x-a.x),0.0,1.0);
-        vec2 center=mix(a,b,t);
-        center.y += sin(t*3.14159)*(bend + .025*sin(t*6.28318));
-        float radius=width*pow(1.0-t,.8);
-        float endGap=max(max(a.x-p.x,p.x-b.x),0.0);
-        return 1.0-smoothstep(radius,radius+.009,length(vec2(endGap,p.y-center.y)));
+        float ease=t*t*(3.0-2.0*t);
+        float cy=mix(a.y,b.y,ease)+bend*sin(3.14159265*t);
+        float radius=width*pow(1.0-t,.72)*(0.86+0.14*sin(t*3.14159));
+        float dx=max(max(a.x-p.x,p.x-b.x),0.0);
+        return 1.0-smoothstep(max(0.0,radius-.004),radius+.004,length(vec2(dx,p.y-cy)));
       }
       vec3 kitWeave(vec3 p) {
         vec2 q=vec2(p.x+p.z*.23,p.y+p.z*.30)*115.0;
@@ -113,12 +114,19 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
         graphics=max(upper,spear);
       } else if(kitPattern > 7.5) {
         vec2 f=vec2(z,vKitPos.y-kitBelt);
-        float base=kitBox(f-vec2(-.87,.19),vec2(.24,.17),.10);
-        float tongue1=kitTongue(f,vec2(-.88,.14),vec2(.95,.19),.14,-.08);
-        float tongue2=kitTongue(f,vec2(-.87,.22),vec2(.55,.43),.13,.11);
-        float tongue3=kitTongue(f,vec2(-.87,.12),vec2(.50,.04),.11,-.07);
-        graphics=max(base,max(tongue1,max(tongue2,tongue3)))*flank;
-        flameCore=max(kitTongue(f,vec2(-.94,.15),vec2(.42,.20),.047,-.06),kitTongue(f,vec2(-.94,.22),vec2(.12,.38),.036,.08))*flank;
+        // Classic swept flames: a compact rounded root with individual,
+        // curved tongues and separate warm inner strokes. No square clipping.
+        float root=kitBox(f-vec2(-1.10,.11),vec2(.19,.13),.12);
+        float outer=max(root,kitTongue(f,vec2(-1.13,.12),vec2(.64,.20),.115,-.055));
+        outer=max(outer,kitTongue(f,vec2(-1.10,.17),vec2(.39,.43),.082,.085));
+        outer=max(outer,kitTongue(f,vec2(-1.04,.08),vec2(.32,-.025),.071,-.06));
+        outer=max(outer,kitTongue(f,vec2(-1.03,.20),vec2(-.07,.47),.050,.065));
+        float inner=kitTongue(f,vec2(-1.16,.12),vec2(.30,.19),.048,-.040);
+        inner=max(inner,kitTongue(f,vec2(-1.11,.16),vec2(.04,.36),.034,.06));
+        inner=max(inner,kitTongue(f,vec2(-1.10,.08),vec2(-.02,.015),.025,-.045));
+        graphics=outer*side;
+        flameCore=inner*side;
+
       }
       diffuseColor.rgb=mix(diffuseColor.rgb,kitAccent,graphics*.96);
       diffuseColor.rgb=mix(diffuseColor.rgb,mix(kitAccent,vec3(1.0),.5),flameCore*.8);
@@ -127,7 +135,7 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
       vec3 ink=lightness > .35 ? vec3(.015,.02,.025) : vec3(.96,.97,.98);
       diffuseColor.rgb=mix(diffuseColor.rgb,ink,number);`);
   };
-  mat.customProgramCacheKey = () => 'overtake-custom-paint-v4';
+  mat.customProgramCacheKey = () => 'overtake-custom-paint-v5';
   mat.name = `custom-paint-${id}`;
   return mat;
 }

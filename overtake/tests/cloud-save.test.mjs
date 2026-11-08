@@ -30,3 +30,11 @@ test('rank is backed up and restored; older snapshots and backups preserve curre
  const backup=JSON.parse(target.getItem(CLOUD_BACKUP_KEY));delete backup.values['overtake-ranked-v1'];target.setItem(CLOUD_BACKUP_KEY,JSON.stringify(backup));undoRestore(target);assert.equal(JSON.parse(target.getItem('overtake-ranked-v1')).points,50);
  assert.throws(()=>restoreSnapshot(target,{...snap,ranked:{version:2}}),/Unsupported ranked/);
 });
+
+test('new Golf rear IDs and purchase ownership survive backup and restore',()=>{
+ for(const rear of ['golf-r32','golf-clean']) {
+  const progress={...progression,tunes:{golf:[`rear:${rear}`]}},source=makeStorage({'overtake-progression-v2':JSON.stringify(progress),'overtake-customization-v1':JSON.stringify({golf:{rear}})}),target=makeStorage({'overtake-progression-v2':JSON.stringify(progression)});
+  const snap=captureSnapshot(source);assert.equal(snap.contentRevision,10);assert.equal(snap.customizations.golf.rear,rear);restoreSnapshot(target,snap);
+  assert.equal(JSON.parse(target.getItem('overtake-customization-v1')).golf.rear,rear);assert.ok(JSON.parse(target.getItem('overtake-progression-v2')).tunes.golf.includes(`rear:${rear}`));
+ }
+});

@@ -39,3 +39,13 @@ test('touring and sport options persist independently for every part', () => {
     assert.deepEqual(sanitizeCustomization(JSON.parse(JSON.stringify(loaded.golf))), loaded.golf);
   }
 });
+
+test('Golf full rear variants persist only in the Golf rear slot', () => {
+  for (const rear of ['golf-r32','golf-clean']) {
+    const config=sanitizeCustomization({rear,front:rear,skirts:rear,exhaust:rear});
+    assert.equal(config.rear,rear);assert.equal(config.front,'stock');assert.equal(config.skirts,'stock');assert.equal(config.exhaust,'stock');
+    const cars=sanitizeCustomizations({golf:config,audi:config},['golf','audi']);
+    assert.equal(cars.golf.rear,rear);assert.equal(cars.audi.rear,'stock');
+    assert.equal(sanitizeCustomization(JSON.parse(JSON.stringify(cars.golf))).rear,rear);
+  }
+});

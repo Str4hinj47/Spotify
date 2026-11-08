@@ -13,15 +13,15 @@ try {
   page.on('console',m=>{if(m.type()==='error') errors.push(m.text())});page.on('pageerror',e=>errors.push(String(e)));
   await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`,{waitUntil:'domcontentloaded'});
   await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
-  await page.click('#btn-sound-settings');
+  await page.click('#btn-settings-menu');await page.click('#btn-sound-settings');
   assert.equal(await page.locator('#btn-sound-settings').getAttribute('aria-expanded'),'true');
   assert.equal(await page.locator('#sound-score').isChecked(),true);assert.equal(await page.locator('#sound-indicator').isChecked(),true);
   await page.uncheck('#sound-score');
   assert.equal(await page.evaluate(()=>localStorage.getItem('overtake-score-sounds')),'0');
   await page.reload({waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
-  await page.click('#btn-sound-settings');assert.equal(await page.locator('#sound-score').isChecked(),false);
+  await page.click('#btn-settings-menu');await page.click('#btn-sound-settings');assert.equal(await page.locator('#sound-score').isChecked(),false);
   await page.keyboard.press('Escape');assert.equal(await page.locator('#sound-panel').isHidden(),true);
-  await page.click('#menu-start');await page.waitForFunction(()=>window.__audio?.ctx?.state==='running',{timeout:90000});
+  await page.evaluate(()=>window.__overtake.setRunMode('endless'));await page.click('#menu-start');await page.waitForFunction(()=>window.__audio?.ctx?.state==='running',{timeout:90000});
   await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf);g.clearTraffic();g.trySpawn=()=>{};});
   const result=await page.evaluate(async ()=>{
     const g=window.__overtake,a=window.__audio;
@@ -53,16 +53,16 @@ try {
   assert.deepEqual(result.mutedVolumes,{master:0,engine:0});assert.deepEqual(result.afterMute,result.scoreOn);
   assert.deepEqual(result.afterIndicatorOff,result.afterMute);assert.deepEqual(result.scoreStillOn.slice(-2),[660,880]);
   assert.deepEqual(result.paused,result.scoreStillOn);assert.deepEqual(result.stopped,result.paused);
-  await page.click('#btn-sound-settings');assert.equal(await page.locator('#sound-score').isChecked(),true);
+  await page.click('#btn-settings-menu');await page.click('#btn-sound-settings');assert.equal(await page.locator('#sound-score').isChecked(),true);
   await page.uncheck('#sound-score');await page.uncheck('#sound-indicator');
-  await page.click('#btn-sound');assert.equal(await page.locator('#sound-master').isChecked(),false);
+  await page.click('#sound-close');await page.click('#btn-sound');await page.click('#btn-sound-settings');assert.equal(await page.locator('#sound-master').isChecked(),false);
   await page.check('#sound-master');assert.equal(await page.locator('#btn-sound').getAttribute('aria-label'),'Mute sound');
   await page.click('#sound-close');await page.click('#btn-pause');
   await page.click('#btn-pause-sound');assert.equal(await page.locator('#sound-panel').isVisible(),true);
   assert.equal(await page.locator('#btn-pause-sound').getAttribute('aria-expanded'),'true');
   await page.keyboard.press('Escape');assert.equal(await page.locator('#sound-panel').isHidden(),true);
   assert.equal(await page.evaluate(()=>document.activeElement.id),'btn-pause-sound');
-  await page.click('#btn-resume');await page.click('#btn-sound-settings');
+  await page.click('#btn-resume');await page.click('#btn-settings-menu');await page.click('#btn-sound-settings');
   await page.setViewportSize({width:390,height:844});
   const layout=await page.evaluate(()=>{
     const a=document.querySelector('.brand').getBoundingClientRect(), b=document.querySelector('.top-actions').getBoundingClientRect(),
@@ -71,7 +71,7 @@ try {
   });
   assert.deepEqual(layout,{overlap:false,panelInside:true,overflow:false});
   fs.mkdirSync('test-results',{recursive:true});await page.screenshot({path:'test-results/sound-settings-mobile.png',timeout:120000});
-  await page.reload({waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.click('#btn-sound-settings');
+  await page.reload({waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.click('#btn-settings-menu');await page.click('#btn-sound-settings');
   assert.equal(await page.locator('#sound-score').isChecked(),false);assert.equal(await page.locator('#sound-indicator').isChecked(),false);assert.equal(await page.locator('#sound-master').isChecked(),true);
   assert.deepEqual(errors,[]);console.log({result,layout,errors});
 } finally {await browser.close();}

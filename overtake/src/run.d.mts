@@ -1,9 +1,9 @@
-export type RunMode = 'endless' | 'rush' | 'trial' | 'near' | 'daily' | 'weekly' | 'ranked' | 'seasonal' | 'convoy' | 'ghost' | 'checkpoint' | 'precision' | 'speed';
+export type RunMode = 'circuit' | 'endless' | 'rush' | 'trial' | 'near' | 'daily' | 'weekly' | 'ranked' | 'seasonal' | 'convoy' | 'ghost' | 'checkpoint' | 'precision' | 'speed';
 export type Medal = 'bronze' | 'silver' | 'gold' | null;
 export interface RunContract { id: string; title: string; desc: string; metric: string; target: number; reward: number; }
 export interface RunState {
   mode: RunMode; seed: number; elapsed: number; timeLeft: number | null; rankedScenario: import('./ranked.mjs').ScenarioId | null;
-  distance: number; score: number; combo: number; bestCombo: number;
+  distance: number; score: number; racePosition?:number; combo: number; bestCombo: number;
   overtakes: number; nearMisses: number; oncomingDodges: number;
   topSpeed: number; highSpeedTime: number; speedBonusTime: number;
   contracts: RunContract[]; contractIndex: number; contractBaseline: number; contractsDone: number;

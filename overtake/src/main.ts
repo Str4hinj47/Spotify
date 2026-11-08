@@ -12,6 +12,9 @@ import { CARS, getCar, PAINT_COLORS, type CarId } from './catalog';
 import { GameAudio } from './audio';
 import { hexToNumber, sanitizePaints } from './paint.mjs';
 import { BODY_FITS } from './body-kits';
+import { isDriftCar } from './drift.mjs';
+import { createRaceMap, raceGaps, lapComparison, rearProximity, type RaceMap } from './race-hud.mjs';
+import { getTrack, type TrackId } from './circuit.mjs';
 import { LIVERIES } from './livery';
 import { performanceStats } from './car-performance.mjs';
 import { LIVERY_OPTIONS } from './content/cosmetics.mjs';
@@ -22,6 +25,13 @@ createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route,
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
+type Currency = 'coin' | 'credit' | 'gem';
+// Values are numeric and labels are fixed; the accessible name spells out
+// the currency while the visual UI uses distinct flat 2D icons.
+function currency(n:number, kind:Currency, prefix='') {
+  const label=kind==='coin'?'coins':kind==='credit'?'credits':'gems';
+  return `<span class="currency" aria-label="${prefix}${fmt(n)} ${label}"><span aria-hidden="true">${prefix}${fmt(n)}</span><i class="currency-icon currency-${kind}" title="${label}" aria-hidden="true"></i></span>`;
+}
 
 const audio = new GameAudio();
 (window as any).__audio = audio; // test/debug hook
@@ -32,6 +42,71 @@ let helpPaused = false;
 let paints: Record<string, string> = {};
 let customizations: Record<string, Customization> = {};
 let frontScreen: 'menu' | 'garage' = 'menu';
+let rearKeyboardHeld=false, rearButtonKeyHeld=false, rearPointerId:number|null=null;
+function updateRearControl() {
+  const held=rearKeyboardHeld || rearButtonKeyHeld || rearPointerId!==null;
+  game.setLookBehind(held);
+  $('look-behind').setAttribute('aria-pressed',String(game.getLookBehind()));
+}
+function clearRearControl() {
+  rearKeyboardHeld=false;rearButtonKeyHeld=false;rearPointerId=null;
+  game.setLookBehind(false);$('look-behind').setAttribute('aria-pressed','false');
+}
+function updateRearProximity(race:HudState['race']) {
+  const distance=race ? rearProximity(race.player.progress,race.rivals,getTrack(race.track).length) : null;
+  const label=$('rear-proximity');label.classList.toggle('hidden',distance===null);
+  label.textContent=distance===null?'':`${Math.max(1,Math.round(distance))}m BACK`;
+  $('look-behind').classList.toggle('rear-near',distance!==null && distance<15);
+}
+
+let raceMap:RaceMap|null=null, raceMapTrack:TrackId|null=null;
+let lastRacePosition:number|null=null, lastRaceCountdown:number|null=null, lastRaceLapCount=0, raceFeedbackUntil=0;
+function resetRaceHud() {
+  raceMap=null;raceMapTrack=null;lastRacePosition=null;lastRaceCountdown=null;lastRaceLapCount=0;raceFeedbackUntil=0;
+  $('race-map').classList.add('hidden');$('race-feedback').classList.add('hidden');
+}
+function updateRaceHud(race:NonNullable<HudState['race']>,elapsed:number) {
+  $('race-map').classList.remove('hidden');
+  if(raceMapTrack!==race.track || !raceMap) {
+    raceMap=createRaceMap(race.track);raceMapTrack=race.track;
+    $('race-map-route').setAttribute('d',raceMap.path);$('race-map-shadow').setAttribute('d',raceMap.path);
+    $('race-map-start').setAttribute('cx',String(raceMap.start.x));$('race-map-start').setAttribute('cy',String(raceMap.start.y));
+    const container=$('race-map-rivals');container.replaceChildren();
+    race.rivals.forEach(()=>{const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');dot.setAttribute('r','2.7');dot.setAttribute('class','race-map-rival');container.appendChild(dot);});
+  }
+  const setMarker=(el:Element,marker:{progress:number;offset:number})=>{const p=raceMap!.marker(marker.progress,marker.offset);el.setAttribute('cx',p.x.toFixed(1));el.setAttribute('cy',p.y.toFixed(1));};
+  setMarker($('race-map-player'),race.player);
+  race.rivals.forEach((r,i)=>{const dot=$('race-map-rivals').children[i];if(dot)setMarker(dot,r);});
+  $('race-map-lap').textContent=`LAP ${race.lap}/${race.laps}`;
+  const track=getTrack(race.track), gaps=raceGaps(race.player.progress,race.rivals,track.length*track.laps);
+  $('race-gap-ahead').textContent=gaps.ahead ? `AHEAD ${gaps.ahead.finished?'FINISHED':`${Math.round(gaps.ahead.distance)}m`}` : 'AHEAD —';
+  $('race-gap-behind').textContent=gaps.behind ? `BEHIND ${Math.round(gaps.behind.distance)}m` : 'BEHIND —';
+  if(lastRaceCountdown!==null && race.countdown<=0 && lastRaceCountdown>0)audio.raceCountdown(true);
+  else if(race.countdown>0 && (lastRaceCountdown===null || Math.ceil(lastRaceCountdown)>Math.ceil(race.countdown)))audio.raceCountdown(false);
+  lastRaceCountdown=race.countdown;
+  const position=race.position;
+  const lap=lapComparison(race.lapTimes),notice=$('race-feedback');
+  if(lap && race.lapTimes.length>lastRaceLapCount) {
+    const delta=lap.delta===null?'':` · ${lap.delta<0?'−':'+'}${Math.abs(lap.delta).toFixed(2)}s`;
+    notice.textContent=`LAP ${lap.lap} · ${formatTime(lap.time)}${delta}${lap.best && lap.delta!==null?' · BEST':''}`;
+    notice.classList.toggle('gained',lap.best);notice.classList.remove('hidden');raceFeedbackUntil=elapsed+3;
+  } else if(lastRacePosition!==null && race.countdown<=0 && position!==lastRacePosition) {
+    const gained=position<lastRacePosition;
+    notice.textContent=`${gained?'POSITION GAINED':'POSITION LOST'} · P${position}`;
+    notice.classList.toggle('gained',gained);notice.classList.remove('hidden');raceFeedbackUntil=elapsed+2;
+  }
+  lastRaceLapCount=race.lapTimes.length;lastRacePosition=position;
+  if(elapsed>raceFeedbackUntil) $('race-feedback').classList.add('hidden');
+  const length=getTrack(race.track).length,s=((race.player.progress%length)+length)%length;
+  const startProximity=Math.min(s,length-s);
+  const nearest=race.rivals.reduce<{gap:number;speed:number}>((best,r)=>{
+    const diff=Math.abs(((r.progress-race.player.progress+length/2)%length+length)%length-length/2);
+    const gap=Math.hypot(diff,r.offset-race.player.offset);
+    return gap<best.gap?{gap,speed:r.speed}:best;
+  },{gap:Infinity,speed:0});
+  audio.raceAmbience(true,Math.max(0,1-startProximity/180),Math.max(0,1-nearest.gap/75),nearest.speed);
+}
+
 
 // A new economy starts from zero exactly once. Keep a backup of old cosmetics,
 // but do not carry free, already-equipped tuning into the paid economy.
@@ -62,60 +137,89 @@ function loadCustomizations() {
 function currentCustomization() { return sanitizeCustomization(customizations[selected] ?? DEFAULT_CUSTOMIZATION); }
 // Keep native selects as the single source of truth while presenting their
 // choices as visible buttons instead of stacked popup menus.
+const workshopPages = new Map<string, number>();
 function syncWorkshopChoices() {
+  const progress = game.getProgression();
   document.querySelectorAll<HTMLSelectElement>('#custom-panel select').forEach(select => {
+    const isRim = select.id === 'custom-rim';
+    const part = select.id.replace(/^custom-/, '');
+    const isBody = BODY_PARTS.some(p => p === part);
+    if (!isRim && !isBody) {
+      const key = ({'custom-paint-scheme':'paintScheme','custom-secondary-finish':'secondaryFinish','custom-livery':'livery'} as Record<string,string>)[select.id]
+        ?? select.id.replace(/^custom-/, '').replace(/-finish$/, 'Finish');
+      for (const option of Array.from(select.options)) {
+        const base=option.dataset.baseLabel ?? option.text; option.dataset.baseLabel=base;
+        const price=tunePrice(key,option.value), owned=progress.tunes[selected]?.includes(`${key}:${option.value}`);
+        option.textContent=`${base}${price ? progress.dev ? ' · DEV' : owned ? ' · Owned' : ` · ${fmt(price)} gems` : ''}`;
+      }
+      return;
+    }
+    select.hidden = true;
     let group = select.parentElement?.nextElementSibling as HTMLElement | null;
     if (!group?.classList.contains('workshop-choices')) {
-      group = document.createElement('div');
-      group.className = 'workshop-choices';
-      group.setAttribute('role', 'group');
-      group.setAttribute('aria-label', select.getAttribute('aria-label') || 'Options');
+      group = document.createElement('div'); group.className = 'workshop-choices';
+      group.setAttribute('role','group'); group.setAttribute('aria-label',select.getAttribute('aria-label') || `${part} options`);
       select.parentElement!.after(group);
-      select.hidden = false;
     }
     const options = Array.from(select.options);
-    const signature = options.map(option => `${option.value}:${option.text}`).join('|');
-    if (group.dataset.signature !== signature) {
-      group.dataset.signature = signature;
-      group.replaceChildren(...options.map(option => {
-        const button = document.createElement('button');
-        button.type = 'button'; button.textContent = option.text; button.dataset.value = option.value;
-        button.addEventListener('click', () => {
-          select.value = option.value;
-          select.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-        return button;
-      }));
+    const key = isRim ? 'rim' : part;
+    const pageSize = 4;
+    const maxPage = Math.max(0,Math.ceil(options.length/pageSize)-1);
+    const selectedPage=Math.max(0,Math.floor(options.findIndex(option=>option.value===select.value)/pageSize));
+    const currentPage = Math.min(workshopPages.get(select.id) ?? selectedPage,maxPage);
+    workshopPages.set(select.id,currentPage);
+    // Hidden panels wait until opened before creating expensive 3D previews.
+    const panel = select.closest<HTMLElement>('[data-part-panel], [data-workshop-panel]');
+    const active = !!panel && !panel.hidden && !panel.closest<HTMLElement>('[data-workshop-panel]')?.hidden;
+    group.replaceChildren();
+    const cards = document.createElement('div'); cards.className='workshop-card-grid';
+    for (const option of options.slice(currentPage*pageSize,(currentPage+1)*pageSize)) {
+      const button=document.createElement('button'); button.type='button'; button.className='workshop-card';
+      button.dataset.value=option.value; button.disabled=select.disabled;
+      button.setAttribute('aria-pressed',String(option.value===select.value));
+      const price=tunePrice(key,option.value), owned=progress.tunes[selected]?.includes(`${key}:${option.value}`);
+      const name=document.createElement('strong'); name.textContent=option.text;
+      const badge=document.createElement('small'); badge.innerHTML=price ? progress.dev ? 'DEV' : owned ? 'OWNED' : currency(price,'gem') : option.value === 'stock' ? 'FACTORY' : 'FREE';
+      const image=document.createElement('div'); image.className='workshop-card-image';
+      if(option.value==='stock') image.textContent='FACTORY';
+      else if(active) { const img=document.createElement('img'); img.alt=''; img.src=library.workshopThumbnail(selected,key,option.value); image.append(img); }
+      button.append(image,name,badge);
+      button.addEventListener('click',()=>{select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));});
+      cards.append(button);
     }
-    const key = ({'custom-paint-scheme':'paintScheme','custom-secondary-finish':'secondaryFinish','custom-livery':'livery'} as Record<string,string>)[select.id]
-      ?? select.id.replace(/^custom-/, '').replace(/-finish$/, 'Finish');
-    const progress = game.getProgression();
-    group.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
-      const value = button.dataset.value!;
-      const option = options.find(o => o.value === value)!;
-      const price = tunePrice(key, value);
-      const owned = progress.tunes[selected]?.includes(`${key}:${value}`);
-      const base = option.dataset.baseLabel ?? option.text; option.dataset.baseLabel = base;
-      const label = `${base}${price ? progress.dev ? ' · DEV' : owned ? ' · Owned' : ` · ${fmt(price)} gems` : ''}`;
-      option.textContent = label; button.textContent = label;
-      button.disabled = select.disabled;
-      button.setAttribute('aria-pressed', String(button.dataset.value === select.value));
-    });
+    group.append(cards);
+    if(maxPage>0) {
+      const nav=document.createElement('div');nav.className='workshop-card-pager';
+      const prev=document.createElement('button'),next=document.createElement('button'),label=document.createElement('span');
+      prev.type=next.type='button';prev.textContent='‹';next.textContent='›';prev.setAttribute('aria-label',`Previous ${part} options`);next.setAttribute('aria-label',`Next ${part} options`);
+      prev.disabled=currentPage===0;next.disabled=currentPage===maxPage;label.textContent=`${currentPage+1} / ${maxPage+1}`;
+      prev.addEventListener('click',()=>{workshopPages.set(select.id,currentPage-1);syncWorkshopChoices();});
+      next.addEventListener('click',()=>{workshopPages.set(select.id,currentPage+1);syncWorkshopChoices();});
+      nav.append(prev,label,next);group.append(nav);
+    }
   });
 }
 function syncCustomizationUI() {
   const config = currentCustomization();
   $('custom-car-name').textContent = `${getCar(selected).maker} ${getCar(selected).name}`;
-  $('custom-balance').textContent = `${fmt(game.getProgression().gems)} gems`;
+  $('custom-balance').innerHTML = currency(game.getProgression().gems,'gem');
   const bodywork = !!BODY_FITS[selected];
   const bodyTab = document.querySelector<HTMLButtonElement>('[data-workshop-tab="body"]')!;
-  bodyTab.disabled = !bodywork;
+  bodyTab.hidden = !bodywork;
+  for (const part of BODY_PARTS) { const tab = document.querySelector<HTMLButtonElement>(`[data-workshop-part="${part}"]`); if (tab) tab.hidden = !bodywork; }
   $('stock-bodywork-note').classList.toggle('hidden', bodywork);
   if (!bodywork && bodyTab.getAttribute('aria-pressed') === 'true') document.querySelector<HTMLButtonElement>('[data-workshop-tab="paint"]')!.click();
   for (const part of BODY_PARTS) {
     const select = $(`custom-${part}`) as HTMLSelectElement;
     const labels = part === 'hood' ? ['Street vents','Race scoop'] : part === 'roof' ? ['Shark fin','Race fins'] : BODY_FITS[selected]?.labels[part] ?? ['Stock only', 'Stock only'];
-    const options = [['stock','Factory'], ['street',labels[0]], ['touring','Touring'], ['sport','Sport'], ['track',labels[1]]];
+    const golfLabels:Partial<Record<string,string[]>> = {
+      front:['25th-inspired chin','Touring chin','Sport chin','Cup chin'],
+      rear:['25th-inspired valance','Touring valance','Sport diffuser','Cup diffuser'],
+      skirts:['25th-inspired sills','Touring sills','Sport sills','Cup sills'],
+    };
+    const named=selected==='golf' ? golfLabels[part] : undefined;
+    const options = [['stock','Factory'], ['street',named?.[0] ?? labels[0]], ['touring',named?.[1] ?? 'Touring'], ['sport',named?.[2] ?? 'Sport'], ['track',named?.[3] ?? labels[1]]];
+    if (selected === 'golf' && part === 'rear') options.push(['golf-r32','R32-inspired full rear'], ['golf-clean','Clean full rear']);
     if (part === 'exhaust') options.push(['flame','Afterfire flames']);
     select.replaceChildren(...options.map(([value,label]) => {
       const option=document.createElement('option'); option.value=value; option.textContent=label; return option;
@@ -154,7 +258,7 @@ function applyCustomization(value: Customization) {
     if (config[key] === current[key]) continue;
     const option = key === 'underglow' ? (config[key] ? 'on' : 'off') : String(config[key]);
     if (!game.purchaseTune(selected, key, option)) {
-      $('tune-message').textContent = `Not enough gems. This option costs ${fmt(tunePrice(key, option))} gems.`;
+      $('tune-message').innerHTML = `Not enough gems. This option costs ${currency(tunePrice(key, option),'gem')}.`;
       syncCustomizationUI(); return;
     }
   }
@@ -199,8 +303,8 @@ async function refreshThumbnail(id: CarId) {
 
 function applyPaint(hex: string | null) {
   if (hex !== null && hex !== (paints[selected] ?? getCar(selected).color) && !game.purchaseTune(selected, 'paint', 'paint')) {
-    $('car-requirement').textContent = 'Paint costs 5 gems. Complete quests to earn gems.';
-    $('tune-message').textContent = 'Paint costs 5 gems. Complete quests to earn gems.';
+    $('car-requirement').innerHTML = `Paint costs ${currency(5,'gem')}. Complete quests to earn gems.`;
+    $('tune-message').innerHTML = `Paint costs ${currency(5,'gem')}. Complete quests to earn gems.`;
     syncPaintUI(selected); syncCustomizationUI(); return;
   }
   if (hex === null) {
@@ -222,7 +326,7 @@ function updateDetail(id: CarId) {
   const c = getCar(id);
   $('d-maker').textContent = c.maker;
   $('d-name').textContent = c.name;
-  $('d-class').textContent = `${c.klass} · ${c.rarity.toUpperCase()} · TIER ${c.unlockTier}`;
+  $('d-class').textContent = `${c.klass}${isDriftCar(id) ? ' · DRIFT' : ''} · ${c.rarity.toUpperCase()} · TIER ${c.unlockTier}`;
   $('d-class').dataset.rarity = c.rarity.toLowerCase();
   $('d-tagline').textContent = c.tagline;
   document.querySelectorAll<HTMLButtonElement>('.car-card').forEach((b) => {
@@ -243,47 +347,50 @@ function syncProgressionUI() {
   $('stat-braking').textContent = stats.brakingDistance.toFixed(1);
   $('stat-grip').textContent = stats.grip.toFixed(2);
   $('stat-bonus').textContent = stats.bonus.toFixed(2);
-  $('progress-xp').textContent = `${fmt(progress.coins)} coins · ${fmt(progress.credits)} credits · ${fmt(progress.gems)} gems`;
-  $('progress-next').textContent = 'Coins: upgrades · Credits: cars · Gems: cosmetics & premium pass';
+  $('progress-xp').innerHTML = `${currency(progress.coins,'coin')} ${currency(progress.credits,'credit')} ${currency(progress.gems,'gem')}`;
+  $('progress-next').innerHTML = `<i class="currency-icon currency-coin" title="Coins" aria-label="Coins"></i> upgrades · <i class="currency-icon currency-credit" title="Credits" aria-label="Credits"></i> cars · <i class="currency-icon currency-gem" title="Gems" aria-label="Gems"></i> cosmetics &amp; pass`;
   const dev = $('dev-toggle') as HTMLButtonElement;
   dev.textContent = `Dev options: ${progress.dev ? 'ON' : 'OFF'}`;
   dev.setAttribute('aria-pressed', String(progress.dev));
   const owned = earnedCar(progress, selected), available = game.canDrive(selected);
   const prerequisite = owned ? null : missingCarPrerequisite(progress, selected);
-  const requirement = prerequisite ? `Unlock ${getCar(prerequisite).maker} ${getCar(prerequisite).name} first` : `${fmt(CAR_PRICES[selected])} credits`;
-  $('car-requirement').textContent = owned ? 'Owned' : progress.dev ? `Dev preview · ${requirement}` : prerequisite ? requirement : `Ready to unlock · ${requirement}`;
+  const requirement = prerequisite ? `Unlock ${getCar(prerequisite).maker} ${getCar(prerequisite).name} first` : currency(CAR_PRICES[selected],'credit');
+  $('car-requirement').innerHTML = owned ? 'Owned' : progress.dev ? `Dev preview · ${requirement}` : prerequisite ? requirement : `Ready to unlock · ${requirement}`;
   const buy = $('buy-car') as HTMLButtonElement;
   buy.classList.toggle('hidden', owned);
-  buy.textContent = `Buy car · ${fmt(CAR_PRICES[selected])} credits`;
+  buy.innerHTML = `Buy car · ${currency(CAR_PRICES[selected],'credit')}`;
   buy.disabled = prerequisite !== null || progress.credits < CAR_PRICES[selected];
-  ($('btn-start') as HTMLButtonElement).disabled = !available;
+  const eligible=game.canEnterSelectedRace();
+  if (available && !eligible) $('car-requirement').textContent='Choose a drift car for this track';
+  ($('btn-start') as HTMLButtonElement).disabled = !available || !eligible;
   ($('btn-customize') as HTMLButtonElement).disabled = !available;
   document.querySelectorAll<HTMLButtonElement>('.paint-swatch').forEach(button => { button.disabled = !available; });
   ($('paint-custom') as HTMLInputElement).disabled = !available;
   ($('paint-reset') as HTMLButtonElement).disabled = !available;
-  const startLabel = available ? game.getRunMode() === 'ranked' ? 'Start ranked attack' : 'Start engine' : 'Buy car to drive';
+  const startLabel = !available ? 'Buy car to drive' : !eligible ? 'Choose a drift car' : game.getRunMode() === 'ranked' ? 'Start ranked race' : 'Start engine';
   $('start-label').textContent = startLabel;
-  $('menu-start-label').textContent = available ? 'PLAY' : 'LOCKED';
-  ($('menu-start') as HTMLButtonElement).disabled = !available;
-  ($('menu-mobile-start') as HTMLButtonElement).disabled = !available;
-  $('menu-mobile-start-label').textContent = available ? 'PLAY' : 'LOCKED';
+  $('menu-start-label').textContent = !available ? 'LOCKED' : !eligible ? 'DRIFT CAR NEEDED' : 'PLAY';
+  ($('menu-start') as HTMLButtonElement).disabled = !available || !eligible;
+  ($('menu-mobile-start') as HTMLButtonElement).disabled = !available || !eligible;
+  $('menu-mobile-start-label').textContent = !available ? 'LOCKED' : !eligible ? 'DRIFT CAR NEEDED' : 'PLAY';
   $('menu-car-name').textContent = `${getCar(selected).maker} ${getCar(selected).name}`;
-  $('menu-car-status').textContent = owned ? 'OWNED' : progress.dev ? 'DEV ACCESS' : 'NOT OWNED';
+  $('menu-car-status').textContent = `${isDriftCar(selected) ? 'DRIFT CAR · ' : ''}${owned ? 'OWNED' : progress.dev ? 'DEV ACCESS' : 'NOT OWNED'}`;
   document.querySelectorAll<HTMLButtonElement>('.car-card').forEach(card => {
     const id = card.dataset.car as CarId, hasCar = earnedCar(progress, id);
     const status = card.querySelector<HTMLElement>('.cc-unlock')!;
     const missing=hasCar ? null : missingCarPrerequisite(progress,id), spec=getCar(id);
-    status.textContent = hasCar ? 'Owned' : missing ? `Unlock ${getCar(missing).name} first` : `${fmt(CAR_PRICES[id])} credits`;
+    status.innerHTML = hasCar ? 'Owned' : missing ? `Unlock ${getCar(missing).name} first` : currency(CAR_PRICES[id],'credit');
     const rarity=card.querySelector<HTMLElement>('.cc-rarity')!;rarity.textContent=`${spec.rarity} · T${spec.unlockTier}`;rarity.dataset.rarity=spec.rarity.toLowerCase();
     card.classList.toggle('locked', !hasCar);
-    card.setAttribute('aria-label', `${getCar(id).maker} ${getCar(id).name}, ${spec.rarity}, tier ${spec.unlockTier}, ${status.textContent}`);
+    if(isDriftCar(id)) rarity.textContent += ' · DRIFT';
+    card.setAttribute('aria-label', `${getCar(id).maker} ${getCar(id).name}, ${spec.rarity}, tier ${spec.unlockTier}, ${status.querySelector('.currency')?.getAttribute('aria-label') ?? status.textContent}`);
   });
   const levels = upgradeLevels(progress, selected);
   const list = $('upgrade-list'); list.replaceChildren();
   for (const [key, name, effect] of [['engine','Engine','+8% acceleration, +4% top speed'],['tires','Tires','+6% grip'],['brakes','Brakes','+10% braking']] as [Upgrade,string,string][]) {
     const level = levels[key], price = UPGRADE_PRICES[key][level];
     const button = document.createElement('button'); button.type = 'button'; button.dataset.upgrade = key;
-    button.textContent = `${name} ${level}/3 · ${price === undefined ? 'MAX' : `${fmt(price)} coins`}`;
+    button.innerHTML = `${name} ${level}/3 · ${price === undefined ? 'MAX' : currency(price,'coin')}`;
     button.title = `${effect} per stage${progress.dev ? ' · Dev uses maximum stages temporarily' : ''}`;
     button.disabled = !owned || price === undefined || progress.coins < price;
     button.addEventListener('click', () => { if (game.purchaseUpgrade(selected, key)) { syncProgressionUI(); audio.click(); } });
@@ -304,6 +411,8 @@ function selectCar(id: CarId) {
 function setMode(m: Mode) {
   if (m !== 'gameover') hidePromotion();
   audio.setActive(m === 'driving');
+  if(m!=='driving') { clearRearControl(); updateRearProximity(null); }
+  if(m==='garage' || m==='gameover') resetRaceHud();
   if (m === 'garage') { syncModeUI(); syncProgressionUI(); syncRankUI(); syncSeasonPassUI(); }
   game.setLobbyPreview(m === 'garage' && frontScreen === 'menu');
   $('main-menu').classList.toggle('hidden', m !== 'garage' || frontScreen !== 'menu');
@@ -400,8 +509,9 @@ function syncModeUI() {
   if (!game) return;
   const mode = game.getRunMode();
   const records = game.getRecords();
-  if (mode !== 'ranked') $('menu-ranked').classList.add('hidden');
-  $('menu-selected-mode').textContent = RUN_MODES[mode].label.toUpperCase();
+  if (mode !== 'ranked' && mode !== 'circuit') $('menu-ranked').classList.add('hidden');
+  $('menu-selected-mode').textContent = mode === 'circuit' ? `CIRCUIT · ${game.getCircuitScenario().title.toUpperCase()}` : mode === 'ranked' ? `RANKED · ${game.getRankedScenario().title.toUpperCase()}` : RUN_MODES[mode].label.toUpperCase();
+  $('brand-tag').textContent = mode === 'circuit' || mode === 'ranked' ? 'CIRCUIT RACING' : 'HIGHWAY RUN';
   const info = rankFor(game.getRanked().points);
   $('mode-best-ranked').textContent = info.rank.name;
   syncMenuStats();
@@ -412,6 +522,7 @@ function syncModeUI() {
     b.classList.toggle('active', active);
     b.setAttribute('aria-pressed', String(active));
   });
+  $('mode-best-circuit').textContent = fmt(bestFor(records, 'circuit'));
   $('mode-best-endless').textContent = fmt(bestFor(records, 'endless'));
   $('mode-best-rush').textContent = fmt(bestFor(records, 'rush'));
   for (const key of ['near', 'daily', 'weekly', 'seasonal', 'convoy', 'checkpoint', 'precision', 'speed'] as const) $('mode-best-' + key).textContent = fmt(bestFor(records, key));
@@ -464,10 +575,11 @@ function syncSeasonPassUI() {
   const upcoming=SEASON_TIERS.find(t=>t.xp>pass.xp);
   $('season-next').textContent=upcoming ? `Next: ${upcoming.label} · ${fmt(upcoming.xp-pass.xp)} XP to go` : 'Reward track complete';
   const progress=game.getProgression();
-  $('season-wallet').textContent=`${fmt(progress.gems)} gems available`;
+  $('season-wallet').innerHTML=`${currency(progress.gems,'gem')} available`;
   const buy=$('season-premium-buy') as HTMLButtonElement;
   buy.textContent=pass.premium ? 'PREMIUM ACTIVE THIS SEASON' : `UNLOCK PREMIUM · ${PREMIUM_PASS_PRICE} GEMS`;
   buy.disabled=pass.premium || progress.gems<PREMIUM_PASS_PRICE;
+  if (!pass.premium) buy.innerHTML=`UNLOCK PREMIUM · ${currency(PREMIUM_PASS_PRICE,'gem')}`;
   const list=$('season-reward-list');list.replaceChildren(...SEASON_TIERS.map((tier,i)=>{
     const item=document.createElement('li');item.className=tier.xp<=pass.xp?'earned':'';
     const title=document.createElement('span');title.textContent=`${String(i+1).padStart(2,'0')} / FREE · ${tier.label}`;
@@ -483,24 +595,31 @@ function syncSeasonPassUI() {
   updateRewardPage();
 }
 
+let rankTrackPage=0;
 function syncRankUI() {
   if (!game) return;
-  const state = game.getRanked(), info = rankFor(state.points), selectedScenario = game.getRankedScenario();
+  const ranked = game.getRunMode() === 'ranked';
+  const state = game.getRanked(), info = rankFor(state.points), selectedScenario = ranked ? game.getRankedScenario() : game.getCircuitScenario();
   const hero = $('rank-hero'); hero.style.setProperty('--rank-color', info.rank.color); hero.style.setProperty('--rank-glow', info.rank.glow);
   $('rank-badge').innerHTML = rankBadge(info.index); $('rank-name').textContent = info.rank.name;
-  $('rank-status').textContent = game.getProgression().dev ? 'DEV PREVIEW · NO RANK POINTS' : 'LOCAL RANKED · TIME ATTACK';
+  $('rank-status').textContent = game.getProgression().dev ? 'DEV PREVIEW · NO RANK POINTS' : 'LOCAL RANKED · AI RACING';
   $('rank-points').textContent = fmt(state.points); $('rank-progress-fill').style.width = `${info.progress * 100}%`;
   $('rank-next').textContent = info.next ? `${fmt(info.next.min - state.points)} RP to ${info.next.name}` : 'Top rank reached';
   const list = $('rank-scenarios'); list.replaceChildren();
-  for (const scenario of SCENARIOS) {
+  rankTrackPage=Math.max(0,Math.min(Math.ceil(SCENARIOS.length/3)-1,rankTrackPage));
+  for (const [index,scenario] of SCENARIOS.entries()) {
     const button = document.createElement('button'); button.type = 'button'; button.dataset.scenario = scenario.id;
     button.className = `rank-scenario${scenario.id === selectedScenario.id ? ' active' : ''}`;
+    button.classList.toggle('hidden',Math.floor(index/3)!==rankTrackPage);
     button.setAttribute('aria-pressed', String(scenario.id === selectedScenario.id));
     const best = state.scenarios[scenario.id];
-    button.innerHTML = `<span class="rank-scenario-top"><span>${scenario.kicker}</span><span>GOLD +${Math.round(40 * scenario.multiplier)} RP</span></span><strong>${scenario.title}</strong><small>${(scenario.distance / 1000).toFixed(1)} km in ${scenario.limit}s · ${scenario.objective}</small><small>Gold ≤ ${scenario.gold}s · Silver ≤ ${scenario.silver}s · Bronze +${Math.round(18 * scenario.multiplier)} / Silver +${Math.round(28 * scenario.multiplier)} RP${best?.bestTime ? ` · Best ${formatTime(best.bestTime)}` : ''}</small>`;
-    button.addEventListener('click', () => { game.setRankedScenario(scenario.id as ScenarioId); syncRankUI(); list.querySelector<HTMLButtonElement>(`[data-scenario="${scenario.id}"]`)?.focus(); audio.click(); });
+    button.innerHTML = `<span class="track-photo" style="background-image:url('/tracks/${scenario.id}.webp')" aria-hidden="true"></span><span class="track-copy"><span class="rank-scenario-top"><span>${scenario.kicker}</span><span>${scenario.kind==='drift'?'DRIFT':'RACE'}</span></span><strong>${scenario.title}</strong><small>${scenario.laps} laps · ${(scenario.distance / scenario.laps / 1000).toFixed(2)} km · ${scenario.objective}</small><small>${ranked ? `1st +40 · 2nd +28 · 3rd +18 RP${best?.bestTime ? ` · Best ${formatTime(best.bestTime)}` : ''}` : '5 AI rivals · no RP'}</small></span>`;
+    button.addEventListener('click', () => { if(ranked) game.setRankedScenario(scenario.id as ScenarioId); else game.setCircuitScenario(scenario.id as ScenarioId); syncModeUI(); syncRankUI(); syncProgressionUI(); list.querySelector<HTMLButtonElement>(`[data-scenario="${scenario.id}"]`)?.focus(); audio.click(); });
     list.appendChild(button);
   }
+  $('rank-track-page').textContent=`${rankTrackPage+1} / ${Math.ceil(SCENARIOS.length/3)}`;
+  ($('rank-track-prev') as HTMLButtonElement).disabled=rankTrackPage===0;
+  ($('rank-track-next') as HTMLButtonElement).disabled=rankTrackPage>=Math.ceil(SCENARIOS.length/3)-1;
   const road = $('rank-road-grid'); road.replaceChildren();
   RANKS.forEach((rank, i) => {
     const item = document.createElement('div'); item.className = `road-rank${i === info.index ? ' current' : ''}${i > info.index ? ' locked' : ''}`;
@@ -517,6 +636,9 @@ function selectMode(mode: RunMode) {
 }
 
 function onHud(h: HudState) {
+  updateRearProximity(h.race);
+  if(h.race) updateRaceHud(h.race,h.elapsed);
+  else { $('race-map').classList.add('hidden');$('race-feedback').classList.add('hidden');audio.raceAmbience(false,0); }
   $('hud-score').textContent = fmt(h.score);
   $('speed-bonus-active').classList.toggle('hidden', h.speed <= HIGH_SPEED_THRESHOLD * 3.6);
   $('hud-speed').textContent = String(Math.round(h.speed));
@@ -524,7 +646,8 @@ function onHud(h: HudState) {
   $('speed-max').textContent = String(Math.round(maxSpeed));
   $('speed-arc').style.strokeDashoffset = String(100 * (1 - Math.min(1, Math.max(0, h.speed / maxSpeed))));
   $('hud-dist').textContent = (h.distance / 1000).toFixed(2);
-  $('hud-overtakes').textContent = String(h.overtakes);
+  $('hud-overtakes').textContent = h.race ? `${h.race.position}/${h.race.total}` : String(h.overtakes);
+  $('hud-overtakes-label').textContent = h.race ? 'position' : 'passed';
   $('best-top').textContent = fmt(h.runMode === 'ranked' ? game.getRanked().points : h.best);
   const combo = $('hud-combo');
   if (h.combo >= 2) {
@@ -557,13 +680,13 @@ function onHud(h: HudState) {
   $('run-clock').classList.toggle('rush', h.runMode === 'rush');
   $('run-clock').classList.toggle('urgent', h.timeLeft !== null && h.timeLeft <= 15);
   const card = $('contract-card');
-  if (h.runMode === 'ranked') {
-    const scenario = game.getRankedScenario(); const value = scenario.metric === 'overtakes' ? h.overtakes : h.nearMisses;
-    card.classList.remove('hidden'); $('contract-index').textContent = 'RANKED · TIME ATTACK'; $('contract-reward').textContent = `GOLD ${scenario.limit - scenario.gold}s+ LEFT`;
-    $('contract-title').textContent = scenario.title;
-    $('contract-desc').textContent = `${scenario.objective} · ${(h.distance / 1000).toFixed(2)} / ${(scenario.distance / 1000).toFixed(1)} km`;
-    $('contract-fill').style.width = `${Math.min(100, h.distance / scenario.distance * 100)}%`;
-    $('contract-count').textContent = `${Math.min(value, scenario.target)} / ${scenario.target} ${scenario.metric === 'overtakes' ? 'overtakes' : 'near misses'}`;
+  if (h.race) {
+    card.classList.remove('hidden'); $('contract-index').textContent = h.runMode==='ranked' ? 'RANKED RACE · OFFLINE' : 'CIRCUIT RACE · OFFLINE';
+    $('contract-reward').textContent = `POSITION ${h.race.position}/${h.race.total}`;
+    $('contract-title').textContent = h.race.countdown > 0 ? `STARTING IN ${Math.ceil(h.race.countdown)}` : `LAP ${h.race.lap} / ${h.race.laps}`;
+    $('contract-desc').textContent = getTrack(h.race.track).name;
+    $('contract-fill').style.width = `${h.race.progress*100}%`;
+    $('contract-count').textContent = h.race.countdown > 0 ? 'Hold throttle to launch' : h.race.lapTimes.length ? `LAST ${formatTime(h.race.lapTimes[h.race.lapTimes.length-1])} · BEST ${formatTime(Math.min(...h.race.lapTimes))}` : `${Math.round(h.race.progress*100)}% complete`;
   } else if (h.runMode === 'checkpoint') {
     const progress = h.distance % 500;
     card.classList.remove('hidden');
@@ -620,7 +743,7 @@ function onHud(h: HudState) {
 }
 
 function onEvent(e: { kind: 'overtake' | 'near' | 'combo' | 'crash' | 'oncoming' | 'contract' | 'finish'; text: string; points?: number }) {
-  if (e.kind === 'contract' || e.kind === 'finish') {
+  if (e.kind === 'contract' || (e.kind === 'finish' && game.getRunMode()!=='circuit' && game.getRunMode()!=='ranked')) {
     audio.overtake(true);
   }
   if (e.kind === 'crash') {
@@ -634,7 +757,8 @@ function onEvent(e: { kind: 'overtake' | 'near' | 'combo' | 'crash' | 'oncoming'
   }
   const div = document.createElement('div');
   div.className = `event ${e.kind}`;
-  div.innerHTML = `${e.text}${e.points ? `<small>+${fmt(e.points)}</small>` : ''}`;
+  const eventText = e.text.replace(/\+(\d+) GEMS\b/g, (_match, amount) => currency(Number(amount),'gem','+'));
+  div.innerHTML = `${eventText}${e.points ? `<small>+${fmt(e.points)}</small>` : ''}`;
   $('events').appendChild(div);
   setTimeout(() => div.remove(), 1300);
 }
@@ -662,15 +786,32 @@ function onGameOver(s: RunStats) {
   latestResult = s;
   hidePromotion();
   $('share-status').textContent = s.devRun ? 'Dev run · excluded from personal records' : 'Local result · not globally verified';
-  $('final-progress').textContent = `+${fmt(s.coinsGained)} coins · +${fmt(s.creditsGained)} credits earned`;
+  $('final-progress').innerHTML = `${currency(s.coinsGained,'coin','+')} ${currency(s.creditsGained,'credit','+')} ${s.gemsGained ? currency(s.gemsGained,'gem','+') : ''} earned`;
   $('final-score').textContent = fmt(s.score);
-  $('final-overtakes').textContent = String(s.overtakes);
-  $('final-near').textContent = String(s.nearMisses);
+  const race=s.racePosition!==null, validLaps=s.raceLapTimes.filter(t=>t>0);
+  $('final-overtakes').textContent = race ? (validLaps.length ? formatTime(Math.min(...validLaps)) : '—') : String(s.overtakes);
+  $('final-overtakes-label').textContent = race ? 'best lap' : 'overtakes';
+  $('final-near').textContent = race ? (validLaps.length ? formatTime(validLaps[validLaps.length-1]) : '—') : String(s.nearMisses);
+  $('final-near-label').textContent = race ? 'last lap' : 'near misses';
+  const lapPanel=$('race-laps');lapPanel.classList.toggle('hidden',!race || !s.raceLapTimes.length);
+  lapPanel.replaceChildren();
+  if(race) {
+    const best=validLaps.length?Math.min(...validLaps):null;
+    s.raceLapTimes.forEach((time,i)=>{
+      const item=document.createElement('div'),label=document.createElement('span'),value=document.createElement('b');
+      label.textContent=`LAP ${i+1}`;value.textContent=time>0?formatTime(time):'—';item.append(label,value);
+      if(best!==null && time===best)item.classList.add('best');lapPanel.appendChild(item);
+    });
+  }
+  $('race-celebration').classList.toggle('hidden',!race || s.racePosition!>3);
+  $('gameover').classList.toggle('race-podium',race && s.racePosition!<=3);
+  $('gameover').classList.toggle('race-result',race);
+  if(race) audio.raceFinish(s.racePosition!);
   $('final-dist').textContent = (s.distance / 1000).toFixed(1);
   $('final-top').textContent = String(Math.round(s.topSpeed));
   const ranked = s.ranked;
-  $('final-contracts').textContent = ranked ? `${Math.min(ranked.scenario.metric === 'overtakes' ? s.overtakes : s.nearMisses, ranked.scenario.target)}/${ranked.scenario.target}` : `${s.contractsDone}/${s.contractsTotal}`;
-  $('final-contract-label').textContent = ranked ? (ranked.scenario.metric === 'overtakes' ? 'overtakes goal' : 'near miss goal') : 'contracts';
+  $('final-contracts').textContent = s.racePosition !== null ? `${s.racePosition}/6` : `${s.contractsDone}/${s.contractsTotal}`;
+  $('final-contract-label').textContent = s.racePosition !== null ? 'race position' : 'contracts';
   const rankPanel = $('final-ranked'); rankPanel.classList.toggle('hidden', !ranked);
   if (ranked) {
     const change = ranked.change, current = change.after;
@@ -687,7 +828,7 @@ function onGameOver(s: RunStats) {
   $('final-best-label').textContent = ranked || s.mode === 'trial' || s.mode === 'ghost' ? 'Fastest time' : 'Personal best';
   $('new-best').classList.toggle('hidden', !(s.mode === 'ghost' ? s.ghostNewBest : s.newBest));
   $('best-top').textContent = fmt(ranked ? ranked.change.after.points : s.best);
-  $('final-title').textContent = s.reason === 'crash' ? 'Wrecked' : s.reason === 'objective' ? 'Challenge complete' : s.reason === 'distance' ? `Finished · ${formatTime(s.elapsed)}` : s.reason === 'objective_failed' ? 'Objective missed' : 'Time up';
+  $('final-title').textContent = s.racePosition !== null ? `${s.racePosition===1?'VICTORY':s.racePosition<=3?'PODIUM':'RACE FINISHED'} · P${s.racePosition}` : s.reason === 'crash' ? 'Wrecked' : s.reason === 'objective' ? 'Challenge complete' : s.reason === 'distance' ? `Finished · ${formatTime(s.elapsed)}` : s.reason === 'objective_failed' ? 'Objective missed' : 'Time up';
   $('final-title').classList.toggle('finish-title', s.reason !== 'crash');
   const medal = $('final-medal');
   medal.className = `final-medal ${s.medal ?? ''}`.trim();
@@ -713,6 +854,7 @@ function togglePause() {
 function syncSoundUI() {
   ($('sound-master') as HTMLInputElement).checked = !audio.muted;
   ($('sound-score') as HTMLInputElement).checked = audio.scoreSounds;
+  ($('sound-race') as HTMLInputElement).checked = audio.raceSounds;
   ($('sound-indicator') as HTMLInputElement).checked = audio.indicatorSounds;
   document.querySelector('.ic-on')?.classList.toggle('hidden', audio.muted);
   document.querySelector('.ic-off')?.classList.toggle('hidden', !audio.muted);
@@ -833,7 +975,10 @@ function showRankDrawer(open: boolean) {
   $('menu-drive').classList.toggle('hidden',open);
   document.querySelector('.mode-pager')!.classList.toggle('hidden',open);
   $('menu-ranked').classList.toggle('hidden',!open);
-  $('drawer-title').textContent=open ? 'RANKED ATTACK' : 'GAME MODES';
+  const ranked=game.getRunMode()==='ranked';
+  $('rank-hero').classList.toggle('hidden',!ranked); $('rank-road-open').classList.toggle('hidden',!ranked); $('circuit-picker-info').classList.toggle('hidden',ranked);
+  $('drawer-title').textContent=open ? (ranked ? 'RANKED RACING' : 'CIRCUIT RACE') : 'GAME MODES';
+  if(open) { const selected=ranked ? game.getRankedScenario() : game.getCircuitScenario(); rankTrackPage=Math.floor(SCENARIOS.findIndex(s=>s.id===selected.id)/3); syncRankUI(); }
 }
 function closeLobbyDrawer() { $('lobby-drawer').classList.add('hidden'); }
 function openLobbyDrawer(page: 'modes' | 'stats' | 'season', rank=false) {
@@ -854,6 +999,8 @@ function bindUI() {
   $('drawer-close').addEventListener('click',closeLobbyDrawer);
   $('lobby-drawer').addEventListener('click',e=>{ if(e.target === $('lobby-drawer')) closeLobbyDrawer(); });
   $('rank-back-to-modes').addEventListener('click',()=>showRankDrawer(false));
+  $('rank-track-prev').addEventListener('click',()=>{rankTrackPage--;syncRankUI()});
+  $('rank-track-next').addEventListener('click',()=>{rankTrackPage++;syncRankUI()});
   $('mode-prev').addEventListener('click',()=>{modePage--;updateModePage()});
   $('mode-next').addEventListener('click',()=>{modePage++;updateModePage()});
   $('reward-prev').addEventListener('click',()=>{rewardPage--;updateRewardPage()});
@@ -878,7 +1025,7 @@ function bindUI() {
   });
   $('buy-car').addEventListener('click', () => { if (game.purchaseCar(selected)) { syncProgressionUI(); audio.click(); } });
   document.querySelectorAll<HTMLButtonElement>('.mode-card').forEach((b) => {
-    b.addEventListener('click', () => { const mode=b.dataset.mode as RunMode; selectMode(mode); if (mode === 'ranked') showRankDrawer(true); else closeLobbyDrawer(); });
+    b.addEventListener('click', () => { const mode=b.dataset.mode as RunMode; selectMode(mode); if (mode === 'ranked' || mode === 'circuit') showRankDrawer(true); else closeLobbyDrawer(); });
   });
   $('btn-pause').addEventListener('click', togglePause);
   $('btn-camera').addEventListener('click', toggleCameraPanel);
@@ -958,7 +1105,7 @@ function bindUI() {
     const primary = (s.mode === 'trial' || s.mode === 'ghost' || s.ranked) && s.reason === 'distance' ? formatTime(s.elapsed) : s.ranked ? `${s.ranked.change.delta > 0 ? '+' : ''}${s.ranked.change.delta} RP` : fmt(s.score);
     c.fillText(primary, 72, 290, 700);
     c.fillStyle = '#a9bab6'; c.font = 'bold 24px sans-serif';
-    c.fillText(s.ranked ? (s.reason === 'distance' ? `${s.ranked.scenario.title.toUpperCase()} · TIME` : 'RANKED ATTACK') : (s.mode === 'trial' || s.mode === 'ghost') && s.reason === 'distance' ? '3 KM TIME' : 'POINTS', 76, 330, 700);
+    c.fillText(s.ranked ? (s.reason === 'distance' ? `${s.ranked.scenario.title.toUpperCase()} · TIME` : 'RANKED RACING') : (s.mode === 'trial' || s.mode === 'ghost') && s.reason === 'distance' ? '3 KM TIME' : 'POINTS', 76, 330, 700);
     c.fillStyle = '#f4f7f3'; c.font = 'bold 27px sans-serif'; c.fillText(`${s.overtakes} OVERTAKES   /   ${s.nearMisses} NEAR MISSES   /   ${(s.distance / 1000).toFixed(1)} KM`, 72, 423, 720);
     c.fillStyle = '#ff9b76'; c.font = 'bold 22px sans-serif'; c.fillText(s.devRun ? 'DEV RUN · EXCLUDED FROM RECORDS' : 'LOCAL RESULT · NOT GLOBALLY VERIFIED', 72, 535, 720);
     c.fillStyle = '#9cafaa'; c.font = '20px sans-serif'; c.fillText(location.origin, 72, 575, 720);
@@ -997,6 +1144,7 @@ function bindUI() {
   $('sound-close').addEventListener('click', () => { closeSoundPanel(); $(game.mode === 'paused' ? 'btn-pause-sound' : 'btn-sound-settings').focus(); });
   $('sound-master').addEventListener('change', e => { audio.setMuted(!(e.target as HTMLInputElement).checked); syncSoundUI(); });
   $('sound-score').addEventListener('change', e => audio.setScoreSounds((e.target as HTMLInputElement).checked));
+  $('sound-race').addEventListener('change', e => audio.setRaceSounds((e.target as HTMLInputElement).checked));
   $('sound-indicator').addEventListener('change', e => audio.setIndicatorSounds((e.target as HTMLInputElement).checked));
   $('btn-help').addEventListener('click', openHelp);
   $('btn-close-help').addEventListener('click', closeHelp);
@@ -1020,12 +1168,14 @@ function bindUI() {
     button.addEventListener('click', () => {
       document.querySelectorAll<HTMLButtonElement>('[data-workshop-tab]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
       document.querySelectorAll<HTMLElement>('[data-workshop-panel]').forEach(panel => { panel.hidden = panel.dataset.workshopPanel !== button.dataset.workshopTab; });
+      syncWorkshopChoices();
     });
   });
   document.querySelectorAll<HTMLButtonElement>('[data-workshop-part]').forEach(button => {
     button.addEventListener('click', () => {
       document.querySelectorAll<HTMLButtonElement>('[data-workshop-part]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
       document.querySelectorAll<HTMLElement>('[data-part-panel]').forEach(panel => { panel.hidden = panel.dataset.partPanel !== button.dataset.workshopPart; });
+      syncWorkshopChoices();
     });
   });
   $('btn-customize').addEventListener('click', () => showCustomization(true));
@@ -1064,6 +1214,18 @@ function bindUI() {
   bindHold('t-right', 'right');
   bindHold('t-gas', 'throttle');
   bindHold('t-brake', 'brake');
+  const rear=$('look-behind');
+  rear.addEventListener('pointerdown',(e:PointerEvent)=>{
+    if(game.mode!=='driving' || rearPointerId!==null || (e.pointerType==='mouse' && e.button!==0))return;
+    e.preventDefault();rearPointerId=e.pointerId;
+    try { rear.setPointerCapture(e.pointerId); } catch { rearPointerId=null; }
+    updateRearControl();
+  });
+  const releaseRear=(e:PointerEvent)=>{if(e.pointerId!==rearPointerId)return;rearPointerId=null;updateRearControl();};
+  rear.addEventListener('pointerup',releaseRear);rear.addEventListener('pointercancel',releaseRear);rear.addEventListener('lostpointercapture',releaseRear);
+  rear.addEventListener('keydown',(e:KeyboardEvent)=>{if((e.key===' '||e.key==='Enter') && game.mode==='driving'){e.preventDefault();e.stopPropagation();rearButtonKeyHeld=true;updateRearControl();}});
+  rear.addEventListener('keyup',(e:KeyboardEvent)=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();e.stopPropagation();rearButtonKeyHeld=false;updateRearControl();}});
+  rear.addEventListener('blur',()=>{rearButtonKeyHeld=false;updateRearControl();});
 
   const keyMap: Record<string, 'throttle' | 'brake' | 'left' | 'right' | 'handbrake'> = {
     ArrowUp: 'throttle', w: 'throttle', W: 'throttle',
@@ -1083,6 +1245,7 @@ function bindUI() {
       e.preventDefault(); closeSoundPanel(); $(game.mode === 'paused' ? 'btn-pause-sound' : 'btn-sound-settings').focus(); return;
     }
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable || (['BUTTON', 'A'].includes(target.tagName) && e.key === 'Enter'))) return;
+    if ((e.key==='r' || e.key==='R') && game.mode==='driving') { e.preventDefault();rearKeyboardHeld=true;updateRearControl();return; }
     const name = keyMap[e.key];
     if (name) { if (game.mode === 'driving') { e.preventDefault(); game.setInput(name, true); } return; }
     if (!e.repeat && (e.key === 'q' || e.key === 'Q')) { e.preventDefault(); game.toggleSignal('left'); return; }
@@ -1104,10 +1267,12 @@ function bindUI() {
     }
   });
   window.addEventListener('keyup', (e) => {
+    if(e.key==='r' || e.key==='R') {rearKeyboardHeld=false;updateRearControl();}
     const name = keyMap[e.key];
     if (name) { if (game.mode === 'driving') e.preventDefault(); game.setInput(name, false); }
   });
   window.addEventListener('blur', () => {
+    clearRearControl();
     for (const n of ['throttle', 'brake', 'left', 'right', 'handbrake'] as const) game.setInput(n, false);
     if (game.mode === 'driving') game.pause();
   });

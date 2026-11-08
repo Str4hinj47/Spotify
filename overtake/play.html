@@ -24,7 +24,7 @@
     <header id="topbar" class="hidden">
       <div class="brand">
         <div class="logo">OVER<span>TAKE</span></div>
-        <div class="tag">HIGHWAY RUN</div><a class="site-link" href="/">← Website</a>
+        <div class="tag" id="brand-tag">CIRCUIT RACING</div><a class="site-link" href="/">← Website</a>
       </div>
       <div class="top-actions">
         <div class="best-pill"><i data-lucide="trophy"></i><span id="best-top">0</span></div>
@@ -49,6 +49,7 @@
       <div class="panel-title">Sound settings <button id="sound-close" class="mini-btn" type="button" aria-label="Close sound settings">✕</button></div>
       <label class="sound-row"><span>Master audio <small>All game sounds</small></span><input id="sound-master" type="checkbox" /></label>
       <label class="sound-row"><span>Score sounds <small>Passes, rewards and finish</small></span><input id="sound-score" type="checkbox" /></label>
+      <label class="sound-row"><span>Race atmosphere <small>Countdown, crowd, rivals and race finish</small></span><input id="sound-race" type="checkbox" /></label>
       <label class="sound-row"><span>Indicator clicks <small>Turn signal relay</small></span><input id="sound-indicator" type="checkbox" /></label>
       <p class="sound-hint">Your choices are saved on this device.</p>
     </section>
@@ -92,7 +93,8 @@
         <div class="section-kicker">SELECT YOUR DRIVE <span>LOCAL PLAY</span></div>
         <p id="active-mode-info" class="active-mode-info" aria-live="polite"></p>
         <div class="mode-select" role="group" aria-label="Run mode">
-          <button class="mode-card active" data-mode="endless" type="button">
+          <button class="mode-card active" data-mode="circuit" type="button"><span class="mode-name">Circuit Race</span><span class="mode-desc">3 laps · 5 AI rivals · offline</span><span class="mode-best">Best <b id="mode-best-circuit">0</b></span></button>
+          <button class="mode-card" data-mode="endless" type="button">
             <span class="mode-name">Endless</span>
             <span class="mode-desc">Survive and chain passes</span>
             <span class="mode-best">Best <b id="mode-best-endless">0</b></span>
@@ -112,7 +114,7 @@
           <button class="mode-card" data-mode="checkpoint" type="button"><span class="mode-name">Checkpoint Chase</span><span class="mode-desc">35 seconds · +15s every 500 m</span><span class="mode-best">Best <b id="mode-best-checkpoint">0</b></span></button>
           <button class="mode-card" data-mode="precision" type="button"><span class="mode-name">Precision Challenge</span><span class="mode-desc">120 seconds · 8 near misses</span><span class="mode-best">Best <b id="mode-best-precision">0</b></span></button>
           <button class="mode-card" data-mode="speed" type="button"><span class="mode-name">Speed Run</span><span class="mode-desc">90 seconds · score above 140 km/h</span><span class="mode-best">Best <b id="mode-best-speed">0</b></span></button>
-          <button class="mode-card ranked-mode-card" data-mode="ranked" type="button"><span class="mode-name">Ranked Attack</span><span class="mode-desc">Time attacks · earn rank points</span><span class="mode-best">Local rank <b id="mode-best-ranked">Rookie</b></span></button>
+          <button class="mode-card ranked-mode-card" data-mode="ranked" type="button"><img class="ranked-event-badge" src="/icons/ranked.svg" alt="" aria-hidden="true"><span class="mode-name">Ranked Racing</span><span class="mode-desc">Track races · earn rank points</span><span class="mode-best">Local rank <b id="mode-best-ranked">Rookie</b></span></button>
         </div>
         <p class="local-note">Local, unverified runs · Traffic and conditions vary</p>
         <p id="ghost-menu-note" class="local-note hidden"></p>
@@ -126,19 +128,20 @@
           <button id="rank-back-to-modes" class="drawer-back" type="button">‹ ALL MODES</button>
           <div class="rank-hero" id="rank-hero">
             <div id="rank-badge" class="rank-badge"></div>
-            <div class="rank-hero-copy"><span id="rank-status" class="rank-eyebrow">LOCAL RANKED · TIME ATTACK</span><h2 id="rank-name">Rookie</h2><div class="rank-points"><b id="rank-points">0</b> RP</div><div class="rank-progress"><i id="rank-progress-fill"></i></div><div id="rank-next" class="rank-next"></div></div>
+            <div class="rank-hero-copy"><span id="rank-status" class="rank-eyebrow">LOCAL RANKED · AI RACING</span><h2 id="rank-name">Rookie</h2><div class="rank-points"><b id="rank-points">0</b> RP</div><div class="rank-progress"><i id="rank-progress-fill"></i></div><div id="rank-next" class="rank-next"></div></div>
           </div>
           <button type="button" id="rank-road-open" class="rank-road-open">VIEW RANK ROAD <span>↗</span></button>
-          <div class="rank-scenario-heading"><span>CHOOSE YOUR ATTACK</span><span>03 SCENARIOS <span class="rank-scroll-hint">· SWIPE ↑</span></span></div>
-          <div id="rank-scenarios" class="rank-scenarios" role="group" aria-label="Ranked scenario"></div>
-          <p class="rank-fineprint">Earn RP by meeting the finish time and objective. Crash, timeout, missed objective or quit: −12 RP (floor 0). Your car, upgrades, traffic and weather vary. Local and unverified; Dev runs earn no RP.</p>
+          <p id="circuit-picker-info" class="circuit-picker-info hidden">LOCAL RACE · 5 AI RIVALS · NO RANK POINTS</p>
+          <div class="rank-scenario-heading"><span>CHOOSE YOUR TRACK</span><span>05 TRACKS</span></div>
+          <div id="rank-scenarios" class="rank-scenarios" role="group" aria-label="Race track"></div><div class="rank-track-pager"><button id="rank-track-prev" type="button" aria-label="Previous tracks">‹</button><span id="rank-track-page"></span><button id="rank-track-next" type="button" aria-label="Next tracks">›</button></div>
+          <p class="rank-fineprint">Finish in the top three to gain RP. Fourth to sixth or quitting loses 12 RP (floor 0). Drift tracks require a drift car. Local and unverified; Dev runs earn no RP.</p>
         </div>
           </div>
           <div id="drawer-stats" class="drawer-page hidden">
           <section class="menu-info-card player-overview"><div class="menu-card-head"><span>02 / YOUR STATS</span><span class="menu-chip">THIS DEVICE</span></div><h2>YOUR <em>DRIVE.</em></h2>
             <p>Every run is a story. Here's yours so far.</p>
             <div class="menu-stats-grid"><div><b id="menu-best-score">0</b><span>BEST SAVED SCORE</span></div><div><b id="menu-longest">0.0 <small>KM</small></b><span>LONGEST SAVED RUN</span></div><div><b id="menu-runs">0</b><span>RECORDED RUNS</span></div><div><b id="menu-owned">1 / 7</b><span>CARS OWNED</span></div></div>
-            <div class="menu-rank-summary"><div id="menu-rank-badge" class="menu-rank-badge"></div><div><span>LOCAL RANK</span><strong id="menu-rank-name">Rookie</strong><small id="menu-rank-points">0 RP</small></div><button id="menu-rank-select" type="button" aria-label="Select Ranked Attack">↗</button></div>
+            <div class="menu-rank-summary"><div id="menu-rank-badge" class="menu-rank-badge"></div><div><span>LOCAL RANK</span><strong id="menu-rank-name">Rookie</strong><small id="menu-rank-points">0 RP</small></div><button id="menu-rank-select" type="button" aria-label="Select Ranked Racing">↗</button></div>
             <p class="menu-footnote">Local, unverified stats. Best score and longest run exclude ranked; daily, weekly and seasonal bests reset. Dev runs and abandoned regular runs aren't recorded.</p>
           </section>
           </div>
@@ -149,7 +152,7 @@
             <div class="season-pass-progress"><strong id="season-xp">0 / 800 XP</strong><div class="season-pass-bar"><i id="season-xp-fill"></i></div><small id="season-next"></small></div>
             <div class="premium-pass"><strong>PREMIUM · COSMETICS ONLY</strong><p>Unlock a second reward track for 50 gems. Earn gems from quests; buy later and receive every premium tier you already reached. No gameplay boosts.</p><span id="season-wallet">0 gems available</span><button id="season-premium-buy" type="button">UNLOCK PREMIUM · 50 GEMS</button></div>
             <details class="season-rewards"><summary>VIEW FREE &amp; PREMIUM REWARDS</summary><div class="reward-lists"><ol id="season-reward-list"></ol><ol id="season-premium-list"></ol></div><div class="reward-pager"><button id="reward-prev" type="button">‹</button><span id="reward-page-label"></span><button id="reward-next" type="button">›</button></div></details>
-            <p class="menu-footnote">Local, unverified pass · XP and premium access reset each UTC quarter; unlocked rewards stay yours. This track repeats each quarter. Rewards for unowned cars wait in their garage. Quests award 5 gems (10 in Seasonal). Ranked, Ghost and Dev runs have no quest earnings. Real-money checkout is not available.</p>
+            <p class="menu-footnote">Local, unverified pass · XP and premium access reset each UTC quarter; unlocked rewards stay yours. This track repeats each quarter. Rewards for unowned cars wait in their garage. Quests award 5 gems (10 in Seasonal). Circuit finishes award 5 gems and quest XP; Ghost runs have no quest earnings. Real-money checkout is not available.</p>
           </section>
           </div>
         </div>
@@ -179,7 +182,7 @@
           <div id="progress-next" class="progress-next"></div>
           <button id="buy-car" class="purchase-button hidden" type="button"></button>
           <div id="car-requirement" class="car-requirement" aria-live="polite"></div>
-          <p class="progress-hint">Coins and credits are earned when a non-Dev run ends or you return to the garage. Gems come from quests. Cars unlock in tier order. Each 1,000 points increases your payout per point by 25%, up to 3×. Dev options grant temporary access.</p>
+          <p class="progress-hint">Coins and credits are earned from distance and score when a run ends or you return to the garage. Gems come from quests. Cars unlock in tier order. Each 1,000 points increases your payout per point by 25%, up to 3×. Dev options grant temporary access.</p>
         </section>
         <div id="garage-stats" class="garage-section">
         <div class="performance-heading"><span>On-road performance</span><span>DRY ROAD</span></div>
@@ -214,13 +217,13 @@
           <i data-lucide="play"></i> <span id="start-label">Start engine</span>
         </button>
         <div class="hint">
-          <kbd>←</kbd><kbd>→</kbd> steer &nbsp; <kbd>↑</kbd> throttle &nbsp; <kbd>↓</kbd> brake &nbsp; <kbd>Space</kbd> handbrake &nbsp; <kbd>C</kbd> camera &nbsp; <kbd>P</kbd> pause
+          <kbd>←</kbd><kbd>→</kbd> steer &nbsp; <kbd>↑</kbd> throttle &nbsp; <kbd>↓</kbd> brake &nbsp; <kbd>Space</kbd> handbrake &nbsp; <kbd>C</kbd> camera &nbsp; <kbd>R</kbd> look behind &nbsp; <kbd>P</kbd> pause
         </div>
       </aside>
       <aside id="custom-panel" class="car-detail custom-panel panel hidden" aria-label="Car customization">
         <div class="custom-heading"><div><div class="custom-kicker">PERSONALIZE YOUR RIDE</div><h2>Car workshop</h2></div><button id="custom-close" class="mini-btn" type="button" aria-label="Close customization">✕</button></div>
         <p class="custom-subtitle"><span id="custom-car-name"></span> · <b id="custom-balance"></b></p>
-        <p id="tune-message" class="custom-note" aria-live="polite">Paint 5 · Glow 10 gems</p>
+        <p id="tune-message" class="custom-note" aria-live="polite">Purchased options can be reused free.</p>
         <div class="custom-views" role="group" aria-label="Preview angle">
           <button type="button" data-custom-view="front">Front</button><button type="button" data-custom-view="side">Side</button><button type="button" data-custom-view="rear">Rear</button>
         </div>
@@ -284,6 +287,13 @@
         <span id="run-mode-label">Endless</span>
         <b id="run-time">0:00</b>
       </div>
+      <div id="race-map" class="race-map hidden" role="group" aria-label="Race minimap, blue is you and orange is rivals">
+        <div class="race-map-head"><span>TRACK MAP</span><b id="race-map-lap">LAP 1/3</b></div>
+        <svg viewBox="0 0 150 100" aria-hidden="true"><path id="race-map-shadow" class="race-map-shadow"></path><path id="race-map-route" class="race-map-route"></path><circle id="race-map-start" r="2.5" class="race-map-start"></circle><g id="race-map-rivals"></g><circle id="race-map-player" r="3.4" class="race-map-player"></circle></svg>
+        <div class="race-map-key"><span>● YOU</span><span>● RIVALS</span></div>
+        <div class="race-gaps" aria-label="Race gaps"><span id="race-gap-ahead">AHEAD —</span><span id="race-gap-behind">BEHIND —</span></div>
+      </div>
+      <div id="race-feedback" class="race-feedback hidden" role="status" aria-live="polite"></div>
       <div id="mode-rule-hud" class="ghost-hud hidden" aria-live="polite"></div>
       <div id="ghost-hud" class="ghost-hud hidden" aria-live="polite"></div>
       <div id="contract-card" class="contract-card">
@@ -297,6 +307,7 @@
         <button id="signal-left" aria-label="Toggle left indicator (Q)" aria-pressed="false">◀</button>
         <button id="signal-right" aria-label="Toggle right indicator (E)" aria-pressed="false">▶</button>
       </div>
+        <button id="look-behind" class="look-behind" type="button" aria-label="Hold to look behind" aria-keyshortcuts="R" aria-pressed="false" title="Hold R or hold this button to look behind"><span>REAR <kbd>R</kbd></span><small id="rear-proximity" class="hidden"></small></button>
       <div class="hud-left">
         <div class="hud-score">
           <div class="hud-label">Score</div>
@@ -327,7 +338,7 @@
         </div>
         <div class="hud-meta">
           <span><i data-lucide="route"></i> <span id="hud-dist">0.00</span> km</span>
-          <span><i data-lucide="zap"></i> <span id="hud-overtakes">0</span> passed</span>
+          <span><i data-lucide="zap"></i> <span id="hud-overtakes">0</span> <span id="hud-overtakes-label">passed</span></span>
         </div>
       </div>
       <div id="world-panel" class="panel world-panel hidden">
@@ -383,7 +394,7 @@
 
     <dialog id="rank-road" class="rank-road-dialog" aria-labelledby="rank-road-title">
       <div class="modal rank-road-modal"><div class="rank-road-heading"><div><span class="rank-eyebrow">THE ROAD TO THE TOP</span><h2 id="rank-road-title">RANK ROAD<span>.</span></h2></div><button id="rank-road-close" class="icon-btn" type="button" aria-label="Close rank road">✕</button></div>
-        <p>Seven ranks. One road. Win time attacks to earn rank points.</p><div id="rank-road-grid" class="rank-road-grid"></div><p class="rank-fineprint">Rank points are stored on this device and are not globally verified.</p>
+        <p>Seven ranks. Five tracks. Finish on the podium to earn rank points.</p><div id="rank-road-grid" class="rank-road-grid"></div><p class="rank-fineprint">Rank points are stored on this device and are not globally verified.</p>
       </div>
     </dialog>
     <!-- Pause -->
@@ -401,18 +412,20 @@
     <!-- Game over -->
     <div id="gameover" class="overlay hidden">
       <div class="modal">
+        <div id="race-celebration" class="race-celebration hidden" aria-hidden="true"><span>✦</span><span>✦</span><span>✦</span><span>✦</span><span>✦</span><span>✦</span></div>
         <div id="final-medal" class="final-medal hidden">Gold</div>
         <div id="final-title" class="crash-title">Wrecked</div>
         <div id="new-best" class="new-best hidden">New personal best</div>
         <div class="final-score"><span id="final-score">0</span><small>points</small></div>
         <div class="final-grid">
-          <div><b id="final-overtakes">0</b><span>overtakes</span></div>
-          <div><b id="final-near">0</b><span>near misses</span></div>
+          <div><b id="final-overtakes">0</b><span id="final-overtakes-label">overtakes</span></div>
+          <div><b id="final-near">0</b><span id="final-near-label">near misses</span></div>
           <div><b id="final-dist">0.0</b><span>km</span></div>
           <div><b id="final-top">0</b><span>top km/h</span></div>
           <div><b id="final-contracts">0/3</b><span id="final-contract-label">contracts</span></div>
           <div><b id="final-best">0</b><span id="final-best-label">Personal best</span></div>
         </div>
+        <div id="race-laps" class="race-laps hidden" aria-label="Race lap times"></div>
         <div id="final-ranked" class="final-ranked hidden" aria-live="polite"><div id="final-rank-badge" class="final-rank-badge"></div><div><span id="final-rank-label"></span><b id="final-rank-change"></b><small id="final-rank-message"></small></div></div>
         <div id="final-progress" class="final-progress" aria-live="polite"></div>
         <button id="btn-share-result" class="secondary" type="button">Share result</button>
@@ -440,10 +453,11 @@
         <h2>How to play</h2>
         <ul class="help-list">
           <li><b>Drive:</b> arrows or WASD to steer, accelerate and brake. Space is handbrake.</li>
-          <li><b>Pass:</b> overtake traffic safely for points. Close passes and combos score more.</li>
+          <li><b>Circuit:</b> race three laps against five AI rivals. Brake and steer for the bends; finish for pass XP and gems.</li>
+          <li><b>Highway:</b> overtake traffic safely for points. Close passes and combos score more.</li>
           <li><b>Signals:</b> Q / E. Signal your passing side for a bonus.</li>
           <li><b>Speed:</b> earn points every half-second above 200 km/h.</li>
-          <li><b>Camera &amp; pause:</b> C cycles cameras, V opens camera settings, P pauses.</li>
+          <li><b>Camera &amp; pause:</b> C cycles cameras, hold R or the REAR button to look behind, V opens camera settings, P pauses.</li>
           <li><b>Rewards:</b> earn coins and credits from runs, and gems from quests.</li>
         </ul>
         <div class="credits"><a href="./THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener noreferrer">Model credits and third-party licenses ↗</a></div>

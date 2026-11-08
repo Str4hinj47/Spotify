@@ -4,7 +4,7 @@ import { LIVERY_OPTIONS } from './content/cosmetics.mjs';
 import { SEASON_TIERS, PREMIUM_TIERS, PREMIUM_PASS_PRICE, sanitizeSeasonPass, currentSeasonPass } from './season-pass.mjs';
 export const CAR_PRICES = Object.freeze(Object.fromEntries(ACTIVE_CAR_CONTENT.map(car => [car.id, car.price])));
 export const UPGRADE_PRICES = Object.freeze({ engine: [700, 1800, 4000], tires: [600, 1600, 3500], brakes: [500, 1300, 3000] });
-export const TUNE_PRICES = Object.freeze({ street: 5, touring: 10, sport: 16, track: 24, flame: 30, carbon: 8, upper: 7, lower: 7, underglow: 10, paint: 5 });
+export const TUNE_PRICES = Object.freeze({ street: 5, touring: 10, sport: 16, track: 24, 'golf-r32': 30, 'golf-clean': 26, flame: 30, carbon: 8, upper: 7, lower: 7, underglow: 10, paint: 5 });
 const MAX = 1_000_000_000;
 const amount = n => typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.min(MAX, Math.floor(n))) : 0;
 const cars = CAR_CONTENT.map(car => car.id);
@@ -48,7 +48,8 @@ export function sanitizeProgression(raw) {
 export function payoutForScore(score) { const n = amount(score); return Math.min(MAX, Math.floor(n * (1 + Math.min(2, Math.floor(n / 1000) * .25)))); }
 export function earnedCar(p, car) { return Object.hasOwn(CAR_PRICES, car) && p.owned.includes(car); }
 export function canDriveCar(p, car) { return Object.hasOwn(CAR_PRICES, car) && (p.dev || earnedCar(p, car)); }
-export function awardProgress(p, run) { const before = sanitizeProgression(p); const gain = payoutForScore(run?.score), coinsGained=Math.min(MAX-before.coins,gain), creditsGained=Math.min(MAX-before.credits,gain); return { progress: { ...before, coins: before.coins+coinsGained, credits: before.credits+creditsGained }, gain, coinsGained, creditsGained }; }
+// A modest distance reward ensures a clean drive still pays even with no passes.
+export function awardProgress(p, run) { const before = sanitizeProgression(p); const gain = Math.min(MAX, payoutForScore(run?.score) + Math.floor(amount(run?.distance) / 10)), coinsGained=Math.min(MAX-before.coins,gain), creditsGained=Math.min(MAX-before.credits,gain); return { progress: { ...before, coins: before.coins+coinsGained, credits: before.credits+creditsGained }, gain, coinsGained, creditsGained }; }
 // The first missing lower tier blocks a purchase, including for legacy saves
 // with gaps. Already owned higher-tier cars remain usable; same-tier variants
 // are alternatives and do not gate one another.
@@ -112,7 +113,7 @@ export function buyPremiumPass(progress, now=Date.now()) {
 /** Quest XP and gems are earned by playing, including after finishing the track. */
 export function awardQuestXp(progress, mode, devRun=false, now=Date.now()) {
   const next=sanitizeProgression(progress);
-  if (devRun || mode === 'ranked' || mode === 'ghost') return {progress:next, gained:0, gemsGained:0, rewards:[]};
+  if (mode === 'ranked' || mode === 'ghost') return {progress:next, gained:0, gemsGained:0, rewards:[]};
   const pass=currentSeasonPass(next.seasonPass,now), old=pass.xp;
   const gained=Math.min(mode==='seasonal'?200:100, SEASON_TIERS.at(-1).xp-old);
   const gemsGained=Math.min(MAX-next.gems,mode==='seasonal'?10:5);

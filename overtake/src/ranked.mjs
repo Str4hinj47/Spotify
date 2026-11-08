@@ -8,14 +8,17 @@ export const RANKS = Object.freeze([
   { id:'overdrive', name:'Overdrive', min:1850, color:'#db9bff', glow:'#8135d0' },
   { id:'legend', name:'Road Legend', min:2700, color:'#ffbe72', glow:'#e94638' },
 ]);
-// Time thresholds in seconds. All objectives must be met before crossing the line.
-export const SCENARIOS = Object.freeze([
-  { id:'slipstream', title:'Slipstream Sprint', kicker:'01 / TRAFFIC ATTACK', distance:2000, limit:60, silver:54, gold:49, metric:'overtakes', target:4, objective:'Overtake 4 cars', multiplier:1 },
-  { id:'needle', title:'Thread the Needle', kicker:'02 / PRECISION ATTACK', distance:2800, limit:82, silver:73, gold:67, metric:'nearMisses', target:3, objective:'Make 3 near misses', multiplier:1.25 },
-  { id:'gauntlet', title:'Redline Gauntlet', kicker:'03 / ENDURANCE ATTACK', distance:4000, limit:110, silver:99, gold:90, metric:'overtakes', target:8, objective:'Overtake 8 cars', multiplier:1.5 },
-]);
+import { TRACKS } from './circuit.mjs';
+// Ranked now runs closed-track races only. Legacy scenario results remain in
+// saves under their original IDs; those IDs are never reused for new tracks.
+export const SCENARIOS = Object.freeze(TRACKS.map((track,i)=>({
+  id:track.id, title:track.name, kicker:`0${i+1} / ${track.kind==='drift'?'DRIFT':'CIRCUIT'} RACE`,
+  trackId:track.id, kind:track.kind, distance:track.length*track.laps, laps:track.laps,
+  multiplier:1, objective:track.kind==='drift'?'Drift cars only':'All playable cars',
+})));
+const LEGACY_IDS=['slipstream','needle','gauntlet'];
 export const RANKED_STORAGE_KEY = 'overtake-ranked-v1';
-const SCENARIO_IDS = SCENARIOS.map(s=>s.id);
+const SCENARIO_IDS = [...LEGACY_IDS,...SCENARIOS.map(s=>s.id)];
 const MAX_POINTS = 1_000_000;
 export function getScenario(id) { return SCENARIOS.find(s=>s.id===id) ?? SCENARIOS[0]; }
 export function emptyRanked() { return { version:1, points:0, attempts:0, scenarios:{} }; }
@@ -40,13 +43,13 @@ export function rankFor(points) {
   return { rank, index, next, progress:next ? Math.min(1,(n-rank.min)/(next.min-rank.min)) : 1, points:n };
 }
 export function rankedOutcome(run, devRun=false) {
-  const scenario=getScenario(run.rankedScenario);
   if (devRun) return { delta:0, medal:null, success:false, eligible:false };
-  const success=run.reason==='distance' && Number.isFinite(run.elapsed) && run.elapsed>0 && run.elapsed<=scenario.limit+1e-7 && run.distance>=scenario.distance && run[scenario.metric]>=scenario.target;
-  if (!success) return { delta:-12, medal:null, success:false, eligible:true };
-  const medal=run.elapsed<=scenario.gold?'gold':run.elapsed<=scenario.silver?'silver':'bronze';
-  const base={bronze:18,silver:28,gold:40}[medal];
-  return { delta:Math.round(base*scenario.multiplier), medal, success:true, eligible:true };
+  const place=run.racePosition;
+  if (run.reason!=='distance' || !Number.isInteger(place) || place<1 || place>6 || !Number.isFinite(run.elapsed) || run.elapsed<=0)
+    return {delta:-12,medal:null,success:false,eligible:true};
+  if (place>3) return {delta:-12,medal:null,success:false,eligible:true};
+  const medal=place===1?'gold':place===2?'silver':'bronze';
+  return {delta:place===1?40:place===2?28:18,medal,success:true,eligible:true};
 }
 export function applyRankedResult(raw, run, devRun=false) {
   const state=sanitizeRanked(raw), outcome=rankedOutcome(run,devRun), before=rankFor(state.points);

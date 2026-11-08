@@ -1,0 +1,13 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {createVehicleState,stepVehicle} from '../src/physics.mjs';import {stepDriftVehicle,isDriftCar,DRIFT_CARS} from '../src/drift.mjs';
+const p={grip:1,accel:9,brake:11,maxSpeed:55,wheelbase:2.7,maxSteer:.5};
+const input={throttle:true,brake:false,left:false,right:false,handbrake:false};
+test('only selected playable cars have dedicated drift handling',()=>{assert.deepEqual(DRIFT_CARS,['challenger','skyline','mustang','bmw-m3']);assert.equal(isDriftCar('golf'),false);assert.equal(isDriftCar('skyline'),true)});
+test('drifting changes trajectory and remains controllable by countersteer',()=>{
+ const drift=createVehicleState(),grip=createVehicleState();drift.speed=grip.speed=20;
+ for(let i=0;i<120;i++){stepDriftVehicle(drift,input,p,1/120);stepVehicle(grip,input,p,1/120)}
+ assert.ok(drift.driftAngle>.1);assert.ok(Math.abs(drift.offset-grip.offset)>.2);
+ for(let i=0;i<180;i++)stepDriftVehicle(drift,{...input,right:true},p,1/120);
+ assert.ok(drift.driftAngle<-.1);assert.ok(Number.isFinite(drift.s)&&Number.isFinite(drift.offset));
+});
+test('stationary drift car settles rather than sliding at rest',()=>{const s=createVehicleState();for(let i=0;i<120;i++)stepDriftVehicle(s,{...input,throttle:false},p,1/120);assert.equal(s.speed,0);assert.equal(s.offset,0);assert.equal(s.driftAngle,0)});

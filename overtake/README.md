@@ -24,7 +24,8 @@ release checklist. Content changes are shipped in a new build, not remotely.
 
 See [LAUNCH.md](LAUNCH.md) for Vercel setup, optional Supabase email sign-in,
 manual cloud saves, security boundaries, and the work still required before global
-rankings. Cloud saves are implemented but require project setup; offline save-file
+rankings. The development preview is connected to a dedicated Supabase project;
+public email delivery and production setup are still required. Offline save-file
 export/import works without an account. No verified leaderboard is enabled.
 
 ## Controls
@@ -37,13 +38,14 @@ export/import works without an account. No verified leaderboard is enabled.
 | `Space` | Handbrake |
 | `Q` / `E` | Toggle left / right turn signal |
 | `C` | Cycle camera presets |
+| Hold `R` or the REAR button | Look behind; release to return to your camera |
 | `V` | Camera settings |
 | `B` | World settings (time / weather) |
 | `P` / `Esc` | Pause |
 | `M` | Mute |
 | `Enter` | Start / retry |
 
-Touch devices get on-screen steering, throttle and brake buttons.
+Touch devices get on-screen steering, throttle, brake and hold-to-look-behind buttons. During circuit races, the rear button also shows the distance to a nearby rival behind you.
 
 ## Gameplay
 
@@ -54,25 +56,38 @@ connected. Best saved score/distance exclude ranked and expired daily/weekly
 periods; recorded runs include ranked attempts, but not abandoned regular or
 new developer-option runs.
 
+- **Circuit Race:** choose any of the five closed tracks and race three laps against five
+  AI opponents in playable cars, without rank points. Drift tracks still require
+  a drift car. AI drivers have individual pace and racing lines, brake for
+  corners and poor grip, and look for passing space around other racers.
+  Contact slows the trailing car rather than ending the race. A track-accurate
+  minimap, position changes, progress gaps to cars ahead/behind, and lap times
+  are shown while racing. Lap feedback compares against your previous best; the
+  result screen breaks down each lap.
+  Countdown, crowd and nearby-rival engine effects can be switched off in Sound settings; podium
+  finishers get a celebration. Finishing awards
+  coins, credits, 5 gems and season-pass quest XP. This mode is offline.
+  Existing players see it by default once; their later mode choices persist.
+  The earlier highway modes are still available. See
+  [the multiplayer roadmap](docs/MULTIPLAYER_ROADMAP.md) for a proposed path
+  to real-player racing.
 - **Run modes:** Endless (survival), Rush (120-second score attack), Time Trial
   (race to 3 km), Ghost Trial (race your local 3 km replay), Near Miss (close
-  passes score more), Convoy (pass six cars), and Ranked Attack (timed distance
-  plus an objective). Checkpoint Chase starts at 35 seconds and adds 15 seconds
+  passes score more), and Convoy (pass six cars). Checkpoint Chase starts at 35 seconds and adds 15 seconds
   and 250 points every 500 m. Precision Challenge gives 120 seconds to make
   eight near misses, with double points for close passes. Speed Run gives 90
   seconds and awards 50 points per full second at 140 km/h or faster, in
   addition to passes and quests. Daily, weekly and seasonal objectives rotate
   on UTC boundaries. Traffic and conditions vary; results are local and not a
   fair or verified online competition.
-- **Ranked Attack:** choose Slipstream Sprint (2 km / 60 s / 4 overtakes),
-  Thread the Needle (2.8 km / 82 s / 3 near misses) or Redline Gauntlet
-  (4 km / 110 s / 8 overtakes). Meet the objective before the finish line to
-  earn bronze, silver or gold RP based on time; harder scenarios pay more.
-  Failing or quitting costs 12 RP, floored at zero, and Dev runs don't count.
-  Seven original automotive badges mark Rookie through Road Legend. Rank and
-  scenario bests are local, unverified and user-editable; cars, upgrades,
-  weather and traffic vary. Closing/reloading the browser can evade a loss.
-  This is not an online leaderboard or anti-cheat system.
+- **Ranked Racing:** race five AI opponents over three laps at Stadium Circuit,
+  Summit Ring, Coast Run, Dockside Drift, or Neon Slide. The two drift tracks
+  require a drift car: Ironvale Brawler, Kairo Specter, Ironvale Stampede or
+  Boreal Circuit GT. These cars use sliding physics in every mode; countersteer
+  to manage the slide. First, second and third award 40, 28 and 18 RP; fourth
+  through sixth or quitting lose 12 RP, floored at zero. Dev runs earn no RP.
+  Rank and results remain local and unverified. Previous highway-ranked points
+  and scenario history are preserved; highway time attacks are no longer ranked.
 - **Records:** personal bests and recent history are kept in `localStorage`;
   daily/weekly/seasonal bests reset per period, and completed Time Trials track fastest
   time. Dev-option runs are excluded from new records. Existing records are not

@@ -4,12 +4,13 @@ import { multiplierFor, passScore } from './rules.mjs';
 import { getScenario } from './ranked.mjs';
 
 export const RUN_MODES = {
+  circuit: { id:'circuit', label:'Circuit Race', duration:null, tagline:'Three laps against five AI racers. Choose from five tracks.', medals:{bronze:1000,silver:2000,gold:3000} },
   endless: {
     id: 'endless', label: 'Endless', duration: null,
     tagline: 'Classic survival. Chain passes until you wreck.',
     medals: { bronze: 2500, silver: 6000, gold: 12000 },
   },
-  ranked: { id: 'ranked', label: 'Ranked Attack', duration: null, tagline: 'Finish the scenario and climb the local ladder.', medals: { bronze: 2000, silver: 5000, gold: 10000 } },
+  ranked: { id: 'ranked', label: 'Ranked Racing', duration: null, tagline: 'Race AI across five tracks and climb the local ladder.', medals: { bronze: 2000, silver: 5000, gold: 10000 } },
   trial: { id: 'trial', label: 'Time Trial', duration: null, tagline: 'Reach 3 km as fast as possible.', medals: { bronze: 2000, silver: 5000, gold: 10000 } },
   seasonal: { id: 'seasonal', label: 'Seasonal Challenge', duration: 180, tagline: 'A local challenge rotates every UTC quarter.', medals: { bronze: 1500, silver: 3500, gold: 7000 } },
   convoy: { id: 'convoy', label: 'Convoy Run', duration: 150, tagline: 'Pass six cars in a slower traffic convoy.', medals: { bronze: 1500, silver: 3500, gold: 7000 } },
@@ -82,16 +83,16 @@ export function eventFor(mode, now = Date.now()) {
   return { period, contract: { ...choices[((period % choices.length) + choices.length) % choices.length] } };
 }
 
-export function createRun(mode = 'endless', seed = Date.now(), now = Date.now(), scenarioId = 'slipstream') {
+export function createRun(mode = 'endless', seed = Date.now(), now = Date.now(), scenarioId = 'stadium') {
   const m = RUN_MODES[mode] ? mode : 'endless';
   const def = RUN_MODES[m];
   const scenario = m === 'ranked' ? getScenario(scenarioId) : null;
   return {
-    mode: m, seed: seed >>> 0, elapsed: 0, timeLeft: scenario ? scenario.limit : def.duration, rankedScenario: scenario?.id ?? null,
+    mode: m, seed: seed >>> 0, elapsed: 0, timeLeft: def.duration, rankedScenario: scenario?.id ?? null,
     distance: 0, score: 0, combo: 0, bestCombo: 0,
     overtakes: 0, nearMisses: 0, oncomingDodges: 0,
     topSpeed: 0, highSpeedTime: 0, speedBonusTime: 0,
-    contracts: scenario || m === 'ghost' || m === 'checkpoint' ? [] : m === 'precision' ? [{ id:'precision-near', title:'Precision challenge', desc:'Make 8 near misses', metric:'nearMisses', target:8, reward:1200 }] : m === 'convoy' ? [{ id:'convoy-pass', title:'Convoy run', desc:'Overtake 6 cars', metric:'overtakes', target:6, reward:1000 }] : m === 'daily' || m === 'weekly' || m === 'seasonal' ? [eventFor(m, now).contract] : pickContracts(seed), contractIndex: 0, contractBaseline: 0, contractsDone: 0,
+    contracts: scenario || m === 'ghost' || m === 'checkpoint' || m === 'circuit' ? [] : m === 'precision' ? [{ id:'precision-near', title:'Precision challenge', desc:'Make 8 near misses', metric:'nearMisses', target:8, reward:1200 }] : m === 'convoy' ? [{ id:'convoy-pass', title:'Convoy run', desc:'Overtake 6 cars', metric:'overtakes', target:6, reward:1000 }] : m === 'daily' || m === 'weekly' || m === 'seasonal' ? [eventFor(m, now).contract] : pickContracts(seed), contractIndex: 0, contractBaseline: 0, contractsDone: 0,
     eventPeriod: m === 'daily' || m === 'weekly' || m === 'seasonal' ? eventFor(m, now).period : null,
     finished: false, reason: null,
   };
@@ -146,25 +147,6 @@ export function tickRun(run, dt, speed) {
   const events = [];
   if (run.finished) return events;
   dt = Math.max(0, Math.min(0.1, dt));
-  if (run.mode === 'ranked') {
-    const scenario = getScenario(run.rankedScenario);
-    const available = Math.min(dt, Math.max(0, run.timeLeft ?? 0));
-    const step = Math.max(0, speed) * available;
-    const crossing = step > 0 && run.distance + step >= scenario.distance;
-    const used = crossing ? available * (scenario.distance - run.distance) / step : available;
-    run.elapsed += used; run.distance += Math.max(0, speed) * used;
-    awardHighSpeed(run, used, speed);
-    run.timeLeft = Math.max(0, (run.timeLeft ?? 0) - used);
-    run.topSpeed = Math.max(run.topSpeed, speed * 3.6);
-    if (crossing) {
-      run.distance = scenario.distance;
-      run.finished = true; run.reason = run[scenario.metric] >= scenario.target ? 'distance' : 'objective_failed';
-      events.push({ type:'finish', reason:run.reason });
-    } else if (run.timeLeft <= 1e-9) {
-      run.timeLeft=0; run.finished=true; run.reason='time'; events.push({ type:'finish', reason:'time' });
-    }
-    return events;
-  }
   if (run.mode === 'checkpoint') {
     // Simulate the deadline and each crossing in order, including a checkpoint
     // reached exactly as the clock expires. Never award after time has expired.

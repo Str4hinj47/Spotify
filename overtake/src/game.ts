@@ -1,4 +1,9 @@
 import { vehicleParameters } from './car-performance.mjs';
+import { getTrack, trackSample, trackPoint, trackRacePosition, trackLap, type TrackId } from './circuit.mjs';
+import { isDriftCar, stepDriftVehicle } from './drift.mjs';
+import { createLapTiming, recordLapCrossings } from './race-hud.mjs';
+import { raceDriverProfile, planRaceDriver, stepRaceDriver, resolveRaceContacts, resolvePlayerContact, type RaceDriver } from './race-ai.mjs';
+import { createCircuit } from './world/circuit';
 import { loadGhost, saveGhost, ghostAt, MAX_GHOST_SAMPLES, type GhostReplay, type GhostSample } from './ghost.mjs';
 import { spinWheels } from './wheels';
 import { addVehicleLights, updateVehicleLights, conformTrafficBeam, disposeVehicleLights, LAMP_POSITIONS } from './vehicle-lights';
@@ -89,6 +94,7 @@ export interface HudState {
   signalLit: boolean;
   hazard: Hazard | null;
   ghostGap: number | null;
+  race: { position:number; total:number; lap:number; laps:number; countdown:number; progress:number; track:TrackId; player:{progress:number;offset:number}; rivals:{progress:number;offset:number;speed:number}[]; lapTimes:number[] } | null;
 }
 
 export interface RunStats {
@@ -106,8 +112,11 @@ export interface RunStats {
   medal: Medal;
   reason: string | null;
   ghostNewBest: boolean;
+  racePosition: number | null;
+  raceLapTimes: number[];
   coinsGained: number;
   creditsGained: number;
+  gemsGained: number;
   ranked: { change: RankChange; scenario: RankedScenario; newBest: boolean } | null;
 }
 
@@ -116,6 +125,10 @@ export interface GameCallbacks {
   onEvent: (e: { kind: 'overtake' | 'near' | 'combo' | 'crash' | 'oncoming' | 'contract' | 'finish'; text: string; points?: number }) => void;
   onGameOver: (s: RunStats) => void;
   onMode: (m: Mode) => void;
+}
+
+interface CircuitRival extends RaceDriver {
+  group:THREE.Group; id:CarId; finished:boolean; driftYaw:number;
 }
 
 interface Traffic {
@@ -206,6 +219,15 @@ export class OvertakeGame {
   private headlightTargets: THREE.Object3D[] = [];
 
   private roadGroup = new THREE.Group();
+  private circuitGroup?: THREE.Group;
+  private circuitGroups = new Map<TrackId,THREE.Group>();
+  private raceTrack:TrackId='stadium';
+  private circuitRivals:CircuitRival[] = [];
+  private raceCountdown=0;
+  private raceFinishPosition:number | null=null;
+  private raceTiming=createLapTiming();
+  private raceShadowGeometry = new THREE.PlaneGeometry(1,1);
+  private raceShadowMaterial?:THREE.MeshBasicMaterial;
   private garageGroup = new THREE.Group();
   private terrain!: THREE.Mesh;
   private ground!: THREE.Mesh;
@@ -266,6 +288,7 @@ export class OvertakeGame {
   private selected: CarId = 'golf';
   mode: Mode = 'garage';
   private cam: CameraSettings = { preset: 'close', ...CAMERA_PRESETS.close };
+  private lookBehind = false;
   private freeCamera = { sensitivity: 1, autoCenter: true };
   private freeYaw = 0;
   private freePitch = 0;
@@ -290,10 +313,12 @@ export class OvertakeGame {
   private ghostSamples: GhostSample[] = [];
   private ghostModel: THREE.Group | null = null;
   private run: RunState = createRun('endless');
-  private runMode: RunMode = 'endless';
+  private runMode: RunMode = 'circuit';
   private runUsedDev = false;
+  private runGemsGained = 0;
   private ranked: RankedState = emptyRanked();
-  private rankedScenario: ScenarioId = 'slipstream';
+  private rankedScenario: ScenarioId = 'stadium';
+  private circuitScenario: ScenarioId = 'stadium';
   private rankSettled = true;
   private records: Records = emptyRecords();
   private progression: Progression = emptyProgression();
@@ -359,7 +384,7 @@ export class OvertakeGame {
 
     this.loadRecords();
     this.loadProgression();
-    try { this.ranked = sanitizeRanked(JSON.parse(localStorage.getItem(RANKED_STORAGE_KEY) || 'null')); this.rankedScenario = getScenario(localStorage.getItem('overtake-ranked-scenario')).id; } catch { /* local storage may be unavailable */ }
+    try { this.ranked = sanitizeRanked(JSON.parse(localStorage.getItem(RANKED_STORAGE_KEY) || 'null')); this.rankedScenario = getScenario(localStorage.getItem('overtake-ranked-scenario')).id; this.circuitScenario = getScenario(localStorage.getItem('overtake-circuit-track')).id; } catch { /* local storage may be unavailable */ }
     this.best = bestFor(this.records, this.runMode);
 
     this.buildEnvironments();
@@ -419,6 +444,15 @@ export class OvertakeGame {
   }
 
   getCameraSettings(): CameraSettings { return { ...this.cam }; }
+
+  setLookBehind(held: boolean) {
+    const next=held && this.mode==='driving';
+    if(next===this.lookBehind)return;
+    this.lookBehind=next;
+    // Apply immediately, without waiting for a physics tick or changing preset.
+    if(this.mode==='driving')this.updateCamera(0);
+  }
+  getLookBehind() { return this.lookBehind; }
 
   setCameraPreset(preset: CameraPreset) {
     this.cam = { preset, ...CAMERA_PRESETS[preset] };
@@ -1350,6 +1384,7 @@ export class OvertakeGame {
       this.scene.environment = this.studioEnv;
       this.atmosphere.setGarage();
       this.roadGroup.visible = false; this.garageGroup.visible = true; this.mountains.visible = false;
+      if (this.circuitGroup) this.circuitGroup.visible=false;
       this.contactShadow.visible = false;
       this.precipitation.setVisible(false);
       this.spray.clear();
@@ -1357,6 +1392,7 @@ export class OvertakeGame {
     } else {
       this.scene.environment = this.roadEnv;
       this.roadGroup.visible = true; this.garageGroup.visible = false; this.mountains.visible = true;
+      if (this.circuitGroup) this.circuitGroup.visible=false;
       this.contactShadow.visible = true;
       this.precipitation.setVisible(true);
     }
@@ -1417,11 +1453,13 @@ export class OvertakeGame {
   }
 
   start(): boolean {
-    if ((this.mode !== 'garage' && this.mode !== 'gameover') || !this.canDrive(this.selected)) return false;
+    if ((this.mode !== 'garage' && this.mode !== 'gameover') || !this.canDrive(this.selected) || !this.canEnterSelectedRace()) return false;
     this.progressionSettled = false;
     this.runUsedDev = this.progression.dev;
+    this.runGemsGained = 0;
     this.rankSettled = false;
     this.clearTraffic();
+    this.clearCircuitRivals();
     this.signal = null; this.signalElapsed = 0;
     this.updatePlayerLights(0);
     this.setEnvironment('road');
@@ -1450,6 +1488,12 @@ export class OvertakeGame {
     this.pos.x += r.x * PLAYER_LANE; this.pos.z += r.z * PLAYER_LANE;
     this.sameTimer = 0.5; this.oncomingTimer = 0.8;
     if (this.player) { this.player.position.copy(this.pos); this.player.rotation.set(0, this.yaw, 0); }
+    if (this.runMode === 'circuit' || this.runMode === 'ranked') {
+      this.raceTrack=this.runMode==='ranked'?this.getRankedScenario().trackId:this.getCircuitScenario().trackId;
+      this.startCircuit(); this.setMode('driving'); this.updateCamera(0);
+      this.atmosphere.update(this.worldClock.hour,this.weather,biomeParams(this.playerS),this.camera.position,5);
+      this.updateWorld(0); this.emitHud(); return true;
+    }
     // Seed a busy two-way road: slower traffic ahead and a steady stream of
     // oncoming cars, spaced so there is always a visible overtaking window.
     if (this.runMode === 'convoy') { for (let i = 0; i < 7; i++) this.spawnSame(65 + i * 55, 13); }
@@ -1473,6 +1517,7 @@ export class OvertakeGame {
     this.clearGhost();
     if (this.mode === 'driving' || this.mode === 'paused') { this.settleProgression(); if (this.run.mode === 'ranked') { finishRun(this.run, 'quit'); this.settleRank(); } }
     this.clearTraffic();
+    this.clearCircuitRivals();
     this.setEnvironment('garage');
     this.signal = null; this.clearDrivingInput();
     this.updatePlayerLights(0);
@@ -1482,6 +1527,7 @@ export class OvertakeGame {
 
   private clearDrivingInput() {
     this.input.throttle = this.input.brake = this.input.left = this.input.right = this.input.handbrake = false;
+    this.setLookBehind(false);
   }
 
   setInput(name: 'throttle' | 'brake' | 'left' | 'right' | 'handbrake', v: boolean) {
@@ -1527,6 +1573,12 @@ export class OvertakeGame {
     this.rankedScenario = getScenario(id).id;
     try { localStorage.setItem('overtake-ranked-scenario', this.rankedScenario); } catch { /* storage unavailable */ }
   }
+  getCircuitScenario() { return getScenario(this.circuitScenario); }
+  setCircuitScenario(id: ScenarioId) {
+    if (this.mode !== 'garage' && this.mode !== 'gameover') return;
+    this.circuitScenario = getScenario(id).id;
+    try { localStorage.setItem('overtake-circuit-track', this.circuitScenario); } catch { /* storage unavailable */ }
+  }
   private settleRank() {
     if (this.run.mode !== 'ranked' || this.rankSettled) return null;
     this.rankSettled = true;
@@ -1542,6 +1594,7 @@ export class OvertakeGame {
 
   getProgression(): Progression { return sanitizeProgression(this.progression); }
   canDrive(id: CarId): boolean { return canDriveCar(this.progression, id); }
+  canEnterSelectedRace(): boolean { return (this.runMode !== 'ranked' && this.runMode !== 'circuit') || (this.runMode === 'ranked' ? this.getRankedScenario() : this.getCircuitScenario()).kind !== 'drift' || isDriftCar(this.selected); }
   setDeveloperMode(enabled: boolean) {
     // The garage toggle cannot change rules in the middle of a run.
     if (this.mode !== 'garage') return;
@@ -1582,7 +1635,6 @@ export class OvertakeGame {
   private settleProgression(): { coinsGained: number; creditsGained: number } {
     if (this.progressionSettled) return { coinsGained: 0, creditsGained: 0 };
     this.progressionSettled = true;
-    if (this.runUsedDev) return {coinsGained:0,creditsGained:0};
     const result = awardProgress(this.progression, this.run);
     this.progression = result.progress;
     this.saveProgression();
@@ -1596,7 +1648,13 @@ export class OvertakeGame {
       const legacy = Number(localStorage.getItem('overtake-best') || 0) || 0;
       if (legacy > this.records.modes.endless.bestScore) this.records.modes.endless.bestScore = legacy;
       const savedMode = localStorage.getItem('overtake-mode');
-      if (savedMode && Object.hasOwn(RUN_MODES, savedMode)) this.runMode = savedMode as RunMode;
+      // Introduce the new racing mode once for returning players, without
+      // altering progression, records, or future explicit mode selections.
+      if (localStorage.getItem('overtake-circuit-intro-v1') !== '1') {
+        this.runMode = 'circuit';
+        localStorage.setItem('overtake-mode', 'circuit');
+        localStorage.setItem('overtake-circuit-intro-v1', '1');
+      } else if (savedMode && Object.hasOwn(RUN_MODES, savedMode)) this.runMode = savedMode as RunMode;
     } catch { this.records = emptyRecords(); }
   }
   private saveRecords() {
@@ -1732,12 +1790,12 @@ export class OvertakeGame {
     this.cb.onHud({
       score: this.score, speed: this.speed * 3.6, distance: this.distance,
       combo: this.combo, mult: multiplierFor(this.combo), best: this.best,
-      overtakes: this.overtakes, nearMisses: this.nearMisses, oncoming, offroad: Math.abs(this.offset) > ROAD_HALF - 0.4,
+      overtakes: this.overtakes, nearMisses: this.nearMisses, oncoming, offroad: Math.abs(this.offset) > ((this.run.mode === 'circuit' || this.run.mode === 'ranked') ? getTrack(this.raceTrack).halfWidth - 1 : ROAD_HALF - 0.4),
       throttle: this.input.throttle ? 1 : 0,
       brake: this.input.brake || this.input.handbrake ? 1 : 0,
       time: formatHour(this.worldClock.hour),
       weather: weatherLabel(this.weather),
-      biome: biomeParams(this.playerS).label,
+      biome: this.run.mode === 'circuit' || this.run.mode === 'ranked' ? getTrack(this.raceTrack).name : biomeParams(this.playerS).label,
       night: this.nightFactor > 0.5,
       runMode: this.run.mode,
       runLabel: RUN_MODES[this.run.mode].label,
@@ -1752,6 +1810,7 @@ export class OvertakeGame {
       signalLit: !!this.signal && (this.signalElapsed % 1.0) < 0.5,
       hazard: this.hazard,
       ghostGap: this.ghostReplay ? ghostAt(this.ghostReplay, this.run.elapsed)[3] - this.run.distance : null,
+      race: this.run.mode === 'circuit' || this.run.mode === 'ranked' ? {position:trackRacePosition(this.playerS,this.circuitRivals,this.raceTrack),total:this.circuitRivals.length+1,lap:trackLap(this.playerS,this.raceTrack),laps:getTrack(this.raceTrack).laps,countdown:this.raceCountdown,progress:Math.max(0,Math.min(1,this.playerS/(getTrack(this.raceTrack).length*getTrack(this.raceTrack).laps))),track:this.raceTrack,player:{progress:this.playerS,offset:this.offset},rivals:this.circuitRivals.map(r=>({progress:r.progress,offset:r.offset,speed:r.speed})),lapTimes:[...this.raceTiming.lapTimes]} : null,
     });
   }
 
@@ -1759,7 +1818,7 @@ export class OvertakeGame {
     for (const e of events) {
       if (e.type === 'contract' && e.contract) {
         const earned=awardQuestXp(this.progression,this.run.mode,this.runUsedDev);
-        this.progression=earned.progress;
+        this.progression=earned.progress;this.runGemsGained+=earned.gemsGained;
         if (earned.gained || earned.gemsGained) this.saveProgression();
         this.cb.onEvent({ kind: 'contract', text: `QUEST · ${e.contract.title.toUpperCase()}${earned.gained ? ` · +${earned.gained} XP` : ''}${earned.gemsGained ? ` · +${earned.gemsGained} GEMS` : ''}`, points: e.points });
       } else if (e.type === 'allContracts') {
@@ -1774,7 +1833,122 @@ export class OvertakeGame {
     }
   }
 
+  private attachCircuitShadow(car:THREE.Group, width:number, length:number) {
+    if(!this.raceShadowMaterial) {
+      const c=document.createElement('canvas');c.width=c.height=64;const ctx=c.getContext('2d')!;
+      const g=ctx.createRadialGradient(32,32,4,32,32,32);g.addColorStop(0,'rgba(0,0,0,.65)');g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.fillRect(0,0,64,64);
+      this.raceShadowMaterial=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false});
+    }
+    const shadow=new THREE.Mesh(this.raceShadowGeometry,this.raceShadowMaterial);shadow.name='circuit-shadow';
+    shadow.rotation.x=-Math.PI/2;shadow.position.y=.045;shadow.scale.set(width*1.7,length*1.4,1);car.add(shadow);
+  }
+
+  private clearCircuitRivals() {
+    const playerShadow=this.player?.getObjectByName('circuit-shadow');if(playerShadow)playerShadow.parent?.remove(playerShadow);
+    for (const rival of this.circuitRivals) { this.scene.remove(rival.group); this.disposeCarLights(rival.group); }
+    this.circuitRivals=[];
+  }
+
+  private startCircuit() {
+    if(this.circuitGroup)this.circuitGroup.visible=false;
+    this.circuitGroup=this.circuitGroups.get(this.raceTrack);
+    if (!this.circuitGroup) { this.circuitGroup=createCircuit(this.raceTrack);this.circuitGroups.set(this.raceTrack,this.circuitGroup); this.scene.add(this.circuitGroup); }
+    this.circuitGroup.visible=true; this.circuitGroup.userData.circuitExtra.visible=this.sceneryQuality!=='low'; this.roadGroup.visible=false; this.mountains.visible=false;
+    this.contactShadow.visible=false; this.spray.clear();
+    this.vehicle=createVehicleState(); this.vehicle.s=-36; this.vehicle.offset=-3;
+    this.speed=0; this.steer=0; this.playerS=-36; this.offset=-3;
+    this.raceCountdown=3; this.raceFinishPosition=null; this.raceTiming=createLapTiming();
+    const playerSpec=getCar(this.selected);
+    // Closest performance tiers keep the first race competitive while ensuring
+    // every AI car is one of the currently playable models, never traffic-only.
+    const choices=CARS.filter(c=>c.id!==this.selected && (getTrack(this.raceTrack).kind!=='drift' || isDriftCar(c.id))).slice().sort((a,b)=>Math.abs(a.maxSpeed-playerSpec.maxSpeed)-Math.abs(b.maxSpeed-playerSpec.maxSpeed)).slice(0,5);
+    const grid=Array.from({length:5},(_,i)=>choices[i%choices.length]);
+    grid.forEach((car,i)=>{
+      const group=this.library.create(car.id,{paint:TRAFFIC_COLORS[(i+2)%TRAFFIC_COLORS.length],player:false});
+      const meta=this.library.get(car.id);
+      const rival:CircuitRival={group,id:car.id,progress:-30+i*5,offset:i%2?3:-3,speed:0,
+        targetSpeed:Math.min(car.maxSpeed*.86,playerSpec.maxSpeed*(getTrack(this.raceTrack).kind==='drift'?.64:.85)),acceleration:car.accel*.72,length:meta.length,width:meta.width,finished:false,key:i,profile:raceDriverProfile(i),lateralSpeed:0,braking:false,passTarget:null,passOffset:null,driftYaw:0};
+      addVehicleLights(group,car.id,true);
+      this.attachCircuitShadow(group,meta.width,meta.length);
+      this.circuitRivals.push(rival);this.scene.add(group);this.placeCircuitRival(rival);
+    });
+    if(this.player)this.attachCircuitShadow(this.player,this.playerMeta.width,this.playerMeta.length);
+    const p=trackPoint(this.playerS,this.offset,this.raceTrack);this.yaw=p.yaw;
+    this.pos.set(p.x,0,p.z);if(this.player){this.player.position.copy(this.pos);this.player.rotation.set(0,this.yaw,0);}
+    this.updateCamera(0);
+  }
+
+  private placeCircuitRival(rival:CircuitRival) {
+    const p=trackPoint(rival.progress,rival.offset,this.raceTrack);
+    rival.group.position.set(p.x,0,p.z);
+    const laneYaw=-Math.atan2(rival.lateralSpeed,Math.max(4,rival.speed));
+    rival.group.rotation.set(0,p.yaw+laneYaw+rival.driftYaw,0);
+  }
+
+  private updateCircuit(dt:number) {
+    this.updatePlayerLights(dt);
+    if (this.raceCountdown>0) {
+      this.raceCountdown=Math.max(0,this.raceCountdown-dt);
+      this.updateCamera(dt);this.updateWorld(dt);this.emitHud();return;
+    }
+    const spec=getCar(this.selected), upgrades=effectiveUpgrades(this.progression,this.selected);
+    const params={...vehicleParameters(spec,upgrades,this.library.getCustomization(this.selected).tireWidth,weatherGrip(this.weather)), roadAssist:false};
+    const previous=this.vehicle.s, steps=Math.max(1,Math.ceil(dt/(1/120))), h=dt/steps;
+    for(let i=0;i<steps;i++) (isDriftCar(this.selected)?stepDriftVehicle:stepVehicle)(this.vehicle,this.input,params,h,trackSample(this.vehicle.s,this.raceTrack).curvature);
+    const track=getTrack(this.raceTrack), raceDistance=track.length*track.laps;
+    const limit=track.halfWidth-this.playerMeta.width*.5;
+    if(Math.abs(this.vehicle.offset)>limit) {
+      this.vehicle.offset=THREE.MathUtils.clamp(this.vehicle.offset,-limit,limit);
+      this.vehicle.speed=Math.max(0,this.vehicle.speed-16*dt);this.vehicle.heading*=.8;
+    }
+    this.speed=this.vehicle.speed;this.steer=this.vehicle.steer;this.playerS=this.vehicle.s;this.offset=this.vehicle.offset;
+    const p=trackPoint(this.playerS,this.offset,this.raceTrack);this.yaw=p.yaw+this.vehicle.heading+(this.vehicle.driftAngle??0);this.pos.set(p.x,0,p.z);
+    if(this.player) {spinWheels(this.player,this.playerS-previous);this.player.position.copy(this.pos);this.player.rotation.set(0,this.yaw,THREE.MathUtils.clamp(-this.vehicle.latAccel/9.81*.025,-.035,.035));}
+    // Plan all drivers from the same frame so update order cannot grant an
+    // advantage. The player is part of the field, including across the lap seam.
+    const surface=weatherGrip(this.weather);
+    const field=this.circuitRivals.map(r=>({key:r.key,progress:r.progress,offset:r.offset,speed:r.speed,length:r.length,width:r.width}));
+    const playerActor={key:-1,progress:this.playerS,offset:this.offset,speed:this.speed,length:this.playerMeta.length,width:this.playerMeta.width};
+    const plans=this.circuitRivals.map((r,i)=>planRaceDriver(r,[...field.filter((_,j)=>j!==i),playerActor],this.raceTrack,surface));
+    this.circuitRivals.forEach((rival,i)=>stepRaceDriver(rival,plans[i],dt,this.raceTrack,surface));
+    resolveRaceContacts(this.circuitRivals,field,this.raceTrack);
+    this.circuitRivals.forEach((rival,i)=>{
+      const old=field[i].progress;
+      // Once finished, keep circulating rather than parking on the finish line.
+      rival.finished=rival.finished || rival.progress>=raceDistance;
+      const bend=trackSample(rival.progress+20,this.raceTrack).curvature;
+      const driftTarget=isDriftCar(rival.id) && rival.speed>3 ? (bend<-.001?-.19:.19) : 0;
+      rival.driftYaw+=(driftTarget-rival.driftYaw)*Math.min(1,dt*2);
+      resolvePlayerContact(rival,playerActor,field[i],previous,this.raceTrack);
+      this.placeCircuitRival(rival);spinWheels(rival.group,rival.progress-old);
+      for(const mat of (rival.group.userData.brakeMaterials ?? []) as THREE.MeshStandardMaterial[]) mat.emissiveIntensity=rival.braking && !mat.userData.selectiveBrake ? 2.8 : .55;
+      const signal=rival.group.userData.indicatorState;if(signal)signal.brake.value=rival.braking?1:0;
+    });
+    if(playerActor.progress!==this.playerS || playerActor.speed!==this.speed) {
+      this.vehicle.s=this.playerS=playerActor.progress;this.vehicle.speed=this.speed=playerActor.speed;
+      const corrected=trackPoint(this.playerS,this.offset,this.raceTrack);
+      this.yaw=corrected.yaw+this.vehicle.heading+(this.vehicle.driftAngle??0);this.pos.set(corrected.x,0,corrected.z);
+      if(this.player){this.player.position.copy(this.pos);this.player.rotation.y=this.yaw;}
+    }
+    const elapsedBefore=this.run.elapsed;
+    this.handleRunEvents(tickRun(this.run,dt,this.speed));
+    recordLapCrossings(this.raceTiming,previous,this.playerS,elapsedBefore,this.run.elapsed,track.length,track.laps);
+    if(this.playerS>=raceDistance) {
+      this.raceFinishPosition=trackRacePosition(this.playerS,this.circuitRivals,this.raceTrack);
+      this.run.racePosition=this.raceFinishPosition;
+      this.run.score += [3000,2200,1600,1100,800,500][Math.min(5,this.raceFinishPosition-1)];
+      // Finishing a circuit is its own quest, so circuit players can earn
+      // pass XP and gems without switching back to highway traffic modes.
+      const earned=awardQuestXp(this.progression,'circuit',this.runUsedDev);
+      this.progression=earned.progress;this.runGemsGained+=earned.gemsGained;
+      if (earned.gained || earned.gemsGained) this.saveProgression();
+      this.endRun('distance');return;
+    }
+    this.updateCamera(dt);this.updateWorld(dt);this.emitHud();
+  }
+
   private updateDriving(dt: number) {
+    if (this.run.mode === 'circuit' || this.run.mode === 'ranked') { this.updateCircuit(dt); return; }
     this.updatePlayerLights(dt);
     const spec = getCar(this.selected);
     const upgrades = effectiveUpgrades(this.progression, this.selected);
@@ -1783,13 +1957,13 @@ export class OvertakeGame {
     const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
     const h = dt / steps;
     for (let i = 0; i < steps; i++) {
-      stepVehicle(this.vehicle, this.input, params, h, roadCurvature(this.vehicle.s));
+      (isDriftCar(this.selected)?stepDriftVehicle:stepVehicle)(this.vehicle, this.input, params, h, roadCurvature(this.vehicle.s));
     }
     this.speed = this.vehicle.speed;
     this.steer = this.vehicle.steer;
     this.playerS = this.vehicle.s;
     this.offset = this.vehicle.offset;
-    this.yaw = roadYaw(this.playerS) + this.vehicle.heading;
+    this.yaw = roadYaw(this.playerS) + this.vehicle.heading + (this.vehicle.driftAngle??0);
 
     // World position from road coordinates.
     centerAt(this.playerS, this.pos);
@@ -1949,7 +2123,7 @@ export class OvertakeGame {
       score: this.score, distance: this.distance, overtakes: this.overtakes, nearMisses: this.nearMisses,
       best: this.best, newBest: result.newBest, mode: this.run.mode, car: this.selected,
       topSpeed: this.run.topSpeed, contractsDone: this.run.contractsDone, contractsTotal: this.run.contracts.length, bestTime: this.records.modes.trial.bestTime, devRun: this.runUsedDev, elapsed: this.run.elapsed,
-      medal: result.medal, reason, ghostNewBest, coinsGained: progress.coinsGained, creditsGained: progress.creditsGained, ranked,
+      medal: result.medal, reason, ghostNewBest, racePosition: this.run.mode === 'circuit' || this.run.mode === 'ranked' ? this.raceFinishPosition : null, raceLapTimes: this.run.mode === 'circuit' || this.run.mode === 'ranked' ? [...this.raceTiming.lapTimes] : [], coinsGained: progress.coinsGained, creditsGained: progress.creditsGained, gemsGained:this.runGemsGained, ranked,
     });
   }
 
@@ -2025,8 +2199,10 @@ export class OvertakeGame {
       const horiz = Math.cos(this.garagePitch) * r;
       this.camera.position.set(Math.sin(this.garageAngle) * horiz, y, Math.cos(this.garageAngle) * horiz);
       this.camera.lookAt(0, 0.65, 0);
-      this.camera.fov = compactGarage || compactLobby ? 50 : 42;
+      const wideWorkshop = this.garageWorkshop && !compactGarage && !this.lobbyPreview;
+      this.camera.fov = compactGarage || compactLobby || (wideWorkshop && window.innerHeight < 500) ? 50 : 42;
       if (compactGarage || compactLobby) this.camera.setViewOffset(window.innerWidth, window.innerHeight, 0, window.innerHeight * (compactLobby ? .03 : .2), window.innerWidth, window.innerHeight);
+      else if (wideWorkshop) this.camera.setViewOffset(window.innerWidth, window.innerHeight, window.innerWidth * .23, 0, window.innerWidth, window.innerHeight);
       else this.camera.clearViewOffset();
       this.camera.updateProjectionMatrix();
       this.atmosphere.sky.position.copy(this.camera.position);
@@ -2038,7 +2214,16 @@ export class OvertakeGame {
     const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
     this.shake = 0;
     const { preset, distance, height, lookAhead } = this.cam;
-    if (preset === 'free') {
+    if (this.lookBehind) {
+      // A rear chase view positions the camera in front of the car, pointing
+      // back past it. Hood/bumper presets use a raised rear-facing viewpoint
+      // to avoid looking through the body. Free-orbit angles stay untouched.
+      const inside=preset==='hood' || preset==='bumper';
+      const rearDistance=inside ? 0 : distance;
+      const rearHeight=inside ? Math.max(1.9,height) : height;
+      this.camera.position.set(this.pos.x+fx*rearDistance,this.pos.y+rearHeight,this.pos.z+fz*rearDistance);
+      this.camera.lookAt(this.pos.x-fx*Math.max(lookAhead,12),this.pos.y+.9,this.pos.z-fz*Math.max(lookAhead,12));
+    } else if (preset === 'free') {
       if (!this.freeDragging) this.freeIdle += dt;
       if (this.freeCamera.autoCenter && !this.freeDragging && this.freeIdle > 2.5) {
         const ease = 1 - Math.exp(-3 * dt);
@@ -2086,6 +2271,7 @@ export class OvertakeGame {
     this.updateIndicatorView();
     if (this.player) updateVehicleLights(this.player, this.camera, this.nightFactor, this.input.brake || this.input.handbrake, this.mode === 'garage');
     for (const t of this.traffic) updateVehicleLights(t.group, this.camera, this.nightFactor, t.braking);
+    for (const rival of this.circuitRivals) updateVehicleLights(rival.group, this.camera, this.nightFactor, rival.braking);
     updateExhaustFlames(this.player, performance.now()/1000, this.mode === 'garage' || (this.mode === 'driving' && this.input.throttle && !this.input.brake && this.speed > 6));
     this.composer.render();
   };
@@ -2105,6 +2291,7 @@ export class OvertakeGame {
   getSceneryQuality() { return this.sceneryQuality; }
   setSceneryQuality(value: SceneryQuality) {
     this.sceneryQuality = sanitizeSceneryQuality(value);
+    for(const venue of this.circuitGroups.values()) if(venue.userData.circuitExtra) venue.userData.circuitExtra.visible=this.sceneryQuality!=='low';
     this.atmosphere.skyMat.uniforms.photoDetail.value = this.sceneryQuality === 'low' ? 0 : 1;
     const cloud = Math.min(1, this.weather.rain * .85 + this.weather.snow * .75);
     this.roadSurface.cloud.value = this.sceneryQuality === 'low' ? 0 : .20 * dayFactor(this.worldClock.hour) * (1 - cloud * .8);
@@ -2129,7 +2316,7 @@ export class OvertakeGame {
       running: this.worldClock.running,
       weatherMode: this.weather.mode,
       weather: weatherLabel(this.weather),
-      biome: biomeParams(this.playerS).label,
+      biome: this.run.mode === 'circuit' || this.run.mode === 'ranked' ? getTrack(this.raceTrack).name : biomeParams(this.playerS).label,
       rain: this.weather.rain,
       snow: this.weather.snow,
     };
@@ -2149,5 +2336,5 @@ export class OvertakeGame {
   setCycleRunning(running: boolean) { this.worldClock.running = running; }
 
   getBest() { return this.best; }
-  dispose() { cancelAnimationFrame(this.raf); this.spray.dispose(); this.renderer.dispose(); }
+  dispose() { cancelAnimationFrame(this.raf); this.spray.dispose(); this.raceShadowGeometry.dispose(); this.raceShadowMaterial?.map?.dispose(); this.raceShadowMaterial?.dispose(); this.renderer.dispose(); }
 }

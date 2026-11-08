@@ -122,7 +122,7 @@ saves retain up to 256 purchased tune tokens per car; revisit that cap and the
 
 ### Local economy and optional premium track
 
-Coins and credits are separately earned from the same run-score payout, and are
+Coins and credits are separately earned from the same score payout plus one per 10 meters driven, including Dev runs, and are
 spent only on performance upgrades and cars respectively. Quests give 5 gems
 (10 in Seasonal Challenge), including after the XP track is complete; gems buy
 cosmetics or the 50-gem seasonal premium track. The free track remains usable

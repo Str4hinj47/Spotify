@@ -11,7 +11,7 @@ test('cloud save migration enforces per-user RLS, column privileges and revision
       create table auth.users(id uuid primary key); insert into auth.users values ('${alice}'), ('${bob}');
       create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid$$;
       grant usage on schema auth to anon, authenticated; grant execute on function auth.uid() to anon, authenticated;`);
-    await db.exec(await readFile(new URL('../supabase/migrations/20261108000000_overtake_cloud_saves.sql',import.meta.url),'utf8'));
+    await db.exec(await readFile(new URL('../supabase/migrations/20261108131824_overtake_cloud_saves.sql',import.meta.url),'utf8'));
     await db.exec(`set role authenticated; set request.jwt.claim.sub='${alice}';`);
     const inserted=await db.query(`insert into public.overtake_cloud_saves(user_id,payload) values ($1,'{"schema":1}') returning revision,save_id`,[alice]);assert.equal(inserted.rows[0].revision,1);
     await assert.rejects(db.query(`insert into public.overtake_cloud_saves(user_id,payload) values ($1,'{}')`,[bob]));

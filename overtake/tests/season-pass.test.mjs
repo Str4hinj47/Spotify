@@ -13,9 +13,9 @@ test('quest XP unlocks car-specific rewards automatically, without buying unowne
  assert.equal(p.owned.includes('skyline'),false);assert.equal(buyTune(p,'golf','front','street').progress.gems,p.gems);
  assert.equal(awardQuestXp(p,'endless',false,now).gained,0);
 });
-test('seasonal quests earn 200 XP, dev runs never earn XP, rollover preserves earned rewards',()=>{
+test('seasonal and dev quests earn 200 XP, rollover preserves earned rewards',()=>{
  let p=emptyProgression(),a=awardQuestXp(p,'seasonal',false,now);assert.equal(a.gained,200);assert.equal(a.rewards.length,2);
- let dev=awardQuestXp(a.progress,'seasonal',true,now);assert.equal(dev.gained,0);assert.deepEqual(dev.progress,a.progress);
+ let dev=awardQuestXp(a.progress,'seasonal',true,now);assert.equal(dev.gained,200);assert.equal(dev.gemsGained,10);
  assert.equal(awardQuestXp(a.progress,'ranked',false,now).gained,0);assert.equal(awardQuestXp(a.progress,'ghost',false,now).gained,0);
  let reset=awardQuestXp(a.progress,'endless',false,next).progress;assert.equal(reset.seasonPass.xp,100);assert.equal(reset.seasonPass.period,seasonPeriod(next));assert.equal(upgradeLevels(reset,'golf').tires,1);assert.ok(reset.tunes.golf.includes('front:street'));
  assert.equal(currentSeasonPass(a.progress.seasonPass,next).xp,0);assert.equal(SEASON_TIERS.length,8);

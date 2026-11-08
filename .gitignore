@@ -83,4 +83,7 @@ overtake/playwright-report/
 .cache/
 
 # Mobile development
-android-sdk/ 
+android-sdk/
+# Local environment settings (may contain credentials)
+.env.local
+.env.*.local

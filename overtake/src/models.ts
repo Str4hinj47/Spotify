@@ -3,8 +3,9 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { CARS, TRUCKS, TRAFFIC_ONLY, isPlayableCar, type CarId, type TrafficId } from './catalog';
 import { indicatorMaterial, isIndicatorMaterial, addFrontIndicator, isFrontIndicatorMaterial, type IndicatorUniforms } from './indicators';
-import { createBodyKit, BODY_FITS } from './body-kits';
+import { createBodyKit, disposeBodyKit, BODY_FITS } from './body-kits';
 import { rigWheels } from './wheels';
+import { fitGolfBodywork } from './golf-bodywork';
 import { createCarbonMaterial, customPaintMaterial } from './livery';
 import { sanitizeCustomization, type Customization } from './customization.mjs';
 
@@ -319,7 +320,9 @@ export class ModelLibrary {
   }
 
   setCustomization(id: CarId, config: Customization) {
-    this.customization.set(id, sanitizeCustomization(config));
+    const clean=sanitizeCustomization(config);
+    if(id!=='golf' && (clean.rear==='golf-r32'||clean.rear==='golf-clean')) clean.rear='stock';
+    this.customization.set(id, clean);
   }
 
   getCustomization(id: CarId): Customization { return sanitizeCustomization(this.customization.get(id)); }
@@ -444,7 +447,11 @@ export class ModelLibrary {
             const finish=createCarbonMaterial();factoryExhaust.material=finish;customPaintCopies.push(finish);
           }
         }
-        if (BODY_FITS[id]) wrapper.add(createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080));
+        if (BODY_FITS[id]) {
+          const kit=createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080);
+          wrapper.add(kit);
+          if(id==='golf') customGeometries.push(...fitGolfBodywork(inner,wrapper,kit,config));
+        }
       }
     }
     const wheels: THREE.Group[] = [];
@@ -471,8 +478,12 @@ export class ModelLibrary {
         });
         if(geometry && rimMaterial) {
           const rim=new THREE.Mesh(geometry,rimMaterial), radius=pivot.userData.wheelRadius*.76;
-          rim.name='custom-rim';rim.rotation.y=side*Math.PI/2;rim.scale.setScalar(radius);
-          rim.position.x=side*Math.max(.02,pivot.userData.wheelHalfWidth-radius*.323-.01);
+          // The uploaded rims have a deep barrel. Compress only the axle axis
+          // and inset the outer face inside the sidewall, including narrow tires.
+          const depth=radius*.55;
+          rim.name='custom-rim';rim.rotation.y=side*Math.PI/2;rim.scale.set(radius,radius,depth);
+          rim.position.x=side*Math.max(0,pivot.userData.wheelHalfWidth-depth*.33-.065);
+
           pivot.add(rim);
         }
       }
@@ -485,6 +496,52 @@ export class ModelLibrary {
     wrapper.userData.indicatorMaterials = indicatorCopies;
     wrapper.userData.indicatorState = signal;
     return wrapper;
+  }
+
+  /** Render the actual fitted part (or uploaded rim) into a card without
+   * equipping it or touching the player's saved configuration. */
+  private workshopThumbs = new Map<string, string>();
+  private workshopRenderer?: THREE.WebGLRenderer;
+  workshopThumbnail(id: CarId, part: string, value: string): string {
+    const cacheKey = `${id}:${part}:${value}`;
+    const cached = this.workshopThumbs.get(cacheKey);
+    if (cached) return cached;
+    if (value === 'stock') return '';
+    const renderer = this.workshopRenderer ??= new THREE.WebGLRenderer({ antialias:true, alpha:true, preserveDrawingBuffer:true });
+    renderer.setPixelRatio(1); renderer.setSize(180,100);
+    renderer.outputColorSpace=THREE.SRGBColorSpace;
+    const scene = new THREE.Scene();
+    scene.add(new THREE.HemisphereLight(0xe5f6ff,0x253444,2));
+    const light=new THREE.DirectionalLight(0xffffff,2.5); light.position.set(4,6,5); scene.add(light);
+    const camera=new THREE.PerspectiveCamera(32,1.8,.01,100);
+    let kit: THREE.Group | undefined;
+    let material: THREE.Material | undefined;
+    let object: THREE.Object3D | undefined;
+    if(part==='rim') {
+      const geo=this.rims.get(value);
+      if(geo) { material=new THREE.MeshStandardMaterial({color:0xc4d2dd,metalness:.65,roughness:.27,side:THREE.DoubleSide}); object=new THREE.Mesh(geo,material); scene.add(object); }
+    } else {
+      const config=sanitizeCustomization({[part]:value});
+      kit=createBodyKit(id,config,0x91a9ba);
+      let temporary:THREE.BufferGeometry[]=[];
+      if(id==='golf' && ['front','rear','skirts'].includes(part)) {
+        const wrapper=new THREE.Group(), inner=this.get(id).scene.clone(true);wrapper.add(inner,kit);wrapper.updateMatrixWorld(true);
+        temporary=fitGolfBodywork(inner,wrapper,kit,config);wrapper.remove(kit);
+      }
+      for(const geometry of temporary)geometry.dispose();
+      object=kit.getObjectByName(`custom-${part}`); scene.add(kit);
+    }
+    if(object) {
+      object.updateWorldMatrix(true,true);
+      const bounds=new THREE.Box3().setFromObject(object), center=bounds.getCenter(new THREE.Vector3()), size=bounds.getSize(new THREE.Vector3());
+      const extent=Math.max(size.x,size.y,size.z,.1);
+      const direction=part==='rim' ? new THREE.Vector3(.12,.10,1) : new THREE.Vector3(1,.8,1.6);
+      camera.position.copy(center).add(direction.normalize().multiplyScalar(extent*2.4));
+      camera.lookAt(center); camera.updateProjectionMatrix(); renderer.render(scene,camera);
+    }
+    const url=renderer.domElement.toDataURL('image/png');
+    if(kit) disposeBodyKit(kit); material?.dispose();
+    this.workshopThumbs.set(cacheKey,url); return url;
   }
 
   async thumbnail(id: CarId): Promise<string> {

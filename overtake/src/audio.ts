@@ -18,6 +18,13 @@ export class GameAudio {
   private effectsGain: GainNode | null = null;
   private scoreGain: GainNode | null = null;
   private indicatorGain: GainNode | null = null;
+  private crowdSource: AudioBufferSourceNode | null = null;
+  private crowdGain: GainNode | null = null;
+  private rivalEngine: OscillatorNode | null = null;
+  private rivalGain: GainNode | null = null;
+  private crowdLevel = -1;
+  private rivalLevel = -1;
+  private rivalFrequency = -1;
   private signal: 'left' | 'right' | null = null;
   private signalLit = false;
   private lastT = 0;
@@ -27,12 +34,14 @@ export class GameAudio {
   muted = false;
   scoreSounds = true;
   indicatorSounds = true;
+  raceSounds = true;
 
   constructor() {
     try {
       this.muted = localStorage.getItem('overtake-muted') === '1';
       this.scoreSounds = localStorage.getItem('overtake-score-sounds') !== '0';
       this.indicatorSounds = localStorage.getItem('overtake-indicator-sounds') !== '0';
+      this.raceSounds = localStorage.getItem('overtake-race-sounds') !== '0';
     } catch {
       this.muted = false;
     }
@@ -109,7 +118,7 @@ export class GameAudio {
 
   setActive(active: boolean) {
     this.active = active;
-    if (!active) { this.signal = null; this.signalLit = false; }
+    if (!active) { this.signal = null; this.signalLit = false; this.stopRaceAmbience(); }
     this.applyVolume();
   }
 
@@ -131,6 +140,7 @@ export class GameAudio {
     }
     this.applyVolume();
     this.applyEffectVolume();
+    if (m) this.stopRaceAmbience();
   }
 
   private applyEffectVolume() {
@@ -155,6 +165,63 @@ export class GameAudio {
     this.indicatorSounds = enabled;
     try { localStorage.setItem('overtake-indicator-sounds', enabled ? '1' : '0'); } catch { /* ignore */ }
     this.applyEffectVolume();
+  }
+
+  setRaceSounds(enabled: boolean) {
+    this.raceSounds=enabled;
+    try { localStorage.setItem('overtake-race-sounds',enabled?'1':'0'); } catch { /* ignore */ }
+    if(!enabled) this.stopRaceAmbience();
+  }
+
+  private stopRaceAmbience() {
+    if(this.crowdSource) { try { this.crowdSource.stop(); } catch { /* already stopped */ } this.crowdSource.disconnect(); }
+    if(this.rivalEngine) { try { this.rivalEngine.stop(); } catch { /* already stopped */ } this.rivalEngine.disconnect(); }
+    this.crowdGain?.disconnect();this.rivalGain?.disconnect();this.crowdSource=null;this.crowdGain=null;this.rivalEngine=null;this.rivalGain=null;
+    this.crowdLevel=this.rivalLevel=this.rivalFrequency=-1;
+  }
+
+  // Soft synthesized grandstand wash, strongest near the start/finish. It is
+  // circuit-only, looped without per-frame allocations, and stops on pause.
+  raceAmbience(race:boolean, proximity:number, rivalProximity=0, rivalSpeed=0) {
+    if(!race || !this.active || this.muted || !this.raceSounds || !this.ctx || this.ctx.state!=='running' || !this.effectsGain) {this.stopRaceAmbience();return;}
+    const ctx=this.ctx;
+    if(!this.crowdSource) {
+      const buffer=ctx.createBuffer(1,ctx.sampleRate*3,ctx.sampleRate),samples=buffer.getChannelData(0);
+      for(let i=0;i<samples.length;i++) {
+        const t=i/ctx.sampleRate,fade=Math.min(1,i/1500,(samples.length-i)/1500);
+        samples[i]=(Math.random()*2-1)*(.55+.2*Math.sin(t*4.2)+.1*Math.sin(t*7.7))*fade;
+      }
+      const src=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain();
+      src.buffer=buffer;src.loop=true;filter.type='bandpass';filter.frequency.value=850;filter.Q.value=.55;gain.gain.value=0;
+      src.connect(filter).connect(gain).connect(this.effectsGain);src.start();this.crowdSource=src;this.crowdGain=gain;
+      // A quiet filtered motor tone follows the nearest rival, layered under
+      // the existing player engine rather than changing highway engine audio.
+      const motor=ctx.createOscillator(),motorFilter=ctx.createBiquadFilter(),motorGain=ctx.createGain();
+      motor.type='sawtooth';motor.frequency.value=55;motorFilter.type='lowpass';motorFilter.frequency.value=260;motorGain.gain.value=0;
+      motor.connect(motorFilter).connect(motorGain).connect(this.effectsGain);motor.start();this.rivalEngine=motor;this.rivalGain=motorGain;
+    }
+    const crowd=.006+.032*Math.max(0,Math.min(1,proximity)),engine=.018*Math.max(0,Math.min(1,rivalProximity));
+    const frequency=55+Math.max(0,Math.min(75,rivalSpeed))*1.5;
+    if(Math.abs(crowd-this.crowdLevel)>.001){this.crowdGain!.gain.setTargetAtTime(crowd,ctx.currentTime,.3);this.crowdLevel=crowd;}
+    if(Math.abs(engine-this.rivalLevel)>.001){this.rivalGain!.gain.setTargetAtTime(engine,ctx.currentTime,.2);this.rivalLevel=engine;}
+    if(Math.abs(frequency-this.rivalFrequency)>1){this.rivalEngine!.frequency.setTargetAtTime(frequency,ctx.currentTime,.15);this.rivalFrequency=frequency;}
+  }
+
+  raceCountdown(go:boolean) {
+    if(!this.ctx || this.ctx.state!=='running' || this.muted || !this.raceSounds)return;
+    this.blip(go?880:520,go?.24:.12,'sine',go?.075:.05);
+  }
+
+  raceFinish(place:number) {
+    if(!this.ctx || this.ctx.state!=='running' || this.muted || !this.raceSounds)return;
+    const podium=place<=3;
+    this.blip(podium?523:390,.22,'triangle',.07);
+    if(podium){this.blip(659,.24,'triangle',.07,.14);this.blip(784,.42,'triangle',.08,.28);}
+    if(!podium || !this.effectsGain)return;
+    const ctx=this.ctx,t=ctx.currentTime,duration=1.2,buffer=ctx.createBuffer(1,Math.floor(ctx.sampleRate*duration),ctx.sampleRate),samples=buffer.getChannelData(0);
+    for(let i=0;i<samples.length;i++)samples[i]=(Math.random()*2-1)*(1-i/samples.length);
+    const src=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain();src.buffer=buffer;filter.type='bandpass';filter.frequency.value=900;filter.Q.value=.5;
+    gain.gain.setValueAtTime(.055,t);gain.gain.exponentialRampToValueAtTime(.0001,t+duration);src.connect(filter).connect(gain).connect(this.effectsGain);src.start(t);
   }
 
   // The game's lamp phase is authoritative: one relay click on each on/off

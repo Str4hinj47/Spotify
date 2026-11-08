@@ -4,9 +4,9 @@
 
 The landing site is `/`; the game is `/play.html`. Play, progression, cosmetics,
 events and records work without an account and live in the browser's localStorage.
-Daily/weekly objective selection rotates in UTC; ranked time attacks award local
-rank points and original automotive badges. Traffic is random, world settings
-and cars can vary, and the clock is local. Local ranks can be edited or losses
+Daily/weekly objective selection rotates in UTC; ranked circuit races against AI award local
+rank points and original automotive badges. Cars and world settings can vary,
+and all results are local. Local ranks can be edited or losses
 avoided by closing the browser, and are not evidence of competitive play. Results are **not verified** or global.
 Sharing uses the native share sheet or clipboard, with a selectable-text fallback.
 Players can also download an unverified result card as a PNG.
@@ -16,9 +16,9 @@ provides an offline JSON export/import without sign-in. Import replaces local
 garage data and records after confirmation and keeps one local undo backup; close
 game tabs first. The file is unencrypted and contains user-controlled game data.
 
-Optional email-link sign-in and manual cloud save/restore are implemented on the
-website but **not connected or deployed yet**. Once configured, signed-in players
-can explicitly upload or restore their garage, cosmetics, selected car, local
+Optional email-link sign-in and manual cloud save/restore are connected for the
+current development preview, but **not deployed or end-to-end verified yet**.
+Signed-in players can explicitly upload or restore their garage, cosmetics, selected car, local
 rank and personal records. There is no automatic sync or merging. Device settings stay
 local; developer access is not transferred. Saves and scores are unverified and
 cannot be used for competitive rankings. The profile migration is not used by the
@@ -40,10 +40,19 @@ app; there is no leaderboard or score-submission endpoint.
 
 ## Optional Supabase account foundation
 
-- Do not apply changes to an existing project until its owner and purpose are
-  confirmed and its schema is reviewed. The currently connected project has
-  pre-existing `profiles` and `scores` tables; this repository has not changed
-  them. Prefer a separate project for this game and another for previews.
+- The development preview uses the dedicated free-tier project `overtake-accounts`
+  (Frankfurt, project ref `laaevrtphnqnhpkyyugc`). The previous project and its
+  pre-existing `profiles` and `scores` tables were not changed. Its profile and
+  score policies are public/unverified and should be reviewed independently.
+- The dedicated project currently uses Supabase's default email service, which
+  only sends to pre-authorized organization team addresses and is rate-limited.
+  Configure a custom SMTP provider in the Supabase dashboard before public signups;
+  never put SMTP credentials in Git, frontend variables, or chat. Verify delivery.
+- The preview redirect allowlist contains the current exact Arena preview URL
+  and local development URL. Preview hosts can change; add the new exact origin
+  when needed. Production has no URL configured yet. Before deployment, set the
+  site URL and exact redirect for the intended domain, and use a separate project
+  for production if isolation is needed.
 - Configure Email Auth and delivery, site URL, and exact allowed redirect URLs
   in Supabase. The website sends links back to the site's root; add each intended
   HTTPS origin, plus a local development redirect if needed. Test email delivery,
@@ -60,8 +69,9 @@ app; there is no leaderboard or score-submission endpoint.
   currently does not read or write it. No ranking or score-submission table is
   provided, deliberately. Test RLS as anonymous, another user and the owner.
 - For manual cloud saves, review and apply
-  `supabase/migrations/20261108000000_overtake_cloud_saves.sql` to the approved
-  game project (not automatically applied). It creates a separate table with
+  `supabase/migrations/20261108131824_overtake_cloud_saves.sql` to other approved
+  projects as appropriate. It is already applied to `overtake-accounts`. It
+  creates a separate table with
   per-user RLS, a payload size limit, server-controlled save ID/revision and restricted
   columns. Owners can read/write/delete only their own snapshots. A cloud snapshot
   remains user-controlled and is never evidence of fair play. The profile migration
@@ -74,10 +84,14 @@ app; there is no leaderboard or score-submission endpoint.
   limits or clearing site data can remove local data/backups. Downloads and restores
   do not automatically update any open game tab. Snapshot data is stored in Supabase,
   not end-to-end encrypted; do not treat it as secret.
-- Database isolation is tested with an embedded PostgreSQL test, and the UI with
-  mocked Supabase requests. Before release, test the migration, policies, email
-  delivery, save/restore/delete, concurrent devices, backup failure, and account
-  switching against a dedicated real Supabase test project as well.
+- Database isolation is tested with embedded PostgreSQL, and the UI with mocked
+  Supabase requests. The live project's policy configuration was inspected, but
+  real sign-in, delivery and cross-account save tests are still required. Before
+  release, test email delivery, RLS with real users, save/restore/delete, concurrent
+  devices, backup failure and account switching.
+- The older optional profile migration has not been applied to this project. Do
+  not blindly run all migrations against an existing project; reconcile migration
+  history and explicitly decide whether any optional migrations are needed.
 - Configure abuse protections and email rate limits. Add privacy, retention,
   account-deletion, support and consent policies appropriate to the audience.
   Profile and cloud-save rows cascade on auth user deletion, but an account-deletion UI and

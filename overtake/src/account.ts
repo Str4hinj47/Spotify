@@ -4,6 +4,9 @@ import { CLOUD_BACKUP_KEY, captureSnapshot, normalizeSnapshot, restoreSnapshot, 
 
 const $ = (id: string) => document.getElementById(id)!;
 const dialog = $('account-dialog') as HTMLDialogElement;
+// Email links return to the site root. Open the account dialog once the
+// Supabase client has consumed the callback, without copying tokens into UI.
+let authCallback = /(?:^#|&)access_token=/.test(location.hash) || new URLSearchParams(location.search).has('code');
 const form = $('account-form') as HTMLFormElement;
 const email = $('account-email') as HTMLInputElement;
 const signout = $('account-signout') as HTMLButtonElement;
@@ -84,8 +87,12 @@ async function initAccount() {
     cloudStatus.textContent = '';
   }
   update();
-  auth.auth.getSession().then(({ data }) => update(data.session?.user.email));
-  auth.auth.onAuthStateChange((_event, session) => update(session?.user.email));
+  function updateSession(userEmail?: string) {
+    update(userEmail);
+    if (authCallback && userEmail) { authCallback = false; if (!dialog.open) { refreshUndo(); dialog.showModal(); } }
+  }
+  auth.auth.getSession().then(({ data }) => updateSession(data.session?.user.email));
+  auth.auth.onAuthStateChange((_event, session) => updateSession(session?.user.email));
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     submit.disabled = true;

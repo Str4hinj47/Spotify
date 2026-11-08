@@ -27,7 +27,7 @@ try {
  // Reset the test library before checking the real garage UI and persistence.
  await page.reload();await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
  await page.click('#menu-garage');await page.click('[data-garage-tab=style]');await page.click('#btn-customize');await page.click('[data-workshop-tab=wheels]');
- await page.selectOption('#custom-rim','rim-10');
+ await page.locator('[data-workshop-panel=wheels] .workshop-card-pager button').last().click();await page.locator('[data-workshop-panel=wheels] .workshop-card-pager button').last().click();await page.click('[data-workshop-panel=wheels] .workshop-card[data-value="rim-10"]');
  await page.locator('#custom-rim-color').fill('#1a78c0');
  await page.selectOption('#custom-tire-width','wide');
  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('overtake-customization-v1')).golf);

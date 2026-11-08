@@ -38,3 +38,5 @@
 /* No concept artwork: the playable lobby shows the live, selected 3D car. */
 .hero-image{background:radial-gradient(ellipse at 75% 48%,#375d78 0%,#1b3345 35%,#0b1014 75%)}
 @media(max-width:800px){.hero-image{background:radial-gradient(ellipse at 70% 45%,#375d78,#142b3c 50%,#0b1014)}}
+
+.ranked-mark img { display:block; width:100px; height:112px; object-fit:contain; filter:drop-shadow(0 6px 12px #0008); }

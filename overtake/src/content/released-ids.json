@@ -1,5 +1,5 @@
 {
-  "revision": 9,
+  "revision": 10,
   "cars": [
     "golf",
     "mercedes",
@@ -37,5 +37,9 @@
     "rim-8",
     "rim-9",
     "rim-10"
+  ],
+  "golfRear": [
+    "golf-r32",
+    "golf-clean"
   ]
 }

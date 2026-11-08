@@ -5,8 +5,18 @@ models, not copies of product meshes, brands or images. The sources below were
 used as visual/functional design references; the result is an interpretation,
 not an exact replica. The attachment measurements are in `src/body-kits.ts`.
 
-- **Golf Mk4:** R32-style hatch-mounted roof extension, front chin and matching
-  skirts, with the twin exhaust grouped on one side. [R32-style kit](https://www.vividracing.com/complete-r32-style-body-kit-volkswagen-golf-0105-p-12944.html), [factory-style roof spoiler](https://vagparts.co.nz/vw-volkswagen-golf-mk4-r32-gti-edition-25-1j-rear-roof-spoiler-1j0827939a-oe-genuine-used-super-rare/).
+- **Golf Mk4:** lower chin, valance and sill interpretations informed by the
+  hatchback-specific [25th Anniversary kit](https://protuning.com/en/71661-gti-25th-anniversary-full-bodykit-spoilers-for-vw-golf-mk4-iv-hatchback),
+  plus the wider lower insert of contemporary R-style designs. Real
+  [R32-style kits](https://www.vividracing.com/complete-r32-style-body-kit-volkswagen-golf-0105-p-12944.html)
+  and the [SRS-Tec R-style rear](https://srs-tec.de/product/rear-bumper-r-style-r32-vw-golf-iv/?lang=en)
+  are full replacement bumper covers, not just valances; the latter requires
+  the appropriate R32 exhaust layout. The first four in-game options replace
+  only the lower surfaces. The later R32-inspired and clean options cut the
+  factory rear cover and its rubbing strip out and replace that region; the
+  R32-inspired option includes its own left/right exhaust layout. These are
+  game-specific interpretations, not replicas. The roof extension is inspired by the
+  [factory-style roof spoiler](https://vagparts.co.nz/vw-volkswagen-golf-mk4-r32-gti-edition-25-1j-rear-roof-spoiler-1j0827939a-oe-genuine-used-super-rare/).
 - **Mercedes W222:** a low front aero lip, sill extensions, rear diffuser and
   deck-mounted spoiler rather than a hatch-style roof wing. [Prior Design W222](https://prior-design.com/tuning/mercedes/s-class/w222-pd800s-aerodynamic-kit), [MEC Design W222](https://mecdesign.de/w222-s-class/w222-s-class-bodykit/).
 - **Audi RS6 C8 Avant:** front splitter, side skirts, diffuser and a roof-edge
@@ -44,7 +54,7 @@ The Touring and Sport settings are additional original procedural profiles,
 not imported or copied third-party tuning meshes. They vary dimensions and,
 where appropriate, wing supports, sill blades, fins or outlet arrangements;
 they are variations on the fitted base designs rather than standalone scanned
-body kits. The Golf lip and hatch edge, and RS6 front lip, use measurements
+body kits. The Golf lower bodywork and hatch edge, and RS6 front lip, use measurements
 from the in-game bodies. The Ferrari aftermarket exhaust retains the original
 three outlet positions rather than introducing a second set of holes.
 
@@ -52,3 +62,45 @@ Afterfire uses a custom animated noise shader and generated geometry in
 `src/body-kits.ts`; it does not include an external flame image or model.
 These statements do not change the separate license requirements of the car
 models themselves, which are described in the third-party notices.
+
+## Golf lower-surface replacement
+
+The source Golf merges its painted bumpers and rockers with the body in
+`golf_mesh_3`. On a customized player clone, `src/golf-bodywork.ts` clips
+triangles at the lower front, rear and two rocker regions, retaining all
+interpolated vertex attributes at the cut. The removed surfaces are reshaped
+and reattached as replacement sections; the factory surface is not retained
+under them. The upper bumpers, grille, plates and lights remain factory. The
+25th-inspired street option is restrained; touring, sport and cup are
+original progressively deeper interpretations, with the sport/cup rear using
+a dark integral diffuser region and strakes. The separate exhaust selection
+changes the holes cut in the replacement rear. This is an interpretation of
+the references, not a product model or a full R32 conversion. The untouched
+source remains in use for stock and traffic. Variant IDs are unchanged.
+
+`scripts/golf-bodywork-smoke.mjs` checks all four variants individually and
+combined, verifies that no factory paint triangles remain in the cut regions,
+checks five aftermarket exhaust cutouts and carbon finish, confirms stock and
+traffic isolation, and captures four garage views. The existing body-fit
+smoke checks clearance between each rocker and the wheels.
+
+### Full rear alternatives
+
+The Golf's two additional rear choices use distinct saved IDs, `golf-r32` and
+`golf-clean`. Both replace the painted rear-cover region up to the hatch and
+tail-lamp area, and clip the factory black rear rubbing strip out of its merged
+plastic mesh. They retain the tailgate, lamps and plate; they do not stack a
+new cover over the original. The R32-inspired version includes widely spaced
+left and right outlets even with the exhaust set to factory, because an R32
+cover and its exhaust are a matched layout. Every aftermarket exhaust setting
+keeps this left/right layout, including matching flame origins. The clean
+option has a dark lower insert and no visible outlet with factory exhaust;
+choosing another exhaust creates matching cutouts. The real
+[G4-R32 bumper](https://srs-tec.de/produkt/rear-bumper-g4-r32-vw-golf-4/?lang=en)
+and [clean RS-style bumper](https://srs-tec.de/product/rear-bumper-rs-style-clean-vw-golf-iv/?lang=en)
+are references, not included assets.
+
+`scripts/golf-full-rear-workshop-smoke.mjs` tests desktop and phone cards,
+preview rendering, gem costs, ownership, switching and reload persistence.
+`scripts/golf-bodywork-smoke.mjs` also tests clipping of both the paint and
+plastic primitives, all six R32 exhaust settings and flame origins.

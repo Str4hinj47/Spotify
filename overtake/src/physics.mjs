@@ -8,7 +8,7 @@ const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 export function createVehicleState() {
   return {
     s: 0, offset: 0, speed: 0, heading: 0, yawRate: 0, steer: 0,
-    accel: 0, latAccel: 0, slip: 0,
+    accel: 0, latAccel: 0, slip: 0, driftAngle:0, driftSide:0,
   };
 }
 
@@ -29,10 +29,12 @@ export function stepVehicle(st, input, p, dt, curvature = 0) {
   const maxSteer = (p.maxSteer ?? 0.5) / (1 + Math.pow(st.speed / 20, 2));
   const steerAngle = st.steer * maxSteer;
   const understeer = 1 + (p.understeer ?? 0.003) * st.speed * st.speed;
-  // Feed-forward road curvature: with no steering input the car tracks the
-  // road tangent instead of drifting wide, but it never changes lane for you.
+  // Highway driving retains its gentle road-following assist. On a circuit,
+  // the driver must steer through the bend; road-relative heading still
+  // subtracts the rotation of the track in both modes.
   const feed = curvature * st.speed;
-  let desiredYaw = st.speed * Math.tan(steerAngle) / (p.wheelbase ?? 2.7) / understeer + feed;
+  const assist = p.roadAssist !== false;
+  let desiredYaw = st.speed * Math.tan(steerAngle) / (p.wheelbase ?? 2.7) / understeer + (assist ? feed : 0);
 
   // Lateral load transfer costs a little total grip; handbrake unlocks the rear.
   const latUse = Math.min(1, Math.abs(st.latAccel) / G);
@@ -64,8 +66,8 @@ export function stepVehicle(st, input, p, dt, curvature = 0) {
   if (Math.abs(raw) < 0.05) {
     // Self-centring stability: the car straightens when you release the wheel,
     // but it does not steer back into a lane or change offset for you.
-    st.yawRate += (feed - st.yawRate) * Math.min(1, dt * 3.0);
-    st.heading *= Math.exp(-dt * 2.2);
+    st.yawRate += ((assist ? feed : 0) - st.yawRate) * Math.min(1, dt * 3.0);
+    if (assist) st.heading *= Math.exp(-dt * 2.2);
   }
   st.heading = clamp(st.heading, -0.9, 0.9);
   st.offset -= st.speed * Math.sin(st.heading) * dt;

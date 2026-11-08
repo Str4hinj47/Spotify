@@ -1,7 +1,7 @@
-export type ScenarioId = 'slipstream' | 'needle' | 'gauntlet';
-export interface RankedScenario { id: ScenarioId; title: string; kicker: string; distance: number; limit: number; silver: number; gold: number; metric: 'overtakes' | 'nearMisses'; target: number; objective: string; multiplier: number; }
+export type ScenarioId = import('./circuit.mjs').TrackId;
+export interface RankedScenario {id:ScenarioId;title:string;kicker:string;trackId:ScenarioId;kind:'race'|'drift';distance:number;laps:number;multiplier:number;objective:string;}
 export interface Rank { id: string; name: string; min: number; color: string; glow: string; }
-export interface RankedState { version: 1; points: number; attempts: number; scenarios: Partial<Record<ScenarioId, {completions:number; bestTime:number | null; bestMedal:'bronze'|'silver'|'gold'|null}>>; }
+export interface RankedState { version: 1; points: number; attempts: number; scenarios: Partial<Record<ScenarioId | 'slipstream' | 'needle' | 'gauntlet', {completions:number; bestTime:number | null; bestMedal:'bronze'|'silver'|'gold'|null}>>; }
 export interface RankInfo { rank: Rank; index:number; next:Rank|null; progress:number; points:number; }
 export interface RankedOutcome { delta:number; medal:'bronze'|'silver'|'gold'|null; success:boolean; eligible:boolean; }
 export interface RankChange { state:RankedState; outcome:RankedOutcome; before:RankInfo; after:RankInfo; delta:number; }

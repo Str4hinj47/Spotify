@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { CAR_CONTENT, ACTIVE_CAR_CONTENT, RETIRED_CAR_IDS } from '../src/content/cars.mjs';
 import { LIVERY_OPTIONS, PAINT_COLORS, RIM_OPTIONS } from '../src/content/cosmetics.mjs';
 import { CONTENT_REVISION } from '../src/content/version.mjs';
+import { GOLF_REAR_OPTIONS } from '../src/customization.mjs';
 import { SEASON_TIERS, PREMIUM_TIERS } from '../src/season-pass.mjs';
 
 const root = new URL('../', import.meta.url);
@@ -71,6 +72,7 @@ export function validateContent({ cars = CAR_CONTENT, liveries = LIVERY_OPTIONS,
   for (const [id,pattern] of [['none','none'],['stripe','stripe'],['race','race']]) if (!Array.isArray(liveries) || !liveries.some(item => item?.id === id && item.pattern === pattern)) errors.push(`Keep legacy livery ${id} with its original pattern for saved games.`);
   if (!Array.isArray(liveries) || liveries.find(item => item?.id === 'none')?.price !== 0) errors.push('The no-livery option must remain free.');
   if (checkFiles) {
+    if (!Array.isArray(released.golfRear) || released.golfRear.some(id => !GOLF_REAR_OPTIONS.includes(id)) || GOLF_REAR_OPTIONS.some(id => !released.golfRear.includes(id))) errors.push('Golf rear IDs must match the released ID ledger.');
     if (!Array.isArray(released.rims) || released.rims.some(id => !RIM_OPTIONS.includes(id)) || RIM_OPTIONS.some(id => !released.rims.includes(id))) errors.push('Rim IDs must match the released ID ledger.');
     try { const rimAsset=fs.readFileSync(new URL('public/models/custom-rims.glb',root)); if(rimAsset.toString('ascii',0,4)!=='glTF') errors.push('Invalid rim GLB.'); }
     catch { errors.push('Missing rim GLB.'); }
