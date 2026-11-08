@@ -92,3 +92,8 @@ test('independent body-part colors sanitize and round-trip',()=>{
  assert.equal(result.frontColor,'#ff0000');assert.equal(result.rearColor,'#112233');assert.equal(result.skirtsColor,'');assert.equal(result.spoilerColor,'#000000');assert.equal(result.hoodColor,'#abcdef');assert.equal(result.roofColor,'#987654');
  assert.deepEqual(sanitizeCustomization(JSON.parse(JSON.stringify(result))),result);
 });
+
+test('Golf door colors persist independently and are scoped to the Golf',()=>{
+ const result=sanitizeCustomizations({golf:{leftFrontDoorColor:'#f00',rightFrontDoorColor:'#0f0',leftRearDoorColor:'#00f',rightRearDoorColor:'#fff'},audi:{leftFrontDoorColor:'#f00'}},['golf','audi']);
+ assert.equal(result.golf.leftFrontDoorColor,'#ff0000');assert.equal(result.golf.rightFrontDoorColor,'#00ff00');assert.equal(result.golf.leftRearDoorColor,'#0000ff');assert.equal(result.golf.rightRearDoorColor,'#ffffff');assert.equal(result.audi.leftFrontDoorColor,'');
+});

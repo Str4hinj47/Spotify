@@ -400,7 +400,7 @@ export class ModelLibrary {
     const clean=sanitizeCustomization(config);
     if(id!=='golf') {
       for(const [part, options] of Object.entries(GOLF_PART_OPTIONS)) if(options?.includes(clean[part as keyof typeof GOLF_PART_OPTIONS] as never)) (clean as unknown as Record<string,string>)[part]='stock';
-      clean.rearDiffuserColor='';clean.headlights='stock';clean.taillights='stock';clean.mirrors='stock';clean.tireProfile='standard';
+      clean.leftFrontDoorColor='';clean.rightFrontDoorColor='';clean.leftRearDoorColor='';clean.rightRearDoorColor='';clean.rearDiffuserColor='';clean.headlights='stock';clean.taillights='stock';clean.mirrors='stock';clean.tireProfile='standard';
     }
     if(id!=='mercedes') { for(const part of ['front','rear','skirts'] as const) if(clean[part].startsWith('mercedes-')) (clean as unknown as Record<string,string>)[part]='stock'; }
     if(id!=='audi') { for(const part of ['front','rear','skirts'] as const) if(clean[part].startsWith('audi-')) (clean as unknown as Record<string,string>)[part]='stock'; }
@@ -488,7 +488,7 @@ export class ModelLibrary {
             }
             base = cached;
           }
-          if (config && isPlayableCar(id) && (config.paintScheme !== 'single' || config.livery !== 'none' || !!config.hoodColor || !!config.roofColor)) {
+          if (config && isPlayableCar(id) && (config.paintScheme !== 'single' || config.livery !== 'none' || !!config.hoodColor || !!config.roofColor || !!config.leftFrontDoorColor || !!config.rightFrontDoorColor || !!config.leftRearDoorColor || !!config.rightRearDoorColor)) {
             const meshToCar = new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
             const custom = customPaintMaterial(base, meshToCar, id, config);
             customPaintCopies.push(custom);

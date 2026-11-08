@@ -240,6 +240,11 @@ function syncCustomizationUI() {
     const reset=document.querySelector<HTMLButtonElement>(`[data-part-color-reset="${part}"]`)!;
     reset.disabled=!config[`${part}Color`];
   }
+  $('golf-door-colors').classList.toggle('hidden',selected!=='golf');
+  for(const [id,key] of [['left-front','leftFrontDoorColor'],['right-front','rightFrontDoorColor'],['left-rear','leftRearDoorColor'],['right-rear','rightRearDoorColor']] as const) {
+    ($(`custom-${id}-door-color`) as HTMLInputElement).value=config[key] || paints[selected] || getCar(selected).color;
+    document.querySelector<HTMLButtonElement>(`[data-door-color-reset="${key}"]`)!.disabled=!config[key];
+  }
   ($('custom-primary-color') as HTMLInputElement).value=paints[selected] ?? getCar(selected).color;
   ($('custom-paint-scheme') as HTMLSelectElement).value=config.paintScheme;
   ($('custom-secondary-color') as HTMLInputElement).value=config.secondaryColor;
@@ -1255,6 +1260,10 @@ function bindUI() {
     applyCustomization({ ...currentCustomization(), [key]:value, ...(suggestedColor ? { liveryColor:suggestedColor } : {}) } as Customization);
   });
   for (const [id,key,event] of [['custom-rim','rim','change'],['custom-rim-color','rimColor','change'],['custom-tire-width','tireWidth','change'],['custom-tire-profile','tireProfile','change'],['custom-flame-color','flameColor','change'],['custom-headlights','headlights','change'],['custom-taillights','taillights','change'],['custom-mirrors','mirrors','change']] as const) $(id).addEventListener(event, e => applyCustomization({ ...currentCustomization(), [key]:(e.target as HTMLInputElement | HTMLSelectElement).value } as Customization));
+  for(const [id,key] of [['left-front','leftFrontDoorColor'],['right-front','rightFrontDoorColor'],['left-rear','leftRearDoorColor'],['right-rear','rightRearDoorColor']] as const) {
+    $(`custom-${id}-door-color`).addEventListener('change',event=>applyCustomization({...currentCustomization(),[key]:(event.target as HTMLInputElement).value}));
+    document.querySelector<HTMLButtonElement>(`[data-door-color-reset="${key}"]`)!.addEventListener('click',()=>applyCustomization({...currentCustomization(),[key]:''}));
+  }
   for(const part of ['front','rear','skirts','spoiler','hood','roof'] as const) {
     $(`custom-${part}-color`).addEventListener('change',event=>applyCustomization({...currentCustomization(),[`${part}Color`]:(event.target as HTMLInputElement).value}));
     document.querySelector<HTMLButtonElement>(`[data-part-color-reset="${part}"]`)!.addEventListener('click',()=>applyCustomization({...currentCustomization(),[`${part}Color`]:''}));

@@ -45,6 +45,9 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
       kitMatrix:{value:meshToCar}, kitNormalMatrix:{value:new THREE.Matrix3().getNormalMatrix(meshToCar)}, kitSecondary:{value:secondary}, kitAccent:{value:livery},
       kitHoodColor:{value:new THREE.Color(config.hoodColor || '#ffffff')}, kitRoofColor:{value:new THREE.Color(config.roofColor || '#ffffff')},
       kitHoodEnabled:{value:config.hoodColor?1:0}, kitRoofEnabled:{value:config.roofColor?1:0},
+      kitDoorLF:{value:new THREE.Color(config.leftFrontDoorColor || '#ffffff')}, kitDoorRF:{value:new THREE.Color(config.rightFrontDoorColor || '#ffffff')},
+      kitDoorLR:{value:new THREE.Color(config.leftRearDoorColor || '#ffffff')}, kitDoorRR:{value:new THREE.Color(config.rightRearDoorColor || '#ffffff')},
+      kitDoorEnabled:{value:new THREE.Vector4(id==='golf' && config.leftFrontDoorColor?1:0,id==='golf' && config.rightFrontDoorColor?1:0,id==='golf' && config.leftRearDoorColor?1:0,id==='golf' && config.rightRearDoorColor?1:0)},
       kitScheme:{value:upper}, kitPattern:{value:pattern}, kitCarbon:{value:config.secondaryFinish==='carbon'?1:0},
       kitHood:{value:new THREE.Vector3(...hood)}, kitStripe:{value:d.stripe}, kitOffset:{value:d.offset}, kitBelt:{value:d.belt}, kitDoor:{value:d.doorZ}, kitSide:{value:d.side}, kitRoof:{value:d.roof},
     });
@@ -52,7 +55,7 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
     shader.vertexShader = shader.vertexShader.replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvKitNormal = normalize(kitNormalMatrix * objectNormal);');
     shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvKitPos = (kitMatrix * vec4(transformed, 1.0)).xyz;');
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
-      varying vec3 vKitPos; varying vec3 vKitNormal; uniform vec3 kitSecondary; uniform vec3 kitAccent; uniform vec3 kitHoodColor, kitRoofColor; uniform float kitHoodEnabled, kitRoofEnabled;
+      varying vec3 vKitPos; varying vec3 vKitNormal; uniform vec3 kitSecondary; uniform vec3 kitAccent; uniform vec3 kitHoodColor, kitRoofColor; uniform float kitHoodEnabled, kitRoofEnabled; uniform vec3 kitDoorLF,kitDoorRF,kitDoorLR,kitDoorRR; uniform vec4 kitDoorEnabled;
       uniform float kitScheme, kitPattern, kitCarbon, kitStripe, kitOffset, kitBelt, kitDoor, kitSide, kitRoof; uniform vec3 kitHood;
       float kitBand(float d,float w) { return 1.0-smoothstep(w,w+0.008,abs(d)); }
       float kitBox(vec2 p,vec2 b,float r) {
@@ -93,6 +96,18 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
       diffuseColor.rgb=mix(diffuseColor.rgb,second,secondaryMask);
       diffuseColor.rgb=mix(diffuseColor.rgb,kitHoodColor,hoodPanel*kitHoodEnabled);
       diffuseColor.rgb=mix(diffuseColor.rgb,kitRoofColor,roofPanel*kitRoofEnabled);
+      // Golf doors use measured side-panel bounds in normalized car space.
+      // Restrict to the exterior paint, leaving the wheels, sill and glass alone.
+      float doorSide=smoothstep(.65,.70,ax)*smoothstep(.23,.26,vKitPos.y)*(1.0-smoothstep(.98,1.02,vKitPos.y));
+      float h=clamp(vKitPos.y-.30,0.0,.70);
+      float frontEdge=-.79+.15*h, middle=.32+.13*h, rearEdge=1.00+.50*h;
+      float frontDoor=smoothstep(frontEdge,frontEdge+.015,vKitPos.z)*(1.0-smoothstep(middle-.015,middle,vKitPos.z))*doorSide;
+      float rearDoor=smoothstep(middle,middle+.015,vKitPos.z)*(1.0-smoothstep(rearEdge-.015,rearEdge,vKitPos.z))*doorSide;
+      float leftSide=step(vKitPos.x,0.0), rightSide=1.0-leftSide;
+      diffuseColor.rgb=mix(diffuseColor.rgb,kitDoorLF,frontDoor*leftSide*kitDoorEnabled.x);
+      diffuseColor.rgb=mix(diffuseColor.rgb,kitDoorRF,frontDoor*rightSide*kitDoorEnabled.y);
+      diffuseColor.rgb=mix(diffuseColor.rgb,kitDoorLR,rearDoor*leftSide*kitDoorEnabled.z);
+      diffuseColor.rgb=mix(diffuseColor.rgb,kitDoorRR,rearDoor*rightSide*kitDoorEnabled.w);
       float top=smoothstep(.42,.72,abs(n.y))*smoothstep(kitBelt+.08,kitBelt+.20,vKitPos.y);
       float side=smoothstep(.45,.8,abs(n.x))*smoothstep(kitSide*.65,kitSide*.88,ax);
       float stripe=kitBand(ax-kitOffset,kitStripe*.5)*top;
@@ -151,7 +166,7 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
       vec3 ink=lightness > .35 ? vec3(.015,.02,.025) : vec3(.96,.97,.98);
       diffuseColor.rgb=mix(diffuseColor.rgb,ink,number);`);
   };
-  mat.customProgramCacheKey = () => 'overtake-custom-paint-v8';
+  mat.customProgramCacheKey = () => 'overtake-custom-paint-v9';
   mat.name = `custom-paint-${id}`;
   return mat;
 }
