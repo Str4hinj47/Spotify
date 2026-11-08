@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {TRACKS, TRACK_LENGTH, trackSample} from '../src/circuit.mjs';
 import {circuitCarOverlap} from '../src/circuit-contact.mjs';
-import {raceDriverProfile,raceGap,cornerSpeedLimit,planRaceDriver,stepRaceDriver,resolveRaceContacts,resolvePlayerContact} from '../src/race-ai.mjs';
+import {raceRivalPerformance,raceDriverProfile,raceGap,cornerSpeedLimit,planRaceDriver,stepRaceDriver,resolveRaceContacts,resolvePlayerContact} from '../src/race-ai.mjs';
 const actor=(key,progress,offset,speed)=>({key,progress,offset,speed,width:2,length:4.5});
 const driver=(key=0,progress=0,offset=0,speed=0)=>({...actor(key,progress,offset,speed),profile:raceDriverProfile(key),targetSpeed:50,acceleration:7,lateralSpeed:0,braking:false,passTarget:null,passOffset:null});
 
@@ -57,4 +57,11 @@ test('rival heading and trajectory evolve continuously through bends',async()=>{
   if(travel>.1)assert.ok((dx*-Math.sin(mid)+dz*-Math.cos(mid))/travel>.995,'movement should follow the car heading');
  }
  assert.ok(maxYawStep<.04,`turn should not snap (${maxYawStep})`);
+});
+
+test('rival performance follows engine tier before the race without mid-race rubber banding',()=>{
+ const car={maxSpeed:56,accel:9.3},player={maxSpeed:54};
+ const stock=raceRivalPerformance(car,player,0,'race'), upgraded=raceRivalPerformance(car,player,3,'race');
+ assert.ok(stock.targetSpeed>player.maxSpeed);assert.ok(upgraded.targetSpeed>stock.targetSpeed);assert.ok(upgraded.acceleration>stock.acceleration);
+ assert.deepEqual(raceRivalPerformance(car,player,20,'race'),upgraded);
 });

@@ -3,7 +3,7 @@ import { getTrack, trackSample, trackPoint, trackRacePosition, trackLap, type Tr
 import { isDriftCar, stepDriftVehicle, stepCircuitDriftVehicle } from './drift.mjs';
 import { resolveCircuitWall, resolveCircuitCarContact } from './circuit-contact.mjs';
 import { createLapTiming, recordLapCrossings } from './race-hud.mjs';
-import { raceDriverProfile, planRaceDriver, stepRaceDriver, resolveRaceContacts, type RaceDriver } from './race-ai.mjs';
+import { raceRivalPerformance, raceDriverProfile, planRaceDriver, stepRaceDriver, resolveRaceContacts, type RaceDriver } from './race-ai.mjs';
 import { createCircuit } from './world/circuit';
 import { loadGhost, saveGhost, ghostAt, MAX_GHOST_SAMPLES, type GhostReplay, type GhostSample } from './ghost.mjs';
 import { spinWheels } from './wheels';
@@ -1868,7 +1868,7 @@ export class OvertakeGame {
     this.vehicle=createVehicleState(); this.vehicle.s=-36; this.vehicle.offset=-3;
     this.speed=0; this.steer=0; this.playerS=-36; this.offset=-3;
     this.raceCountdown=3; this.raceFinishPosition=null; this.raceTiming=createLapTiming();
-    const playerSpec=getCar(this.selected);
+    const playerSpec=getCar(this.selected), engineLevel=effectiveUpgrades(this.progression,this.selected).engine;
     // Closest performance tiers keep the first race competitive while ensuring
     // every AI car is one of the currently playable models, never traffic-only.
     const choices=CARS.filter(c=>c.id!==this.selected && (getTrack(this.raceTrack).kind!=='drift' || isDriftCar(c.id))).slice().sort((a,b)=>Math.abs(a.maxSpeed-playerSpec.maxSpeed)-Math.abs(b.maxSpeed-playerSpec.maxSpeed)).slice(0,5);
@@ -1877,7 +1877,7 @@ export class OvertakeGame {
       const group=this.library.create(car.id,{paint:TRAFFIC_COLORS[(i+2)%TRAFFIC_COLORS.length],player:false});
       const meta=this.library.get(car.id);
       const rival:CircuitRival={group,id:car.id,progress:-30+i*5,offset:i%2?3:-3,speed:0,
-        targetSpeed:Math.min(car.maxSpeed*.95,playerSpec.maxSpeed*(getTrack(this.raceTrack).kind==='drift'?.70:.90)),acceleration:car.accel*.85,length:meta.length,width:meta.width,finished:false,key:i,profile:raceDriverProfile(i),lateralSpeed:0,braking:false,passTarget:null,passOffset:null,driftYaw:0,wheelSteer:0};
+        ...raceRivalPerformance(car,playerSpec,engineLevel,getTrack(this.raceTrack).kind),length:meta.length,width:meta.width,finished:false,key:i,profile:raceDriverProfile(i,getTrack(this.raceTrack).kind),lateralSpeed:0,braking:false,passTarget:null,passOffset:null,driftYaw:0,wheelSteer:0};
       addVehicleLights(group,car.id,true);
       this.attachCircuitShadow(group,meta.width,meta.length);
       this.circuitRivals.push(rival);this.scene.add(group);this.placeCircuitRival(rival);

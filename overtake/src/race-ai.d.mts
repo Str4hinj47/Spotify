@@ -3,7 +3,8 @@ export interface RaceDriverProfile {pace:number;grip:number;braking:number;line:
 export interface RaceActor {key:number;progress:number;offset:number;speed:number;length:number;width:number;}
 export interface RaceDriver extends RaceActor {targetSpeed:number;acceleration:number;profile:RaceDriverProfile;lateralSpeed:number;heading?:number;yawRate?:number;braking:boolean;passTarget:number|null;passOffset:number|null;}
 export interface RacePlan {targetOffset:number;desiredSpeed:number;line:number;cornerSpeed:number;passTarget:number|null;passOffset:number|null;}
-export function raceDriverProfile(index:number):RaceDriverProfile;
+export function raceRivalPerformance(car:{maxSpeed:number;accel:number},player:{maxSpeed:number},engineLevel:number,kind:'race'|'drift'):{targetSpeed:number;acceleration:number};
+export function raceDriverProfile(index:number,kind?:'race'|'drift'):RaceDriverProfile;
 export function raceGap(from:number,to:number,length:number):number;
 export function cornerSpeedLimit(driver:RaceDriver,trackId:TrackId,surface?:number):number;
 export function planRaceDriver(driver:RaceDriver,others:RaceActor[],trackId:TrackId,surface?:number):RacePlan;

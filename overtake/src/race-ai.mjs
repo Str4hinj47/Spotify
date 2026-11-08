@@ -6,13 +6,28 @@ import { resolveCircuitCarContact } from './circuit-contact.mjs';
 
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const profiles=[
+ {pace:.94,grip:5.6,braking:8.7,line:-.55,side:-1},
+ {pace:.90,grip:5.3,braking:8.2,line:.65,side:1},
+ {pace:1.00,grip:6.3,braking:9.2,line:.15,side:1},
+ {pace:.97,grip:5.9,braking:8.6,line:-.2,side:-1},
+ {pace:.99,grip:6.1,braking:9.0,line:.45,side:1},
+];
+const driftProfiles=[
  {pace:.84,grip:4.5,braking:8.0,line:-.55,side:-1},
  {pace:.76,grip:4.2,braking:7.4,line:.65,side:1},
  {pace:.94,grip:5.1,braking:8.6,line:.15,side:1},
  {pace:.89,grip:4.7,braking:7.8,line:-.2,side:-1},
  {pace:.93,grip:5.0,braking:8.3,line:.45,side:1},
 ];
-export function raceDriverProfile(index) { return {...profiles[((index%profiles.length)+profiles.length)%profiles.length]}; }
+// Fixed pre-race tuning, not a catch-up boost: opponents get the same engine
+// upgrade tier as the selected car, including developer-mode max upgrades.
+export function raceRivalPerformance(car, player, engineLevel, kind) {
+ if(kind==='drift') return {targetSpeed:Math.min(car.maxSpeed*.95,player.maxSpeed*.70),acceleration:car.accel*.85};
+ const level=clamp(Number(engineLevel)||0,0,3);
+ const targetSpeed=Math.min(car.maxSpeed*1.06,player.maxSpeed*(kind==='drift'?.80:1.02))*(1+level*.04);
+ return {targetSpeed,acceleration:car.accel*(1+level*.08)*.96};
+}
+export function raceDriverProfile(index,kind='race') { const list=kind==='drift'?driftProfiles:profiles; return {...list[((index%list.length)+list.length)%list.length]}; }
 
 // Physical proximity wraps at the start line; standings use unwrapped progress.
 export function raceGap(from,to,length) {
