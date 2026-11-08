@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { CONTENT_REVISION } from '../src/content/version.mjs';
 import {captureSnapshot, normalizeSnapshot, restoreSnapshot, undoRestore, CLOUD_BACKUP_KEY} from '../src/cloud-save.mjs';
 const makeStorage = (initial={}) => { const map = new Map(Object.entries(initial)); return { getItem:k=>map.get(k)??null, setItem:(k,v)=>map.set(k,String(v)), removeItem:k=>map.delete(k), map }; };
 const progression = {version:2,money:1234,dev:true,owned:['golf','mustang'],upgrades:{},tunes:{}};
@@ -34,7 +35,7 @@ test('rank is backed up and restored; older snapshots and backups preserve curre
 test('new Golf rear IDs and purchase ownership survive backup and restore',()=>{
  for(const rear of ['golf-r32','golf-clean']) {
   const progress={...progression,tunes:{golf:[`rear:${rear}`]}},source=makeStorage({'overtake-progression-v2':JSON.stringify(progress),'overtake-customization-v1':JSON.stringify({golf:{rear}})}),target=makeStorage({'overtake-progression-v2':JSON.stringify(progression)});
-  const snap=captureSnapshot(source);assert.equal(snap.contentRevision,10);assert.equal(snap.customizations.golf.rear,rear);restoreSnapshot(target,snap);
+  const snap=captureSnapshot(source);assert.equal(snap.contentRevision,CONTENT_REVISION);assert.equal(snap.customizations.golf.rear,rear);restoreSnapshot(target,snap);
   assert.equal(JSON.parse(target.getItem('overtake-customization-v1')).golf.rear,rear);assert.ok(JSON.parse(target.getItem('overtake-progression-v2')).tunes.golf.includes(`rear:${rear}`));
  }
 });

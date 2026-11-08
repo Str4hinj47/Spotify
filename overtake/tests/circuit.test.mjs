@@ -7,13 +7,15 @@ import {createVehicleState,stepVehicle} from '../src/physics.mjs';
 import {vehicleParameters} from '../src/car-performance.mjs';
 import {ACTIVE_CAR_CONTENT} from '../src/content/cars.mjs';
 
-test('circuit is a closed, continuous distance-based track with consistent tangent',()=>{
+test('stadium is a closed, continuous multi-corner circuit with consistent tangent',()=>{
  assert.deepEqual(trackAt(0),trackAt(TRACK_LENGTH));
- for(const d of [TRACK_STRAIGHT-80, TRACK_STRAIGHT+Math.PI*TRACK_RADIUS-80, 2*TRACK_STRAIGHT+Math.PI*TRACK_RADIUS-80, TRACK_LENGTH-80]) {
-  const a=trackAt(d-1e-4),b=trackAt(d+1e-4);
-  assert.ok(Math.hypot(a.x-b.x,a.z-b.z)<.001);assert.ok(Math.abs(Math.sin((a.yaw-b.yaw)/2))<.001);
+ const bends=[];
+ for(let d=0;d<TRACK_LENGTH;d+=5) {
+  const a=trackAt(d),b=trackAt(d+.01);assert.ok(Math.hypot(a.x-b.x,a.z-b.z)<.011);assert.ok(Math.abs(Math.sin((a.yaw-b.yaw)/2))<.01);
+  if(Math.abs(a.curvature)>.003)bends.push(Math.sign(a.curvature));
  }
- const p=trackPosition(22,5), c=trackAt(22);assert.ok(Math.abs(Math.hypot(p.x-c.x,p.z-c.z)-5)<1e-8);
+ assert.ok(bends.includes(1)&&bends.includes(-1),'must include turns in both directions');
+ const p=trackPosition(22,5),c=trackAt(22);assert.ok(Math.abs(Math.hypot(p.x-c.x,p.z-c.z)-5)<1e-8);
 });
 test('race standings use unwrapped progress and count already finished opponents',()=>{
  const opponents=[{progress:100},{progress:500},{progress:RACE_DISTANCE},{progress:RACE_DISTANCE}];
@@ -28,23 +30,11 @@ test('circuit is an independent, untimed run and retains score records',()=>{
  assert.equal(sanitizeRecords(result.records).modes.circuit.bestScore,800);
 });
 
-test('a driver can complete three laps by steering and braking for the bends',()=>{
- const vehicle=createVehicleState(),params=vehicleParameters(ACTIVE_CAR_CONTENT[0],{engine:0,tires:0,brakes:0},'standard',1);vehicle.s=-36;vehicle.offset=-3;
- params.roadAssist=false;let largest=0;
- for(let i=0;i<10000 && vehicle.s<RACE_DISTANCE;i++) {
-  const corner=trackAt(vehicle.s+45).curvature!==0 || trackAt(vehicle.s).curvature!==0, target=corner?25:40;
-  const desired=Math.max(-.3,Math.min(.3,vehicle.offset*.02)), error=desired-vehicle.heading;
-  stepVehicle(vehicle,{throttle:vehicle.speed<target,brake:vehicle.speed>target+1,left:error>.03,right:error<-.03,handbrake:false},params,.025,trackAt(vehicle.s).curvature);
-  largest=Math.max(largest,Math.abs(vehicle.offset));
- }
- assert.ok(vehicle.s>=RACE_DISTANCE);assert.ok(largest<10,`maximum offset ${largest}`);
-});
-
 test('circuit driving does not steer the car around a corner for the player',()=>{
  const vehicle=createVehicleState(),params={...vehicleParameters(ACTIVE_CAR_CONTENT[0],{engine:0,tires:0,brakes:0},'standard',1),roadAssist:false};
- vehicle.s=TRACK_STRAIGHT-70;vehicle.speed=20;
+ vehicle.s=350;vehicle.speed=20;const initial=vehicle.offset;
  for(let i=0;i<100;i++)stepVehicle(vehicle,{throttle:false,brake:false,left:false,right:false,handbrake:false},params,.025,trackAt(vehicle.s).curvature);
- assert.ok(vehicle.offset>1,'the car should drift outward without steering');
+ assert.ok(Math.abs(vehicle.offset-initial)>1,'the car should drift outward without steering');
 });
 
 test('five independent closed layouts are continuous and two are drift tracks',async()=>{
@@ -56,7 +46,7 @@ test('five independent closed layouts are continuous and two are drift tracks',a
 });
 
 test('all five tracks can be completed with appropriate steering and drift handling',async()=>{
- const {TRACKS,trackSample}=await import('../src/circuit.mjs'),{stepDriftVehicle}=await import('../src/drift.mjs');
+ const {TRACKS,trackSample}=await import('../src/circuit.mjs'),{stepCircuitDriftVehicle}=await import('../src/drift.mjs');
  for(const track of TRACKS) {
   const spec=ACTIVE_CAR_CONTENT.find(c=>c.id===(track.kind==='drift'?'challenger':'golf'));
   const v=createVehicleState(),p={...vehicleParameters(spec,{engine:0,tires:0,brakes:0},'standard',1),roadAssist:false};v.s=-36;v.offset=-3;
@@ -65,7 +55,7 @@ test('all five tracks can be completed with appropriate steering and drift handl
    const target=Math.min(33,Math.sqrt(5/Math.max(.001,Math.abs(c),Math.abs(next))));
    const desired=Math.max(-.25,Math.min(.25,v.offset*.025)),error=desired-v.heading;
    const controls={throttle:v.speed<target,brake:v.speed>target+1,left:error>.025,right:error<-.025,handbrake:false};
-   (track.kind==='drift'?stepDriftVehicle:stepVehicle)(v,controls,p,.025,c);
+   (track.kind==='drift'?stepCircuitDriftVehicle:stepVehicle)(v,controls,p,.025,c);
    const limit=track.halfWidth-1;if(Math.abs(v.offset)>limit){v.offset=Math.max(-limit,Math.min(limit,v.offset));v.speed=Math.max(0,v.speed-16*.025);v.heading*=.8;hits++;}
   }
   assert.ok(v.s>=track.length*track.laps,`${track.id} unfinished`);assert.ok(hits<50,`${track.id} too difficult`);

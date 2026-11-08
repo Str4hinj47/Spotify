@@ -1,7 +1,7 @@
 import type { TrackId } from './circuit.mjs';
 export interface RaceDriverProfile {pace:number;grip:number;braking:number;line:number;side:number;}
 export interface RaceActor {key:number;progress:number;offset:number;speed:number;length:number;width:number;}
-export interface RaceDriver extends RaceActor {targetSpeed:number;acceleration:number;profile:RaceDriverProfile;lateralSpeed:number;braking:boolean;passTarget:number|null;passOffset:number|null;}
+export interface RaceDriver extends RaceActor {targetSpeed:number;acceleration:number;profile:RaceDriverProfile;lateralSpeed:number;heading?:number;yawRate?:number;braking:boolean;passTarget:number|null;passOffset:number|null;}
 export interface RacePlan {targetOffset:number;desiredSpeed:number;line:number;cornerSpeed:number;passTarget:number|null;passOffset:number|null;}
 export function raceDriverProfile(index:number):RaceDriverProfile;
 export function raceGap(from:number,to:number,length:number):number;

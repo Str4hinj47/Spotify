@@ -219,7 +219,10 @@ function syncCustomizationUI() {
     };
     const named=selected==='golf' ? golfLabels[part] : undefined;
     const options = [['stock','Factory'], ['street',named?.[0] ?? labels[0]], ['touring',named?.[1] ?? 'Touring'], ['sport',named?.[2] ?? 'Sport'], ['track',named?.[3] ?? labels[1]]];
-    if (selected === 'golf' && part === 'rear') options.push(['golf-r32','R32-inspired full rear'], ['golf-clean','Clean full rear']);
+    if(selected==='golf') {
+      const extra:Partial<Record<string,string[][]>>={front:[['golf-wide','Extended front']],rear:[['golf-r32','R32-inspired full rear'],['golf-clean','Clean full rear'],['golf-diffuser','Seven-fin diffuser']],spoiler:[['golf-wing','High roof wing']],exhaust:[['golf-quad-flame','Quad afterfire']],hood:[['golf-vented','Twin louver hood'],['golf-rally','Rally scoop hood']],roof:[['golf-roof-scoop','Roof air scoop'],['golf-roof-vents','Twin roof vents']]};
+      options.push(...(extra[part] ?? []));
+    }
     if (part === 'exhaust') options.push(['flame','Afterfire flames']);
     select.replaceChildren(...options.map(([value,label]) => {
       const option=document.createElement('option'); option.value=value; option.textContent=label; return option;
@@ -246,6 +249,11 @@ function syncCustomizationUI() {
   ($('custom-rim') as HTMLSelectElement).value=config.rim;
   ($('custom-rim-color') as HTMLInputElement).value=config.rimColor || '#bbc2cb';
   ($('custom-tire-width') as HTMLSelectElement).value=config.tireWidth;
+  ($('custom-tire-profile') as HTMLSelectElement).value=config.tireProfile;
+  ($('custom-flame-color') as HTMLInputElement).value=config.flameColor;
+  ($('custom-headlights') as HTMLSelectElement).value=config.headlights;
+  ($('custom-mirrors') as HTMLSelectElement).value=config.mirrors;
+  for(const id of ['golf-tire-profile-row','golf-headlights-row','golf-mirrors-row']) $(id).classList.toggle('hidden',selected!=='golf');
   ($('custom-glow-enabled') as HTMLInputElement).checked = config.underglow;
   const color = $('custom-glow-color') as HTMLInputElement;
   color.value = config.glowColor; color.disabled = !config.underglow;
@@ -510,6 +518,7 @@ function syncModeUI() {
   const mode = game.getRunMode();
   const records = game.getRecords();
   if (mode !== 'ranked' && mode !== 'circuit') $('menu-ranked').classList.add('hidden');
+  $('open-tracks').classList.toggle('hidden',mode !== 'circuit' && mode !== 'ranked');
   $('menu-selected-mode').textContent = mode === 'circuit' ? `CIRCUIT · ${game.getCircuitScenario().title.toUpperCase()}` : mode === 'ranked' ? `RANKED · ${game.getRankedScenario().title.toUpperCase()}` : RUN_MODES[mode].label.toUpperCase();
   $('brand-tag').textContent = mode === 'circuit' || mode === 'ranked' ? 'CIRCUIT RACING' : 'HIGHWAY RUN';
   const info = rankFor(game.getRanked().points);
@@ -994,6 +1003,7 @@ function bindUI() {
   $('car-next').addEventListener('click',()=>{carPage++;updateCarPage()});
   window.addEventListener('resize',()=>updateCarPage(true));
   $('open-modes').addEventListener('click',()=>openLobbyDrawer('modes'));
+  $('open-tracks').addEventListener('click',()=>openLobbyDrawer('modes',true));
   $('open-stats').addEventListener('click',()=>openLobbyDrawer('stats'));
   $('open-season').addEventListener('click',()=>openLobbyDrawer('season'));
   $('drawer-close').addEventListener('click',closeLobbyDrawer);
@@ -1199,7 +1209,7 @@ function bindUI() {
     const suggestedColor = key === 'livery' ? LIVERY_OPTIONS.find(item => item.id === value)?.defaultColor : null;
     applyCustomization({ ...currentCustomization(), [key]:value, ...(suggestedColor ? { liveryColor:suggestedColor } : {}) } as Customization);
   });
-  for (const [id,key,event] of [['custom-rim','rim','change'],['custom-rim-color','rimColor','change'],['custom-tire-width','tireWidth','change']] as const) $(id).addEventListener(event, e => applyCustomization({ ...currentCustomization(), [key]:(e.target as HTMLInputElement | HTMLSelectElement).value } as Customization));
+  for (const [id,key,event] of [['custom-rim','rim','change'],['custom-rim-color','rimColor','change'],['custom-tire-width','tireWidth','change'],['custom-tire-profile','tireProfile','change'],['custom-flame-color','flameColor','change'],['custom-headlights','headlights','change'],['custom-mirrors','mirrors','change']] as const) $(id).addEventListener(event, e => applyCustomization({ ...currentCustomization(), [key]:(e.target as HTMLInputElement | HTMLSelectElement).value } as Customization));
   $('custom-glow-enabled').addEventListener('change', event => applyCustomization({ ...currentCustomization(), underglow:(event.target as HTMLInputElement).checked }));
   $('custom-glow-color').addEventListener('input', event => applyCustomization({ ...currentCustomization(), glowColor:(event.target as HTMLInputElement).value }));
   document.querySelectorAll<HTMLButtonElement>('[data-custom-view]').forEach(button => {

@@ -1,5 +1,5 @@
 {
-  "revision": 10,
+  "revision": 12,
   "cars": [
     "golf",
     "mercedes",
@@ -40,6 +40,32 @@
   ],
   "golfRear": [
     "golf-r32",
-    "golf-clean"
+    "golf-clean",
+    "golf-diffuser"
+  ],
+  "golfParts": {
+    "front": [
+      "golf-wide"
+    ],
+    "spoiler": [
+      "golf-wing"
+    ],
+    "exhaust": [
+      "golf-quad-flame"
+    ],
+    "hood": [
+      "golf-vented",
+      "golf-rally"
+    ],
+    "roof": [
+      "golf-roof-scoop",
+      "golf-roof-vents"
+    ]
+  },
+  "paintSchemes": [
+    "single",
+    "upper",
+    "lower",
+    "roof-only"
   ]
 }

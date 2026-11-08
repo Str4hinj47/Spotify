@@ -25,23 +25,33 @@ export const LIVERIES: Record<CarId, { labels:[string,string], stripe:number, of
 export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCar: THREE.Matrix4, id: CarId, config: Customization) {
   const mat = source.clone();
   const d = LIVERIES[id];
-  const upper = config.paintScheme === 'upper' ? 1 : config.paintScheme === 'lower' ? 2 : 0;
+  const upper = config.paintScheme === 'upper' ? 1 : config.paintScheme === 'lower' ? 2 : config.paintScheme === 'roof-only' ? 3 : 0;
   const style = LIVERY_OPTIONS.find(option => option.id === config.livery)?.pattern;
   const pattern = ({ none:0, stripe:1, race:2, center:3, sprint:4, velocity:5, heritage:6, apex:7, flames:8 } as const)[style ?? 'none'];
+  // Bounds are in normalized car space. Secondary paint is limited to the
+  // top-facing hood and roof panels, never a height cut across the doors.
+  const hoodBounds: Partial<Record<CarId,[number,number,number]>> = {
+    golf:[-2.02,-.92,.58], challenger:[-2.28,-.96,.73], mustang:[-2.10,-.93,.68],
+    skyline:[-2.10,-.94,.64], 'bmw-m3':[-1.95,-.91,.63],
+    mercedes:[-2.35,-1.02,.64], audi:[-2.15,-.97,.66],
+    ferrari:[-1.76,-.72,.62], r8:[-1.90,-.75,.62],
+    aventador:[-2.04,-.76,.62], 'aventador-game':[-2.04,-.76,.62], bugatti:[-1.90,-.75,.62],
+  };
+  const hood=hoodBounds[id] ?? [-2,-.9,.6];
   const secondary = new THREE.Color(config.secondaryColor);
   const livery = new THREE.Color(config.liveryColor);
   mat.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, {
       kitMatrix:{value:meshToCar}, kitNormalMatrix:{value:new THREE.Matrix3().getNormalMatrix(meshToCar)}, kitSecondary:{value:secondary}, kitAccent:{value:livery},
       kitScheme:{value:upper}, kitPattern:{value:pattern}, kitCarbon:{value:config.secondaryFinish==='carbon'?1:0},
-      kitStripe:{value:d.stripe}, kitOffset:{value:d.offset}, kitBelt:{value:d.belt}, kitDoor:{value:d.doorZ}, kitSide:{value:d.side}, kitRoof:{value:d.roof},
+      kitHood:{value:new THREE.Vector3(...hood)}, kitStripe:{value:d.stripe}, kitOffset:{value:d.offset}, kitBelt:{value:d.belt}, kitDoor:{value:d.doorZ}, kitSide:{value:d.side}, kitRoof:{value:d.roof},
     });
     shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nuniform mat4 kitMatrix; uniform mat3 kitNormalMatrix; varying vec3 vKitPos; varying vec3 vKitNormal;');
     shader.vertexShader = shader.vertexShader.replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvKitNormal = normalize(kitNormalMatrix * objectNormal);');
     shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvKitPos = (kitMatrix * vec4(transformed, 1.0)).xyz;');
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
       varying vec3 vKitPos; varying vec3 vKitNormal; uniform vec3 kitSecondary; uniform vec3 kitAccent;
-      uniform float kitScheme, kitPattern, kitCarbon, kitStripe, kitOffset, kitBelt, kitDoor, kitSide, kitRoof;
+      uniform float kitScheme, kitPattern, kitCarbon, kitStripe, kitOffset, kitBelt, kitDoor, kitSide, kitRoof; uniform vec3 kitHood;
       float kitBand(float d,float w) { return 1.0-smoothstep(w,w+0.008,abs(d)); }
       float kitBox(vec2 p,vec2 b,float r) {
         vec2 q=abs(p)-b+vec2(r);
@@ -72,11 +82,13 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
         return vec3(.012,.018,.022)*weave;
       }`);
     shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-      float secondaryMask = kitScheme < 0.5 ? 0.0 : (kitScheme < 1.5 ? smoothstep(kitRoof-.025,kitRoof+.025,vKitPos.y) : 1.0-smoothstep(kitBelt-.035,kitBelt+.035,vKitPos.y));
-      vec3 second = mix(kitSecondary,kitWeave(vKitPos),kitCarbon);
-      diffuseColor.rgb=mix(diffuseColor.rgb,second,secondaryMask);
       float ax=abs(vKitPos.x);
       vec3 n=normalize(vKitNormal);
+      float hoodPanel = smoothstep(kitHood.x,kitHood.x+.025,vKitPos.z) * (1.0-smoothstep(kitHood.y-.025,kitHood.y,vKitPos.z)) * (1.0-smoothstep(kitHood.z-.02,kitHood.z,ax)) * smoothstep(.55,.80,n.y) * smoothstep(kitBelt+.2,kitBelt+.3,vKitPos.y);
+      float roofPanel = smoothstep(kitRoof+.22,kitRoof+.28,vKitPos.y)*smoothstep(.55,.80,n.y);
+      float secondaryMask = kitScheme < .5 ? 0.0 : (kitScheme < 1.5 ? max(hoodPanel,roofPanel) : kitScheme < 2.5 ? hoodPanel : roofPanel);
+      vec3 second = mix(kitSecondary,kitWeave(vKitPos),kitCarbon);
+      diffuseColor.rgb=mix(diffuseColor.rgb,second,secondaryMask);
       float top=smoothstep(.42,.72,abs(n.y))*smoothstep(kitBelt+.08,kitBelt+.20,vKitPos.y);
       float side=smoothstep(.45,.8,abs(n.x))*smoothstep(kitSide*.65,kitSide*.88,ax);
       float stripe=kitBand(ax-kitOffset,kitStripe*.5)*top;
@@ -135,7 +147,7 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
       vec3 ink=lightness > .35 ? vec3(.015,.02,.025) : vec3(.96,.97,.98);
       diffuseColor.rgb=mix(diffuseColor.rgb,ink,number);`);
   };
-  mat.customProgramCacheKey = () => 'overtake-custom-paint-v5';
+  mat.customProgramCacheKey = () => 'overtake-custom-paint-v7';
   mat.name = `custom-paint-${id}`;
   return mat;
 }

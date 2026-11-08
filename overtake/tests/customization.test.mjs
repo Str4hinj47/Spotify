@@ -49,3 +49,18 @@ test('Golf full rear variants persist only in the Golf rear slot', () => {
     assert.equal(sanitizeCustomization(JSON.parse(JSON.stringify(cars.golf))).rear,rear);
   }
 });
+
+test('Golf expansion options, flame color and sidewall profile survive saves without leaking to other cars', () => {
+  const raw={front:'golf-wide',rear:'golf-diffuser',spoiler:'golf-wing',exhaust:'golf-quad-flame',hood:'golf-vented',roof:'golf-roof-scoop',headlights:'halo',mirrors:'sport',tireProfile:'thick',flameColor:'#123abc'};
+  const saved=sanitizeCustomizations({golf:raw,audi:raw},['golf','audi']);
+  for(const [k,v] of Object.entries(raw))assert.equal(saved.golf[k],v,k);
+  for(const k of ['front','rear','spoiler','exhaust','hood','roof','headlights','mirrors'])assert.equal(saved.audi[k],'stock',k);
+  assert.equal(saved.audi.tireProfile,'standard');assert.equal(saved.audi.flameColor,'#123abc');
+  assert.equal(sanitizeCustomization({tireProfile:'bogus',flameColor:'bogus'}).tireProfile,'standard');
+});
+
+test('roof-only paint survives sanitizing without changing legacy schemes',()=>{
+  assert.equal(sanitizeCustomization({paintScheme:'roof-only'}).paintScheme,'roof-only');
+  assert.equal(sanitizeCustomization({paintScheme:'upper'}).paintScheme,'upper');
+  assert.equal(sanitizeCustomization({paintScheme:'lower'}).paintScheme,'lower');
+});

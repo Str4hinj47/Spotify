@@ -137,8 +137,13 @@ export function rigWheels(root: THREE.Group, id: TrafficId): void {
     pivots[1].rotation.y = THREE.MathUtils.degToRad(24.75);
   }
   if (id === 'golf') {
-    pivots[0].rotation.y = THREE.MathUtils.degToRad(10.89);
-    pivots[1].rotation.y = THREE.MathUtils.degToRad(12.70);
+    // Bake the correction into the wheel children, not the spinning pivot.
+    // Otherwise an aftermarket rim attached to that pivot inherits the old
+    // steering angle and spins on a skewed axle even when the tire is straight.
+    for(const [i,degrees] of [[0,10.89],[1,12.70]] as const) {
+      const correction=new THREE.Matrix4().makeRotationY(THREE.MathUtils.degToRad(degrees));
+      for(const child of pivots[i].children) child.applyMatrix4(correction);
+    }
   }
 }
 

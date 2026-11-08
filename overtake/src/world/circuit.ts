@@ -43,8 +43,8 @@ export function createCircuit(trackId:TrackId='stadium') {
   const grass=circuitGroundMaterial(trackId);
   const road=circuitRoadMaterial();
   const runoff=new THREE.MeshStandardMaterial({color:0x828778,roughness:1,side:THREE.DoubleSide});
-  const white=new THREE.MeshStandardMaterial({color:0xf0eee3,roughness:.8,side:THREE.DoubleSide});
-  const red=new THREE.MeshStandardMaterial({color:0xc33836,roughness:.8,side:THREE.DoubleSide});
+  const white=new THREE.MeshStandardMaterial({color:0xf0eee3,roughness:.8,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+  const red=new THREE.MeshStandardMaterial({color:0xc33836,roughness:.8,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
   const rail=new THREE.MeshStandardMaterial({color:0xabb7b7,metalness:.35,roughness:.65});
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(track.theme==='coast'?875:1500,1500),grass);ground.rotation.x=-Math.PI/2;ground.position.y=-.08;if(track.theme==='coast')ground.position.x=-312.5;group.add(ground);
   group.add(ribbon(-TRACK_HALF_WIDTH-4,TRACK_HALF_WIDTH+4,-.01,runoff,trackId));
@@ -76,9 +76,9 @@ export function createCircuit(trackId:TrackId='stadium') {
   const glassMat=new THREE.MeshStandardMaterial({color:0x253d4d,metalness:.25,roughness:.3});
   for(let i=0;i<(trackId==='stadium'?8:0);i++) {
     const p=trackPosition(35+i*25,25);const building=new THREE.Mesh(new THREE.BoxGeometry(16,6,21),buildingMat);building.position.set(p.x,3,p.z);building.rotation.y=p.yaw;group.add(building);
-    const glass=new THREE.Mesh(new THREE.BoxGeometry(.1,1.4,15),glassMat);glass.position.set(p.x-8.05,4.8,p.z);group.add(glass);
-    const door=new THREE.Mesh(new THREE.BoxGeometry(.12,2.8,12),glassMat);door.position.set(p.x-8.06,1.45,p.z);group.add(door);
-    const sill=new THREE.Mesh(new THREE.BoxGeometry(.2,.15,14),white);sill.position.set(p.x-8.13,3.1,p.z);group.add(sill);
+    const gp=trackPosition(35+i*25,16.95);const glass=new THREE.Mesh(new THREE.BoxGeometry(.1,1.4,15),glassMat);glass.position.set(gp.x,4.8,gp.z);glass.rotation.y=gp.yaw;group.add(glass);
+    const door=new THREE.Mesh(new THREE.BoxGeometry(.12,2.8,12),glassMat);door.position.set(gp.x,1.45,gp.z);door.rotation.y=gp.yaw;group.add(door);
+    const sill=new THREE.Mesh(new THREE.BoxGeometry(.2,.15,14),white);sill.position.set(gp.x,3.1,gp.z);sill.rotation.y=gp.yaw;group.add(sill);
   }
   const tower=new THREE.Mesh(new THREE.BoxGeometry(12,20,12),buildingMat);tower.position.set(190,10,155);if(trackId==='stadium')group.add(tower);
   // Grandstands, pit-side gantry and a clear visual start/finish landmark.
@@ -86,15 +86,15 @@ export function createCircuit(trackId:TrackId='stadium') {
   const seatMat=new THREE.MeshStandardMaterial({color:0xbd4639,roughness:.85});
   for(let i=0;i<(trackId==='stadium'?6:0);i++) {
     const p=trackPosition(10+i*25,-27);
-    const support=new THREE.Mesh(new THREE.BoxGeometry(9,3.6,24),standMat);support.position.set(p.x-3,1.8,p.z);group.add(support);
+    const support=new THREE.Mesh(new THREE.BoxGeometry(9,3.6,24),standMat);support.position.set(p.x,1.8,p.z);support.rotation.y=p.yaw;group.add(support);
     for(let row=0;row<4;row++) {
       const step=new THREE.Mesh(new THREE.BoxGeometry(3,1,24),row%2?seatMat:standMat);
-      step.position.set(p.x-row*2,1+row,p.z);group.add(step);
+      const seat=trackPosition(10+i*25,-27-row*2);step.position.set(seat.x,1+row,seat.z);step.rotation.y=seat.yaw;group.add(step);
     }
   }
   // Brake boards ahead of each turn give drivers a visible reference point.
   const boardMat=new THREE.MeshStandardMaterial({color:0xf2f4ed,roughness:.8,side:THREE.DoubleSide});
-  for(const corner of (trackId==='stadium'?[280, 2*360+Math.PI*150-80]:[])) {
+  for(const corner of (trackId==='stadium'?[205,620,1050]:[])) {
     for(const distance of [100,50]) {
       const p=trackPosition(corner-distance,TRACK_HALF_WIDTH+5.2);
       const board=new THREE.Group();board.position.set(p.x,0,p.z);board.rotation.y=p.yaw;

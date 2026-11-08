@@ -1,6 +1,7 @@
 // Shared by rear-surface cutouts, visible pipes and flame origins. R32-style
 // rear includes its compatible left/right exhaust even when exhaust is stock.
 export function golfExhaustLayout(config) {
+  if (config.exhaust === 'golf-quad-flame') return {centers:[-.57,-.47,.47,.57],radius:.043,y:.29};
   if (config.rear === 'golf-r32') {
     const radius = config.exhaust === 'sport' ? .063 : config.exhaust === 'track' || config.exhaust === 'flame' ? .061 : .055;
     return {centers:[-.48,.48], radius, y:.29};

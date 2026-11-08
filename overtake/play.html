@@ -82,6 +82,7 @@
       <div class="lobby-car"><span>YOUR RIDE</span><strong id="menu-car-name">Rivet Flux</strong><small id="menu-car-status">OWNED</small></div>
       <div class="lobby-play">
         <button id="open-modes" class="lobby-mode" type="button"><span>GAME MODE</span><strong id="menu-selected-mode">ENDLESS</strong><b>CHANGE ›</b></button>
+        <button id="open-tracks" class="lobby-track" type="button">CHOOSE TRACK ›</button>
         <button id="menu-start" class="menu-play" type="button"><span id="menu-start-label">PLAY</span><b>▶</b></button>
       </div>
       <div class="menu-mobile-actions hidden"><button id="menu-mobile-start" type="button"><span id="menu-mobile-start-label">PLAY</span></button><button id="menu-mobile-garage" type="button">GARAGE</button></div>
@@ -93,7 +94,7 @@
         <div class="section-kicker">SELECT YOUR DRIVE <span>LOCAL PLAY</span></div>
         <p id="active-mode-info" class="active-mode-info" aria-live="polite"></p>
         <div class="mode-select" role="group" aria-label="Run mode">
-          <button class="mode-card active" data-mode="circuit" type="button"><span class="mode-name">Circuit Race</span><span class="mode-desc">3 laps · 5 AI rivals · offline</span><span class="mode-best">Best <b id="mode-best-circuit">0</b></span></button>
+          <button class="mode-card active" data-mode="circuit" type="button"><span class="mode-name">Circuit Race</span><span class="mode-desc">5 tracks · 3 laps · 5 AI rivals</span><span class="mode-best">Best <b id="mode-best-circuit">0</b></span></button>
           <button class="mode-card" data-mode="endless" type="button">
             <span class="mode-name">Endless</span>
             <span class="mode-desc">Survive and chain passes</span>
@@ -246,13 +247,14 @@
 <div class="workshop-part" data-part-panel="spoiler" hidden>        <label class="custom-row"><span>Spoiler <small>Tail aero</small></span><select id="custom-spoiler" aria-label="Spoiler"></select></label>
         <label class="finish-row"><span>Spoiler finish</span><select id="custom-spoiler-finish" aria-label="Spoiler finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label></div>
 <div class="workshop-part" data-part-panel="exhaust" hidden>        <label class="custom-row"><span>Exhaust <small>Flames while accelerating</small></span><select id="custom-exhaust" aria-label="Exhaust"></select></label>
+        <label class="custom-row"><span>Flame color <small>Afterfire color</small></span><input id="custom-flame-color" type="color" value="#ff6a1a" aria-label="Flame color" /></label>
         <label class="finish-row"><span>Exhaust finish</span><select id="custom-exhaust-finish" aria-label="Exhaust finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label></div>
 <div class="workshop-part" data-part-panel="hood" hidden><label class="custom-row"><span>Hood <small>Vents and scoops fitted to your car</small></span><select id="custom-hood" aria-label="Hood"></select></label><label class="finish-row"><span>Hood finish</span><select id="custom-hood-finish" aria-label="Hood finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label></div>
 <div class="workshop-part" data-part-panel="roof" hidden><label class="custom-row"><span>Roof <small>Fins and air scoops</small></span><select id="custom-roof" aria-label="Roof"></select></label><label class="finish-row"><span>Roof finish</span><select id="custom-roof-finish" aria-label="Roof finish"><option value="standard">Standard</option><option value="carbon">Carbon fiber</option></select></label></div>
         </section>
         <section data-workshop-panel="paint" aria-label="Paint and livery" hidden>
         <label class="custom-row"><span>Primary color <small>Base body paint</small></span><input id="custom-primary-color" type="color" value="#9fb0bf" aria-label="Primary paint color" /></label>
-        <label class="custom-row"><span>Two-tone layout <small>Works with your primary paint</small></span><select id="custom-paint-scheme" aria-label="Two-tone paint layout"><option value="single">Single color</option><option value="upper">Upper body</option><option value="lower">Lower body</option></select></label>
+        <label class="custom-row"><span>Secondary panels <small>Hood and roof, not a body-wide split</small></span><select id="custom-paint-scheme" aria-label="Two-tone paint layout"><option value="single">Single color</option><option value="upper">Hood + roof</option><option value="lower">Hood only</option><option value="roof-only">Roof only</option></select></label>
         <label class="custom-row"><span>Second color <small>Any color</small></span><input id="custom-secondary-color" type="color" value="#141b24" aria-label="Second paint color" /></label>
         <label class="custom-row"><span>Second finish <small>For the second tone</small></span><select id="custom-secondary-finish" aria-label="Second paint finish"><option value="paint">Paint</option><option value="carbon">Carbon fiber</option></select></label>
         <label class="custom-row"><span>Livery <small>Original graphics, fitted to this car</small></span><select id="custom-livery" aria-label="Livery"></select></label>
@@ -262,9 +264,12 @@
         <label class="custom-row"><span>Rim design <small>Uploaded wheel collection</small></span><select id="custom-rim" aria-label="Rim design"><option value="stock">Factory</option><option value="rim-1">Design 1</option><option value="rim-2">Design 2</option><option value="rim-3">Design 3</option><option value="rim-4">Design 4</option><option value="rim-5">Design 5</option><option value="rim-6">Design 6</option><option value="rim-7">Design 7</option><option value="rim-8">Design 8</option><option value="rim-9">Design 9</option><option value="rim-10">Design 10</option></select></label>
         <label class="custom-row"><span>Rim color <small>Choose any color</small></span><input id="custom-rim-color" type="color" value="#bbc2cb" aria-label="Rim color" /></label>
         <label class="custom-row"><span>Tire width <small>Affects grip and steering</small></span><select id="custom-tire-width" aria-label="Tire width"><option value="narrow">Narrow</option><option value="standard">Standard</option><option value="wide">Wide</option></select></label>
+        <label id="golf-tire-profile-row" class="custom-row"><span>Tire thickness <small>Sidewall profile; keeps outside diameter</small></span><select id="custom-tire-profile" aria-label="Tire thickness"><option value="low">Low profile</option><option value="standard">Standard</option><option value="thick">Thick sidewall</option></select></label>
         <p class="custom-note">Narrow: quicker steering, less grip. Wide: more grip, slower steering and acceleration. Standard keeps factory handling.</p>
         </section>
         <section data-workshop-panel="lighting" aria-label="Lighting" hidden>
+        <label id="golf-headlights-row" class="custom-row"><span>Golf headlights <small>Factory, smoked or halo</small></span><select id="custom-headlights" aria-label="Headlights"><option value="stock">Factory</option><option value="smoked">Smoked</option><option value="halo">Halo</option></select></label>
+        <label id="golf-mirrors-row" class="custom-row"><span>Golf mirrors <small>Mirror style</small></span><select id="custom-mirrors" aria-label="Mirrors"><option value="stock">Factory</option><option value="sport">Sport</option><option value="carbon">Carbon</option></select></label>
         <label class="custom-row glow-row"><span>Underglow <small>Color beneath the car</small></span><input id="custom-glow-enabled" type="checkbox" aria-label="Enable underglow" /></label>
         <label class="custom-row"><span>Glow color <small>Choose any color</small></span><input id="custom-glow-color" type="color" value="#00ddff" aria-label="Underglow color" /></label>
         </section>
@@ -360,7 +365,7 @@
           <button class="weather-btn" data-weather="rain">Rain</button>
           <button class="weather-btn" data-weather="snow">Snow</button>
         </div>
-        <div class="hint">Weather and biomes blend gradually. Rain/snow reduce grip.</div>
+        <div class="hint">Circuit races are always dry. Highway weather blends gradually and rain or snow reduces grip.</div>
       </div>
       <div id="camera-panel" class="panel camera-panel hidden">
         <div class="panel-title">Camera <button id="cam-close" class="mini-btn" aria-label="Close camera settings">✕</button></div>

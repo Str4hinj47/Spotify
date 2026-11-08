@@ -13,7 +13,9 @@ function texture(path:string,repeat=1) {
   return map;
 }
 export function circuitRoadMaterial() {
-  return new THREE.MeshStandardMaterial({map:texture('road/asphalt-albedo'),color:0xb7bdc1,roughness:.93,side:THREE.DoubleSide});
+  // Offset the asphalt towards the camera to avoid depth fighting with the
+  // runoff on distant corners without changing the physical road height.
+  return new THREE.MeshStandardMaterial({map:texture('road/asphalt-albedo'),color:0xb7bdc1,roughness:.93,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
 }
 export function circuitGroundMaterial(id:TrackId) {
   const theme=getTrack(id).theme,urban=theme==='industrial'||theme==='neon';
@@ -92,7 +94,7 @@ export function createCircuitDetails(id:TrackId) {
     }
   }
   const rubberGeo=new THREE.BufferGeometry();rubberGeo.setAttribute('position',new THREE.Float32BufferAttribute(rubber,3));rubberGeo.computeVertexNormals();
-  const rubberMesh=new THREE.Mesh(rubberGeo,new THREE.MeshBasicMaterial({color:0x10171b,transparent:true,opacity:track.kind==='drift'?.32:.19,depthWrite:false,side:THREE.DoubleSide}));rubberMesh.name='rubber-marks';root.add(rubberMesh);
+  const rubberMesh=new THREE.Mesh(rubberGeo,new THREE.MeshBasicMaterial({color:0x10171b,transparent:true,opacity:track.kind==='drift'?.32:.19,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));rubberMesh.name='rubber-marks';root.add(rubberMesh);
 
   // Tyre barriers and distance markers at bends, kept behind the wall.
   const tireGeo=new THREE.TorusGeometry(.48,.16,6,10),tireMat=new THREE.MeshStandardMaterial({color:0x1b2326,roughness:1});
@@ -131,7 +133,7 @@ export function createCircuitDetails(id:TrackId) {
       ctx.fillStyle='#e1b958';ctx.fillRect(24,240,464,8);
     });
     const garageFaceGeo=new THREE.PlaneGeometry(20.5,5.4);
-    for(let i=0;i<8;i++){const p=trackPoint(35+i*25,25,id);const face=new THREE.Mesh(garageFaceGeo,pitFacade);face.position.set(p.x-8.09,3,p.z);face.rotation.y=-Math.PI/2;root.add(face);}
+    for(let i=0;i<8;i++){const p=trackPoint(35+i*25,16.91,id);const face=new THREE.Mesh(garageFaceGeo,pitFacade);face.position.set(p.x,3,p.z);face.rotation.y=p.yaw-Math.PI/2;root.add(face);}
   }
   // Venue-specific building silhouettes with window/door detail.
   if(id!=='stadium') {

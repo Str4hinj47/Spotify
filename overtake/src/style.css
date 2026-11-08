@@ -951,3 +951,8 @@ body:has(#main-menu:not(.hidden)) .tag, body:has(#main-menu:not(.hidden)) .site-
  .turn-signals { bottom:24px; transform:translateX(-50%); }
  .look-behind { left:75px; top:50px; bottom:auto; height:35px; min-height:35px; }
 }
+
+/* Direct entry to the track picker, alongside the normal mode selector. */
+.lobby-track { min-height:44px; padding:0 12px; border:1px solid #77ccde77; border-radius:4px; background:#0d222ddd; color:#c4f4ff; font-size:10px; font-weight:800; letter-spacing:.06em; cursor:pointer; }
+.lobby-track:hover { background:#234552; }
+@media(max-width:700px) { .lobby-track { position:absolute; right:0; bottom:calc(100% + 7px); min-height:32px; padding:0 10px; font-size:9px; } }

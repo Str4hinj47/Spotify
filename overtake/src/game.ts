@@ -1,8 +1,9 @@
 import { vehicleParameters } from './car-performance.mjs';
 import { getTrack, trackSample, trackPoint, trackRacePosition, trackLap, type TrackId } from './circuit.mjs';
-import { isDriftCar, stepDriftVehicle } from './drift.mjs';
+import { isDriftCar, stepDriftVehicle, stepCircuitDriftVehicle } from './drift.mjs';
+import { resolveCircuitWall, resolveCircuitCarContact } from './circuit-contact.mjs';
 import { createLapTiming, recordLapCrossings } from './race-hud.mjs';
-import { raceDriverProfile, planRaceDriver, stepRaceDriver, resolveRaceContacts, resolvePlayerContact, type RaceDriver } from './race-ai.mjs';
+import { raceDriverProfile, planRaceDriver, stepRaceDriver, resolveRaceContacts, type RaceDriver } from './race-ai.mjs';
 import { createCircuit } from './world/circuit';
 import { loadGhost, saveGhost, ghostAt, MAX_GHOST_SAMPLES, type GhostReplay, type GhostSample } from './ghost.mjs';
 import { spinWheels } from './wheels';
@@ -128,7 +129,7 @@ export interface GameCallbacks {
 }
 
 interface CircuitRival extends RaceDriver {
-  group:THREE.Group; id:CarId; finished:boolean; driftYaw:number;
+  group:THREE.Group; id:CarId; finished:boolean; driftYaw:number; wheelSteer:number;
 }
 
 interface Traffic {
@@ -213,6 +214,7 @@ export class OvertakeGame {
   private studioEnv: THREE.Texture | null = null;
   private worldClock = createClock(9.5, 1, true);
   private weather: WeatherState = createWeatherState('auto');
+  private weatherBeforeCircuit: WeatherState | null = null;
   private worldElapsed = 0;
   private nightFactor = 0;
   private headlights: THREE.SpotLight[] = [];
@@ -1844,12 +1846,14 @@ export class OvertakeGame {
   }
 
   private clearCircuitRivals() {
+    if(this.weatherBeforeCircuit){this.weather=this.weatherBeforeCircuit;this.weatherBeforeCircuit=null;}
     const playerShadow=this.player?.getObjectByName('circuit-shadow');if(playerShadow)playerShadow.parent?.remove(playerShadow);
     for (const rival of this.circuitRivals) { this.scene.remove(rival.group); this.disposeCarLights(rival.group); }
     this.circuitRivals=[];
   }
 
   private startCircuit() {
+    this.weatherBeforeCircuit=this.weather;this.weather=createWeatherState('clear');
     if(this.circuitGroup)this.circuitGroup.visible=false;
     this.circuitGroup=this.circuitGroups.get(this.raceTrack);
     if (!this.circuitGroup) { this.circuitGroup=createCircuit(this.raceTrack);this.circuitGroups.set(this.raceTrack,this.circuitGroup); this.scene.add(this.circuitGroup); }
@@ -1867,7 +1871,7 @@ export class OvertakeGame {
       const group=this.library.create(car.id,{paint:TRAFFIC_COLORS[(i+2)%TRAFFIC_COLORS.length],player:false});
       const meta=this.library.get(car.id);
       const rival:CircuitRival={group,id:car.id,progress:-30+i*5,offset:i%2?3:-3,speed:0,
-        targetSpeed:Math.min(car.maxSpeed*.86,playerSpec.maxSpeed*(getTrack(this.raceTrack).kind==='drift'?.64:.85)),acceleration:car.accel*.72,length:meta.length,width:meta.width,finished:false,key:i,profile:raceDriverProfile(i),lateralSpeed:0,braking:false,passTarget:null,passOffset:null,driftYaw:0};
+        targetSpeed:Math.min(car.maxSpeed*.95,playerSpec.maxSpeed*(getTrack(this.raceTrack).kind==='drift'?.70:.90)),acceleration:car.accel*.85,length:meta.length,width:meta.width,finished:false,key:i,profile:raceDriverProfile(i),lateralSpeed:0,braking:false,passTarget:null,passOffset:null,driftYaw:0,wheelSteer:0};
       addVehicleLights(group,car.id,true);
       this.attachCircuitShadow(group,meta.width,meta.length);
       this.circuitRivals.push(rival);this.scene.add(group);this.placeCircuitRival(rival);
@@ -1881,8 +1885,7 @@ export class OvertakeGame {
   private placeCircuitRival(rival:CircuitRival) {
     const p=trackPoint(rival.progress,rival.offset,this.raceTrack);
     rival.group.position.set(p.x,0,p.z);
-    const laneYaw=-Math.atan2(rival.lateralSpeed,Math.max(4,rival.speed));
-    rival.group.rotation.set(0,p.yaw+laneYaw+rival.driftYaw,0);
+    rival.group.rotation.set(0,p.yaw+(rival.heading ?? 0)+rival.driftYaw,0);
   }
 
   private updateCircuit(dt:number) {
@@ -1894,12 +1897,10 @@ export class OvertakeGame {
     const spec=getCar(this.selected), upgrades=effectiveUpgrades(this.progression,this.selected);
     const params={...vehicleParameters(spec,upgrades,this.library.getCustomization(this.selected).tireWidth,weatherGrip(this.weather)), roadAssist:false};
     const previous=this.vehicle.s, steps=Math.max(1,Math.ceil(dt/(1/120))), h=dt/steps;
-    for(let i=0;i<steps;i++) (isDriftCar(this.selected)?stepDriftVehicle:stepVehicle)(this.vehicle,this.input,params,h,trackSample(this.vehicle.s,this.raceTrack).curvature);
+    for(let i=0;i<steps;i++) (isDriftCar(this.selected)?stepCircuitDriftVehicle:stepVehicle)(this.vehicle,this.input,params,h,trackSample(this.vehicle.s,this.raceTrack).curvature);
     const track=getTrack(this.raceTrack), raceDistance=track.length*track.laps;
-    const limit=track.halfWidth-this.playerMeta.width*.5;
-    if(Math.abs(this.vehicle.offset)>limit) {
-      this.vehicle.offset=THREE.MathUtils.clamp(this.vehicle.offset,-limit,limit);
-      this.vehicle.speed=Math.max(0,this.vehicle.speed-16*dt);this.vehicle.heading*=.8;
+    if(resolveCircuitWall(this.vehicle,track,this.playerMeta.width,this.playerMeta.length)) {
+      this.shake=Math.max(this.shake,.22);
     }
     this.speed=this.vehicle.speed;this.steer=this.vehicle.steer;this.playerS=this.vehicle.s;this.offset=this.vehicle.offset;
     const p=trackPoint(this.playerS,this.offset,this.raceTrack);this.yaw=p.yaw+this.vehicle.heading+(this.vehicle.driftAngle??0);this.pos.set(p.x,0,p.z);
@@ -1908,24 +1909,33 @@ export class OvertakeGame {
     // advantage. The player is part of the field, including across the lap seam.
     const surface=weatherGrip(this.weather);
     const field=this.circuitRivals.map(r=>({key:r.key,progress:r.progress,offset:r.offset,speed:r.speed,length:r.length,width:r.width}));
-    const playerActor={key:-1,progress:this.playerS,offset:this.offset,speed:this.speed,length:this.playerMeta.length,width:this.playerMeta.width};
+    const playerActor={key:-1,progress:this.playerS,offset:this.offset,speed:this.speed,heading:this.vehicle.heading,driftAngle:this.vehicle.driftAngle,length:this.playerMeta.length,width:this.playerMeta.width};
     const plans=this.circuitRivals.map((r,i)=>planRaceDriver(r,[...field.filter((_,j)=>j!==i),playerActor],this.raceTrack,surface));
     this.circuitRivals.forEach((rival,i)=>stepRaceDriver(rival,plans[i],dt,this.raceTrack,surface));
     resolveRaceContacts(this.circuitRivals,field,this.raceTrack);
+    this.circuitRivals.forEach(rival=>{
+      const bend=trackSample(rival.progress+20,this.raceTrack).curvature;
+      const driftTarget=track.kind==='drift' && isDriftCar(rival.id) && rival.speed>8 ? THREE.MathUtils.clamp(bend*12,-.16,.16) : 0;
+      rival.driftYaw+=(driftTarget-rival.driftYaw)*Math.min(1,dt*2);
+    });
+    // Several short passes settle a player caught between cars instead of
+    // leaving a fresh overlap with a rival handled earlier in the frame.
+    for(let pass=0;pass<3;pass++) for(const rival of this.circuitRivals)
+      if(resolveCircuitCarContact(playerActor,rival,track.length)) this.shake=Math.max(this.shake,.12);
     this.circuitRivals.forEach((rival,i)=>{
       const old=field[i].progress;
       // Once finished, keep circulating rather than parking on the finish line.
       rival.finished=rival.finished || rival.progress>=raceDistance;
-      const bend=trackSample(rival.progress+20,this.raceTrack).curvature;
-      const driftTarget=isDriftCar(rival.id) && rival.speed>3 ? (bend<-.001?-.19:.19) : 0;
-      rival.driftYaw+=(driftTarget-rival.driftYaw)*Math.min(1,dt*2);
-      resolvePlayerContact(rival,playerActor,field[i],previous,this.raceTrack);
+      const desiredWheel=THREE.MathUtils.clamp(Math.atan((rival.yawRate ?? 0)*2.6/Math.max(3,rival.speed)),-.32,.32);
+      rival.wheelSteer+=(desiredWheel-rival.wheelSteer)*Math.min(1,dt*4);
+      for(const wheel of ((rival.group.userData.wheels ?? []) as THREE.Group[]).slice(0,2)) { wheel.rotation.order='YXZ';wheel.rotation.y=rival.wheelSteer; }
       this.placeCircuitRival(rival);spinWheels(rival.group,rival.progress-old);
       for(const mat of (rival.group.userData.brakeMaterials ?? []) as THREE.MeshStandardMaterial[]) mat.emissiveIntensity=rival.braking && !mat.userData.selectiveBrake ? 2.8 : .55;
       const signal=rival.group.userData.indicatorState;if(signal)signal.brake.value=rival.braking?1:0;
     });
-    if(playerActor.progress!==this.playerS || playerActor.speed!==this.speed) {
-      this.vehicle.s=this.playerS=playerActor.progress;this.vehicle.speed=this.speed=playerActor.speed;
+    if(playerActor.progress!==this.playerS || playerActor.speed!==this.speed || playerActor.offset!==this.offset) {
+      this.vehicle.s=this.playerS=playerActor.progress;this.vehicle.speed=this.speed=playerActor.speed;this.vehicle.offset=this.offset=playerActor.offset;this.vehicle.heading=playerActor.heading;
+      resolveCircuitWall(this.vehicle,track,this.playerMeta.width,this.playerMeta.length);this.offset=this.vehicle.offset;this.speed=this.vehicle.speed;
       const corrected=trackPoint(this.playerS,this.offset,this.raceTrack);
       this.yaw=corrected.yaw+this.vehicle.heading+(this.vehicle.driftAngle??0);this.pos.set(corrected.x,0,corrected.z);
       if(this.player){this.player.position.copy(this.pos);this.player.rotation.y=this.yaw;}
@@ -2321,7 +2331,7 @@ export class OvertakeGame {
       snow: this.weather.snow,
     };
   }
-  setWeatherMode(mode: 'auto' | 'clear' | 'rain' | 'snow') { this.weather.mode = mode; this.weather.timer = 0; }
+  setWeatherMode(mode: 'auto' | 'clear' | 'rain' | 'snow') { const state=this.weatherBeforeCircuit ?? this.weather; state.mode = mode; state.timer = 0; }
   setTimeOfDay(hour: number) {
     this.worldClock.hour = ((hour % 24) + 24) % 24;
     const atm = this.atmosphere.update(this.worldClock.hour, this.weather, biomeParams(this.playerS), this.camera.position, 5);

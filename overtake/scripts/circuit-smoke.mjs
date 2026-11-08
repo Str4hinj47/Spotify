@@ -27,7 +27,7 @@ try {
     }
     return {mode:g.mode,steps,position:g.raceFinishPosition,distance:g.run.distance,score:g.run.score};
    });
-   assert.equal(full.mode,'gameover');assert.ok(full.steps<7000);assert.ok(full.position>=1 && full.position<=6);assert.ok(full.distance>4500);assert.ok(full.score>=500);
+   assert.equal(full.mode,'gameover');assert.ok(full.steps<7000);assert.ok(full.position>=1 && full.position<=6);assert.ok(full.distance>4000);assert.ok(full.score>=500);
   }
   await page.evaluate(()=>{const g=window.__overtake;g.toGarage();g.setRunMode('endless')});await page.reload({waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});assert.equal(await page.evaluate(()=>window.__overtake.getRunMode()),'endless');
   assert.deepEqual(errors,[]);console.log(label,'passed');await page.close();

@@ -1,38 +1,23 @@
-// Original closed stadium circuit. Distances are metres along the centreline;
-// the same mapping drives the road mesh, physics and rival positions.
+// Distances are metres along the centreline; road geometry and all race
+// simulation use the same sampled curves. The radius/straight constants are
+// retained for old integrations but no longer describe the rebuilt stadium.
 export const TRACK_RADIUS = 150;
 export const TRACK_STRAIGHT = 360;
-export const TRACK_LENGTH = 2 * TRACK_STRAIGHT + 2 * Math.PI * TRACK_RADIUS;
 export const TRACK_HALF_WIDTH = 10;
 export const RACE_LAPS = 3;
-export const RACE_DISTANCE = TRACK_LENGTH * RACE_LAPS;
-export function trackAt(distance) {
-  let s = (((distance + 80) % TRACK_LENGTH) + TRACK_LENGTH) % TRACK_LENGTH;
-  const R = TRACK_RADIUS, L = TRACK_STRAIGHT;
-  if (s < L) return {x:R,z:L/2-s,yaw:0,curvature:0};
-  s -= L;
-  if (s < Math.PI * R) {
-    const t=s/R; return {x:R*Math.cos(t),z:-L/2-R*Math.sin(t),yaw:t,curvature:1/R};
-  }
-  s -= Math.PI * R;
-  if (s < L) return {x:-R,z:-L/2+s,yaw:Math.PI,curvature:0};
-  s -= L;
-  const t=s/R; return {x:-R*Math.cos(t),z:L/2+R*Math.sin(t),yaw:Math.PI+t,curvature:1/R};
-}
-export function trackPosition(s, offset=0) {
-  const p=trackAt(s);
-  return {x:p.x+Math.cos(p.yaw)*offset,z:p.z-Math.sin(p.yaw)*offset,yaw:p.yaw,curvature:p.curvature};
-}
+export function trackAt(distance) { return trackSample(distance,'stadium'); }
+export function trackPosition(s,offset=0) { return trackPoint(s,offset,'stadium'); }
 /** Position is based on absolute progress, not wrapped lap distance. */
 export function racePosition(playerProgress, opponents) {
   return 1 + opponents.filter(r => playerProgress >= RACE_DISTANCE ? r.progress >= RACE_DISTANCE : r.progress > playerProgress).length;
 }
 export function raceLap(progress) { return Math.max(1,Math.min(RACE_LAPS,Math.floor(Math.max(0,progress)/TRACK_LENGTH)+1)); }
 
-// Four distinct closed layouts, sampled by arc length so simulation, mesh,
+// Five distinct closed layouts, sampled by arc length so simulation, mesh,
 // AI and lap counting share exactly the same path. Points are unbranded,
 // original circuit designs in clockwise driving order.
 const definitions = [
+ {id:'stadium', name:'Stadium Circuit', kind:'race', halfWidth:10, theme:'stadium', points:[[150,120],[150,25],[150,-150],[110,-240],[20,-225],[-55,-155],[-125,-195],[-190,-110],[-165,-10],[-110,60],[-130,165],[-50,235],[70,230]]},
  {id:'summit', name:'Summit Ring', kind:'race', halfWidth:10, theme:'mountain', points:[[160,170],[185,20],[140,-150],[45,-235],[-80,-220],[-170,-120],[-155,10],[-105,120],[-80,230],[45,250]]},
  {id:'coast', name:'Coast Run', kind:'race', halfWidth:10, theme:'coast', points:[[150,180],[175,25],[135,-125],[20,-220],[-130,-190],[-105,-80],[-175,35],[-140,175],[-20,245],[90,240]]},
  {id:'dockside', name:'Dockside Drift', kind:'drift', halfWidth:13, theme:'industrial', points:[[125,145],[150,15],[110,-120],[25,-175],[-85,-150],[-130,-40],[-95,70],[-60,160],[25,190]]},
@@ -54,14 +39,12 @@ function makeTrack(def) {
  return {...def,length:distance,laps:3,samples};
 }
 const customTracks=definitions.map(makeTrack);
-export const TRACKS=Object.freeze([
- {id:'stadium',name:'Stadium Circuit',kind:'race',theme:'stadium',length:TRACK_LENGTH,halfWidth:TRACK_HALF_WIDTH,laps:RACE_LAPS},
- ...customTracks.map(({samples,points,...track})=>track),
-]);
+export const TRACK_LENGTH=customTracks[0].length;
+export const RACE_DISTANCE=TRACK_LENGTH*RACE_LAPS;
+export const TRACKS=Object.freeze(customTracks.map(({samples,points,...track})=>track));
 export function getTrack(id) {return TRACKS.find(t=>t.id===id)??TRACKS[0];}
 export function trackSample(distance,id='stadium') {
- if(id==='stadium') return trackAt(distance);
- const track=customTracks.find(t=>t.id===id);if(!track)return trackAt(distance);
+ const track=customTracks.find(t=>t.id===id) ?? customTracks[0];
  const s=((distance%track.length)+track.length)%track.length, samples=track.samples;
  let lo=0,hi=samples.length-1;while(lo+1<hi){const mid=(lo+hi)>>1;if(samples[mid].s<=s)lo=mid;else hi=mid;}
  const a=samples[lo],b=samples[hi],u=(s-a.s)/(b.s-a.s||1);

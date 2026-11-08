@@ -2,14 +2,15 @@
 // driver has their own pace, braking, line and passing preference. Highway
 // traffic uses its separate traffic AI and never calls this module.
 import { getTrack, trackSample } from './circuit.mjs';
+import { resolveCircuitCarContact } from './circuit-contact.mjs';
 
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const profiles=[
- {pace:.88,grip:4.7,braking:8.0,line:-.55,side:-1},
- {pace:.82,grip:4.3,braking:7.4,line:.65,side:1},
- {pace:.98,grip:5.4,braking:8.6,line:.15,side:1},
- {pace:.90,grip:4.8,braking:7.8,line:-.2,side:-1},
- {pace:.95,grip:5.2,braking:8.3,line:.45,side:1},
+ {pace:.84,grip:4.5,braking:8.0,line:-.55,side:-1},
+ {pace:.76,grip:4.2,braking:7.4,line:.65,side:1},
+ {pace:.94,grip:5.1,braking:8.6,line:.15,side:1},
+ {pace:.89,grip:4.7,braking:7.8,line:-.2,side:-1},
+ {pace:.93,grip:5.0,braking:8.3,line:.45,side:1},
 ];
 export function raceDriverProfile(index) { return {...profiles[((index%profiles.length)+profiles.length)%profiles.length]}; }
 
@@ -91,36 +92,40 @@ export function stepRaceDriver(driver,plan,dt,trackId,surface=1) {
   driver.passTarget=plan.passTarget;driver.passOffset=plan.passOffset;
   const brake=driver.profile.braking*clamp(surface,.6,1.05);
   driver.speed=Math.max(0,driver.speed+clamp(plan.desiredSpeed-driver.speed,-brake*h,driver.acceleration*h));
-  // A controlled lane change, slowed at very low speed and never outside the road.
+  // Bicycle-like path following: the body turns with a finite yaw response,
+  // and its forward velocity advances both track progress and lateral offset.
+  // The track tangent is only the coordinate frame, not a teleport or yaw set.
   const maxOffset=getTrack(trackId).halfWidth-driver.width/2-1;
   const lateralRate=Math.min(2.8,Math.max(.5,driver.speed*.12));
-  driver.offset=clamp(driver.offset+clamp(plan.targetOffset-driver.offset,-lateralRate*h,lateralRate*h),-maxOffset,maxOffset);
-  driver.progress+=(oldSpeed+driver.speed)*.5*h;
+  const desiredLateral=clamp((plan.targetOffset-driver.offset)*.7,-lateralRate,lateralRate);
+  const curvature=trackSample(driver.progress,trackId).curvature;
+  const speed=Math.max(driver.speed,2);
+  const desiredHeading=-Math.atan2(desiredLateral,speed);
+  driver.heading=driver.heading ?? 0;driver.yawRate=driver.yawRate ?? 0;
+  const desiredYaw=curvature*driver.speed+(desiredHeading-driver.heading)*2.8;
+  const maxYaw=driver.profile.grip*clamp(surface,.6,1.05)/speed;
+  const targetYaw=clamp(desiredYaw,-maxYaw,maxYaw);
+  driver.yawRate+=(targetYaw-driver.yawRate)*Math.min(1,h*5);
+  driver.heading=clamp(driver.heading+(driver.yawRate-curvature*driver.speed)*h,-.7,.7);
+  driver.offset=clamp(driver.offset-driver.speed*Math.sin(driver.heading)*h,-maxOffset,maxOffset);
+  driver.progress+=Math.max(0,driver.speed*Math.cos(driver.heading)*h/Math.max(.65,1+curvature*driver.offset));
   driver.lateralSpeed=h?(driver.offset-oldOffset)/h:0;
   driver.braking=oldSpeed-driver.speed>h*.65;
   return driver;
 }
 
-// Prevent two simultaneously planned rivals from occupying the same space.
-// If they converge side-by-side, cancel their lateral motion first; if one
-// catches the other, constrain the trailing car instead of letting it ghost
-// through. The snapshot is from before this simulation step.
-export function resolveRaceContacts(drivers,previous,trackId) {
-  const length=getTrack(trackId).length;
-  for(let pass=0;pass<3;pass++) for(let i=0;i<drivers.length;i++) for(let j=i+1;j<drivers.length;j++) {
-    const a=drivers[i],b=drivers[j],gap=raceGap(a.progress,b.progress,length);
-    const longitudinal=(a.length+b.length)*.5+.25, lateral=(a.width+b.width)*.5+.15;
-    if(Math.abs(gap)>=longitudinal || Math.abs(a.offset-b.offset)>=lateral) continue;
-    if(Math.abs(previous[i].offset-previous[j].offset)>Math.abs(a.offset-b.offset)) {
-      a.offset=previous[i].offset;b.offset=previous[j].offset;
-      a.lateralSpeed=0;b.lateralSpeed=0;
+// Resolve simultaneous rival contacts using the same impulse and separation
+// as the player. Multiple passes handle three-car bunches at the start line.
+export function resolveRaceContacts(drivers,_previous,trackId) {
+  const track=getTrack(trackId);
+  for(let pass=0;pass<4;pass++) for(let i=0;i<drivers.length;i++) for(let j=i+1;j<drivers.length;j++) {
+    const a=drivers[i],b=drivers[j],speedA=a.speed,speedB=b.speed;
+    if(!resolveCircuitCarContact(a,b,track.length))continue;
+    a.braking ||= a.speed<speedA-.01;b.braking ||= b.speed<speedB-.01;
+    for(const car of [a,b]) {
+      const max=track.halfWidth-car.width/2-1;
+      car.offset=clamp(car.offset,-max,max);
     }
-    if(Math.abs(a.offset-b.offset)>=lateral) continue;
-    const oldGap=raceGap(previous[i].progress,previous[j].progress,length);
-    const bAhead=gap>0 || (gap===0 && oldGap>=0);
-    const follower=bAhead?a:b, leader=bAhead?b:a, before=previous[bAhead?i:j];
-    follower.progress=Math.max(before.progress,follower.progress-(longitudinal-Math.abs(gap)));
-    follower.speed=Math.min(follower.speed,leader.speed);follower.braking=true;
   }
 }
 

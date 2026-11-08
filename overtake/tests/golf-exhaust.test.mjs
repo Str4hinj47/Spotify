@@ -21,3 +21,10 @@ test('new rear purchases charge once and retain owned tokens', () => {
     assert.ok(two.progress.tunes.golf.includes(`rear:${rear}`));
   }
 });
+
+test('quad afterfire uses four distinct symmetric outlets regardless of rear bumper', () => {
+ for(const rear of ['stock','street','track','golf-r32','golf-clean','golf-diffuser']) {
+  const layout=golfExhaustLayout(sanitizeCustomization({rear,exhaust:'golf-quad-flame'}));
+  assert.deepEqual(layout.centers,[-.57,-.47,.47,.57]);assert.ok(layout.radius>0);assert.equal(layout.y,.29);
+ }
+});

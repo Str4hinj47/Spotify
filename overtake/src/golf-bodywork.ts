@@ -33,21 +33,20 @@ function subdivide(t:Vertex[],depth:number,out:Vertex[][]) {
 }
 function regions(config:Customization):Region[] {
   const r:Region[]=[];
-  if(config.rear!=='stock') r.push({part:'rear',planes:[p=>(config.rear==='golf-r32'||config.rear==='golf-clean'?.62:.39)-p.y,p=>p.z-1.55]});
+  if(config.rear!=='stock'||config.exhaust==='golf-quad-flame') r.push({part:'rear',planes:[p=>(config.rear==='golf-r32'||config.rear==='golf-clean'?.62:.39)-p.y,p=>p.z-1.55]});
   if(config.front!=='stock') r.push({part:'front',planes:[p=>.36-p.y,p=>-1.49-p.z]});
   if(config.skirts!=='stock') for(const side of [-1,1]) r.push({part:'skirts',side,planes:[p=>.38-p.y,p=>p.z+.8,p=>.98-p.z,p=>side*p.x-.68]});
   return r;
 }
 function shape(p:THREE.Vector3, region:Region, config:Customization):THREE.Vector3 {
-  const result=p.clone(), level={street:0,touring:1,sport:2,track:3,stock:0,flame:3,'golf-r32':2,'golf-clean':1}[config[region.part]];
+  const result=p.clone(), level={street:0,touring:1,sport:2,track:3,stock:0,flame:3,'golf-r32':2,'golf-clean':1,'golf-diffuser':3,'golf-wide':3}[config[region.part]];
   if(region.part==='rear') {
     const w=smooth(0,.15,.39-p.y)*smooth(0,.22,p.z-1.55);
-    result.y-=(.035+level*.011)*w;
-    result.z+=(.015+level*.012)*w;
-    result.x+=Math.sign(p.x)*(.005+level*.005)*w*smooth(.4,.8,Math.abs(p.x));
+    if(config.rear!=='stock') {result.y-=(.035+level*.011)*w;result.z+=(.015+level*.012)*w;}
+    if(config.rear!=='stock')result.x+=Math.sign(p.x)*(.005+level*.005)*w*smooth(.4,.8,Math.abs(p.x));
   } else if(region.part==='front') {
     const w=smooth(0,.13,.36-p.y)*smooth(0,.22,-1.49-p.z);
-    result.y-=(.025+level*.008)*w;result.z-=(.01+level*.008)*w;
+    result.y-=(.025+level*.008)*w;result.z-=(config.front==='golf-wide'?.16:(.01+level*.008))*w;
   } else {
     const w=smooth(0,.12,.38-p.y)*smooth(0,.16,p.z+.8)*smooth(0,.16,.98-p.z)*smooth(0,.08,Math.abs(p.x)-.68);
     result.y-=(.022+level*.009)*w;result.x+=region.side!*(.012+level*.009)*w;
@@ -89,9 +88,9 @@ export function fitGolfBodywork(inner:THREE.Group,wrapper:THREE.Group,kit:THREE.
     const detail: {face:Vertex[]; dark:boolean}[]=[];
     for(const face of faces) {
       const variant=region && config[region.part];
-      const width=variant==='track'?.49:variant==='golf-clean'?.55:variant==='sport'?.43:.34;
-      const top=variant==='track'?.365:variant==='golf-clean'?.33:variant==='sport'?.34:.30;
-      const planes:Plane[]=region?.part==='rear' && (variant==='touring'||variant==='sport'||variant==='track'||variant==='golf-clean')
+      const width=variant==='track'?.49:(variant==='golf-clean'||variant==='golf-diffuser')?.55:variant==='sport'?.43:.34;
+      const top=variant==='track'?.365:variant==='golf-diffuser'?.365:variant==='golf-clean'?.33:variant==='sport'?.34:.30;
+      const planes:Plane[]=region?.part==='rear' && (variant==='touring'||variant==='sport'||variant==='track'||variant==='golf-clean'||variant==='golf-diffuser')
         ? [p=>width-p.x-.55*(.39-p.y),p=>width+p.x-.55*(.39-p.y),p=>top-p.y,p=>p.z-1.76] : [];
       let inside=face;
       for(const plane of planes) {

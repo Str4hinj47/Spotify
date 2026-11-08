@@ -7,7 +7,7 @@ import { createBodyKit, disposeBodyKit, BODY_FITS } from './body-kits';
 import { rigWheels } from './wheels';
 import { fitGolfBodywork } from './golf-bodywork';
 import { createCarbonMaterial, customPaintMaterial } from './livery';
-import { sanitizeCustomization, type Customization } from './customization.mjs';
+import { GOLF_PART_OPTIONS, sanitizeCustomization, type Customization } from './customization.mjs';
 
 export interface CarModel {
   id: TrafficId;
@@ -140,6 +140,52 @@ function exposeMustangValanceSignals(root: THREE.Group) {
   lenses.position.z -= .10;
 }
 
+// Remove the factory Golf mirror housing and glass from player-owned copies.
+// They are merged with body and trim, so clip the two mirror volumes rather
+// than putting new housings on top. Door frames stay outside these volumes.
+function removeGolfMirrors(inner:THREE.Group,wrapper:THREE.Group):THREE.BufferGeometry[] {
+  const owned:THREE.BufferGeometry[]=[];wrapper.updateMatrixWorld(true);
+  for(const name of ['golf_mesh','golf_mesh_3','golf_mesh_7']) {
+    const mesh=inner.getObjectByName(name) as THREE.Mesh | undefined;if(!mesh?.isMesh)continue;
+    const source=mesh.geometry,pos=source.getAttribute('position'),index=source.index;if(!pos)continue;
+    const matrix=new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld),v=new THREE.Vector3(),kept:number[]=[];
+    for(let i=0;i<(index?index.count:pos.count);i+=3) {
+      const tri=[index?index.getX(i):i,index?index.getX(i+1):i+1,index?index.getX(i+2):i+2];
+      const q=new THREE.Vector3();for(const n of tri)q.add(v.fromBufferAttribute(pos,n).applyMatrix4(matrix));q.multiplyScalar(1/3);
+      if(!(Math.abs(q.x)>.805 && q.y>.86 && q.y<1.07 && q.z>-.64 && q.z<-.30))kept.push(...tri);
+    }
+    const copy=source.clone();copy.setIndex(kept);copy.clearGroups();mesh.geometry=copy;owned.push(copy);
+  }
+  return owned;
+}
+
+// Change tire sidewall depth radially, keeping the outer contact diameter and
+// the independent tread-width/handling setting unchanged. Clone only player
+// position buffers; the stock and traffic models remain shared and untouched.
+function adjustGolfTireProfile(wheels:THREE.Group[],profile:'low'|'thick'):THREE.BufferGeometry[] {
+  const owned:THREE.BufferGeometry[]=[], delta=profile==='low'?.026:-.035;
+  for(const pivot of wheels) {
+    pivot.updateWorldMatrix(true,true);
+    pivot.traverse(o=>{
+      const mesh=o as THREE.Mesh;if(!mesh.isMesh || Array.isArray(mesh.material))return;
+      const name=mesh.material.name,tire=name.startsWith('tire__'),rim=name.startsWith('rim__')||name.startsWith('other__Wheel-nuts');
+      if(!tire&&!rim)return;
+      const geo=mesh.geometry,position=geo.getAttribute('position'),index=geo.index;if(!position)return;
+      const copy=geo.clone(),p=copy.getAttribute('position'),matrix=new THREE.Matrix4().copy(pivot.matrixWorld).invert().multiply(mesh.matrixWorld),inverse=matrix.clone().invert();
+      const indices=new Set<number>();for(let i=0;i<(index?index.count:position.count);i++)indices.add(index?index.getX(i):i);
+      const v=new THREE.Vector3(),outer=pivot.userData.wheelRadius as number,scale=profile==='low'?1.115:.845;
+      for(const i of indices) {
+        v.fromBufferAttribute(position,i).applyMatrix4(matrix);const r=Math.hypot(v.y,v.z);if(r<1e-6)continue;
+        const weight=tire ? 1-THREE.MathUtils.smoothstep(r,outer*.70,outer*.98) : 1;
+        const factor=tire ? Math.max(.3,(r+delta*weight)/r) : scale;
+        v.y*=factor;v.z*=factor;v.applyMatrix4(inverse);p.setXYZ(i,v.x,v.y,v.z);
+      }
+      p.needsUpdate=true;copy.computeBoundingSphere();mesh.geometry=copy;owned.push(copy);
+    });
+  }
+  return owned;
+}
+
 export class ModelLibrary {
   private loader: GLTFLoader;
   private models = new Map<TrafficId, CarModel>();
@@ -270,6 +316,18 @@ export class ModelLibrary {
           normalized.add(surround);
         }
       }
+      if (spec.id === 'challenger') {
+        // Opaque, inset backplates close the empty centres of the source LED
+        // rings. The original red lenses remain in front and keep their signals.
+        const backing=new THREE.MeshStandardMaterial({color:0x14181b,roughness:.55,metalness:.15});
+        for(const side of [-1,1]) {
+          const shape=new THREE.Shape(),w=.61,h=.11,r=.035;
+          shape.moveTo(-w/2+r,-h/2);shape.lineTo(w/2-r,-h/2);shape.quadraticCurveTo(w/2,-h/2,w/2,-h/2+r);
+          shape.lineTo(w/2,h/2-r);shape.quadraticCurveTo(w/2,h/2,w/2-r,h/2);shape.lineTo(-w/2+r,h/2);
+          shape.quadraticCurveTo(-w/2,h/2,-w/2,h/2-r);shape.lineTo(-w/2,-h/2+r);shape.quadraticCurveTo(-w/2,-h/2,-w/2+r,-h/2);
+          const plate=new THREE.Mesh(new THREE.ShapeGeometry(shape),backing);plate.name='challenger-lamp-backing';plate.position.set(side*.515,.882,2.323);normalized.add(plate);
+        }
+      }
       if (spec.id === 'mustang') exposeMustangValanceSignals(normalized);
       rigWheels(normalized, spec.id);
       this.models.set(spec.id, {
@@ -321,7 +379,10 @@ export class ModelLibrary {
 
   setCustomization(id: CarId, config: Customization) {
     const clean=sanitizeCustomization(config);
-    if(id!=='golf' && (clean.rear==='golf-r32'||clean.rear==='golf-clean')) clean.rear='stock';
+    if(id!=='golf') {
+      for(const [part, options] of Object.entries(GOLF_PART_OPTIONS)) if(options?.includes(clean[part as keyof typeof GOLF_PART_OPTIONS] as never)) (clean as unknown as Record<string,string>)[part]='stock';
+      clean.headlights='stock';clean.mirrors='stock';clean.tireProfile='standard';
+    }
     this.customization.set(id, clean);
   }
 
@@ -390,6 +451,11 @@ export class ModelLibrary {
           }
           return light;
         }
+        if (id==='challenger' && mesh.name==='Plane_Plane032' && config && (config.paintScheme==='upper' || config.paintScheme==='lower')) {
+          const hood=config.secondaryFinish==='carbon' ? createCarbonMaterial() : (mat as THREE.MeshStandardMaterial).clone();
+          if(config.secondaryFinish!=='carbon') {hood.color.set(config.secondaryColor);hood.map=null;hood.metalness=.45;hood.roughness=.36;}
+          hood.name='challenger-secondary-hood';customPaintCopies.push(hood);return hood;
+        }
         if (mat.name.startsWith('paint__')) {
           let base = mat as THREE.MeshStandardMaterial;
           if (paint !== undefined) {
@@ -450,13 +516,31 @@ export class ModelLibrary {
         if (BODY_FITS[id]) {
           const kit=createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080);
           wrapper.add(kit);
-          if(id==='golf') customGeometries.push(...fitGolfBodywork(inner,wrapper,kit,config));
+          if(id==='golf') {
+            customGeometries.push(...fitGolfBodywork(inner,wrapper,kit,config));
+            if(config.mirrors!=='stock')customGeometries.push(...removeGolfMirrors(inner,wrapper));
+            if(config.headlights!=='stock') {
+              const lens=inner.getObjectByName('golf_mesh_4') as THREE.Mesh | undefined;
+              if(lens && !Array.isArray(lens.material)) {
+                const material=lens.material.clone() as THREE.MeshStandardMaterial;
+                material.color.set(config.headlights==='smoked'?0x38424b:0xb6dcf1);
+                material.opacity=config.headlights==='smoked'?.52:.24;material.transparent=true;material.depthWrite=false;
+                lens.material=material;customPaintCopies.push(material);
+              }
+            }
+          }
         }
       }
     }
     const wheels: THREE.Group[] = [];
     inner.traverse(o => { if (o.name.startsWith('wheel_pivot_')) wheels.push(o as THREE.Group); });
     if (config) {
+      if(id==='golf') {
+        // The source's oversized exposed brake block is not part of the tire
+        // or rim. Hide only on the player clone, never the shared model.
+        const brake=inner.getObjectByName('golf_mesh_9');if(brake)brake.visible=false;
+        if(config.tireProfile!=='standard') customGeometries.push(...adjustGolfTireProfile(wheels,config.tireProfile));
+      }
       const geometry=this.rims.get(config.rim);
       const width={narrow:.85,standard:1,wide:1.18}[config.tireWidth];
       const colored = config.rimColor ? new THREE.Color(config.rimColor) : null;
@@ -477,7 +561,8 @@ export class ModelLibrary {
           }
         });
         if(geometry && rimMaterial) {
-          const rim=new THREE.Mesh(geometry,rimMaterial), radius=pivot.userData.wheelRadius*.76;
+          const profileScale=id==='golf' ? {low:1.115,standard:1,thick:.845}[config.tireProfile] : 1;
+          const rim=new THREE.Mesh(geometry,rimMaterial), radius=pivot.userData.wheelRadius*.76*profileScale;
           // The uploaded rims have a deep barrel. Compress only the axle axis
           // and inset the outer face inside the sidewall, including narrow tires.
           const depth=radius*.55;
