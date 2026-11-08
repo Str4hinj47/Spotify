@@ -35,7 +35,7 @@ try {
  assert.ok(data.front.min[2]<data.normalFront.min[2]-.08,'extended front must project outward');
  assert.equal(data.counts['wing-pedestal'],2);assert.equal(data.counts['wing-endplate'],2);assert.equal(data.counts['diffuser-fin'],7);assert.equal(data.counts['headlight-halo'],2);assert.equal(data.counts['mirror-housing'],2);assert.ok(data.wing[1]>1.65);assert.deepEqual(data.mirrors,[0,0,0]);
  const [low,standard,thick]=data.profiles;assert.ok(low.min>standard.min && standard.min>thick.min);assert.ok(low.radius>standard.radius && standard.radius>thick.radius);assert.ok(Math.abs(low.max-standard.max)<.002 && Math.abs(thick.max-standard.max)<.002);
- for(const w of data.profiles){assert.ok(Math.abs(w.axis[0])>.999 && Math.abs(w.axis[1])<.001 && Math.abs(w.axis[2])<.001,`rim axle tilted: ${w.axis}`);assert.equal(w.brakeVisible,false)}
+ for(const w of data.profiles){assert.ok(w.radius <= w.min+.012,`rim must fit the tire opening: ${w.profile} ${w.radius} vs ${w.min}`);assert.ok(Math.abs(w.axis[0])>.999 && Math.abs(w.axis[1])<.001 && Math.abs(w.axis[2])<.001,`rim axle tilted: ${w.axis}`);assert.equal(w.brakeVisible,false)}
  // Exercise the actual workshop controls, then reload the local save.
  await page.click('#menu-garage');await page.click('[data-garage-tab=style]');await page.click('#btn-customize');
  for(const [part,value] of [['front','golf-wide'],['rear','golf-diffuser'],['spoiler','golf-wing'],['exhaust','golf-quad-flame'],['hood','golf-vented'],['roof','golf-roof-scoop']])await page.selectOption(`#custom-${part}`,value,{force:true});

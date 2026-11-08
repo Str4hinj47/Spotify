@@ -612,7 +612,10 @@ export class ModelLibrary {
         });
         if(geometry && rimMaterial) {
           const profileScale=id==='golf' ? {low:1.115,standard:1,thick:.845}[config.tireProfile] : 1;
-          const rim=new THREE.Mesh(geometry,rimMaterial), radius=pivot.userData.wheelRadius*.76*profileScale;
+          // Golf's stock tire opening is about 66% of its outside radius.
+          // Fit the rim to that opening instead of letting spokes overlap
+          // the rubber sidewall; profile changes still keep outer diameter.
+          const rim=new THREE.Mesh(geometry,rimMaterial), radius=pivot.userData.wheelRadius*(id==='golf'?.66:.76)*profileScale;
           // The uploaded rims have a deep barrel. Compress only the axle axis
           // and inset the outer face inside the sidewall, including narrow tires.
           const depth=radius*.55;
