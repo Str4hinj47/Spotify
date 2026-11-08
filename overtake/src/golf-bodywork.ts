@@ -245,7 +245,23 @@ export function fitGolfBodywork(inner:THREE.Group,wrapper:THREE.Group,kit:THREE.
 export function removeGolfTailgateHandle(inner:THREE.Group,wrapper:THREE.Group):THREE.BufferGeometry[] {
   const owned:THREE.BufferGeometry[]=[];
   wrapper.updateMatrixWorld(true);
-  const planes:Plane[]=[p=>p.x+.16,p=>.16-p.x,p=>p.y-.64,p=>.77-p.y,p=>p.z-1.89];
+  const half=.22,bottom=.62,top=.98,columns=40,rows=36;
+  const planes:Plane[]=[p=>p.x+half,p=>half-p.x,p=>p.y-bottom,p=>top-p.y,p=>p.z-1.89];
+  // Sample the surviving paint around the entire patch before cutting it.
+  // A Coons surface uses all four boundaries, so the smoothed tailgate follows
+  // the real panel curvature rather than standing out as a rectangle.
+  const original=inner.getObjectByName('golf_mesh_3') as THREE.Mesh|undefined;
+  const ray=new THREE.Raycaster(),direction=new THREE.Vector3(0,0,-1).transformDirection(wrapper.matrixWorld);
+  const sample=(x:number,y:number)=>{
+    if(!original)return 1.99;
+    ray.set(wrapper.localToWorld(new THREE.Vector3(x,y,3)),direction);
+    const hit=ray.intersectObject(original,false).find(h=>wrapper.worldToLocal(h.point.clone()).z>1.89);
+    return hit ? wrapper.worldToLocal(hit.point.clone()).z : 1.99;
+  };
+  const left=Array.from({length:rows+1},(_,j)=>sample(-half,THREE.MathUtils.lerp(bottom,top,j/rows)));
+  const right=Array.from({length:rows+1},(_,j)=>sample(half,THREE.MathUtils.lerp(bottom,top,j/rows)));
+  const lower=Array.from({length:columns+1},(_,i)=>sample(THREE.MathUtils.lerp(-half,half,i/columns),bottom));
+  const upper=Array.from({length:columns+1},(_,i)=>sample(THREE.MathUtils.lerp(-half,half,i/columns),top));
   let paint:THREE.Mesh|undefined,paintToCar:THREE.Matrix4|undefined;
   for(const name of ['golf_mesh','golf_mesh_2','golf_mesh_3']) {
     const mesh=inner.getObjectByName(name) as THREE.Mesh|undefined;
@@ -265,14 +281,15 @@ export function removeGolfTailgateHandle(inner:THREE.Group,wrapper:THREE.Group):
     if(name==='golf_mesh_3'){paint=mesh;paintToCar=matrix;}
   }
   if(paint && paintToCar) {
-    const inverse=paintToCar.clone().invert(),normalToLocal=new THREE.Matrix3().getNormalMatrix(paintToCar).invert(),positions:number[]=[],normals:number[]=[],indices:number[]=[],columns=16;
-    for(let i=0;i<=columns;i++) for(const y of [.64,.77]) {
-      const x=(i/columns*2-1)*.16,z=1.999+.065*(y-.70)-.15*x*x;
-      const v=new THREE.Vector3(x,y,z).applyMatrix4(inverse);positions.push(v.x,v.y,v.z);
-      const n=new THREE.Vector3(.20*x,-.08+1.25*(y-.70),1).normalize().applyMatrix3(normalToLocal).normalize();normals.push(n.x,n.y,n.z);
+    const inverse=paintToCar.clone().invert(),positions:number[]=[],indices:number[]=[];
+    for(let i=0;i<=columns;i++) for(let j=0;j<=rows;j++) {
+      const u=i/columns,v=j/rows,x=THREE.MathUtils.lerp(-half,half,u),y=THREE.MathUtils.lerp(bottom,top,v);
+      const sides=THREE.MathUtils.lerp(left[j],right[j],u), ends=THREE.MathUtils.lerp(lower[i],upper[i],v);
+      const corners=THREE.MathUtils.lerp(THREE.MathUtils.lerp(left[0],right[0],u),THREE.MathUtils.lerp(left[rows],right[rows],u),v);
+      const z=sides+ends-corners,point=new THREE.Vector3(x,y,z).applyMatrix4(inverse);positions.push(point.x,point.y,point.z);
     }
-    for(let i=0;i<columns;i++){const a=i*2,b=a+1,c=a+2,d=a+3;indices.push(a,c,b,b,c,d);}
-    const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));geometry.setIndex(indices);owned.push(geometry);
+    for(let i=0;i<columns;i++)for(let j=0;j<rows;j++){const a=i*(rows+1)+j,b=a+1,c=a+rows+1,d=c+1;indices.push(a,c,b,b,c,d);}
+    const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setIndex(indices);geometry.computeVertexNormals();owned.push(geometry);
     const patch=new THREE.Mesh(geometry,paint.material);patch.name='golf-smooth-tailgate';patch.matrix.copy(paintToCar);patch.matrixAutoUpdate=false;wrapper.add(patch);
   }
   return owned;
