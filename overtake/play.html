@@ -94,7 +94,6 @@
         <div class="section-kicker">SELECT YOUR DRIVE <span>LOCAL PLAY</span></div>
         <p id="active-mode-info" class="active-mode-info" aria-live="polite"></p>
         <div class="mode-select" role="group" aria-label="Run mode">
-          <button class="mode-card active" data-mode="circuit" type="button"><span class="mode-name">Circuit Race</span><span class="mode-desc">5 tracks · 3 laps · 5 AI rivals</span><span class="mode-best">Best <b id="mode-best-circuit">0</b></span></button>
           <button class="mode-card" data-mode="endless" type="button">
             <span class="mode-name">Endless</span>
             <span class="mode-desc">Survive and chain passes</span>
@@ -105,20 +104,10 @@
             <span class="mode-desc">120-second score attack</span>
             <span class="mode-best">Best <b id="mode-best-rush">0</b></span>
           </button>
-          <button class="mode-card" data-mode="trial" type="button"><span class="mode-name">Time Trial</span><span class="mode-desc">Race to 3 km</span><span class="mode-best">Fastest <b id="mode-best-trial">—</b></span></button>
-          <button class="mode-card" data-mode="near" type="button"><span class="mode-name">Near Miss</span><span class="mode-desc">90 seconds · close passes pay</span><span class="mode-best">Best <b id="mode-best-near">0</b></span></button>
-          <button class="mode-card" data-mode="daily" type="button"><span class="mode-name">Daily Drive</span><span class="mode-desc" id="daily-desc">Rotates daily · UTC</span><span class="mode-best">Today's best <b id="mode-best-daily">0</b></span></button>
-          <button class="mode-card" data-mode="weekly" type="button"><span class="mode-name">Weekly Event</span><span class="mode-desc" id="weekly-desc">Rotates weekly · UTC</span><span class="mode-best">This week's best <b id="mode-best-weekly">0</b></span></button>
-          <button class="mode-card" data-mode="seasonal" type="button"><span class="mode-name">Seasonal Challenge</span><span class="mode-desc" id="seasonal-desc">Rotates each UTC quarter</span><span class="mode-best">Season best <b id="mode-best-seasonal">0</b></span></button>
-          <button class="mode-card" data-mode="convoy" type="button"><span class="mode-name">Convoy Run</span><span class="mode-desc">150 seconds · pass six cars</span><span class="mode-best">Best <b id="mode-best-convoy">0</b></span></button>
-          <button class="mode-card" data-mode="ghost" type="button"><span class="mode-name">Ghost Trial</span><span class="mode-desc">3 km · race your local ghost</span><span class="mode-best">Fastest <b id="mode-best-ghost">—</b></span></button>
-          <button class="mode-card" data-mode="checkpoint" type="button"><span class="mode-name">Checkpoint Chase</span><span class="mode-desc">35 seconds · +15s every 500 m</span><span class="mode-best">Best <b id="mode-best-checkpoint">0</b></span></button>
-          <button class="mode-card" data-mode="precision" type="button"><span class="mode-name">Precision Challenge</span><span class="mode-desc">120 seconds · 8 near misses</span><span class="mode-best">Best <b id="mode-best-precision">0</b></span></button>
-          <button class="mode-card" data-mode="speed" type="button"><span class="mode-name">Speed Run</span><span class="mode-desc">90 seconds · score above 140 km/h</span><span class="mode-best">Best <b id="mode-best-speed">0</b></span></button>
+          <button class="mode-card" data-mode="trial" type="button"><span class="mode-name">Time Attack</span><span class="mode-desc">Race to 3 km</span><span class="mode-best">Fastest <b id="mode-best-trial">—</b></span></button>
           <button class="mode-card ranked-mode-card" data-mode="ranked" type="button"><img class="ranked-event-badge" src="/icons/ranked.svg" alt="" aria-hidden="true"><span class="mode-name">Ranked Racing</span><span class="mode-desc">Track races · earn rank points</span><span class="mode-best">Local rank <b id="mode-best-ranked">Rookie</b></span></button>
         </div>
         <p class="local-note">Local, unverified runs · Traffic and conditions vary</p>
-        <p id="ghost-menu-note" class="local-note hidden"></p>
         <div id="recent-runs" class="recent-runs hidden">
           <div class="paint-head"><span>Recent runs</span><span id="recent-mode" class="count"></span></div>
           <div id="recent-list"></div>
@@ -143,13 +132,13 @@
             <p>Every run is a story. Here's yours so far.</p>
             <div class="menu-stats-grid"><div><b id="menu-best-score">0</b><span>BEST SAVED SCORE</span></div><div><b id="menu-longest">0.0 <small>KM</small></b><span>LONGEST SAVED RUN</span></div><div><b id="menu-runs">0</b><span>RECORDED RUNS</span></div><div><b id="menu-owned">1 / 7</b><span>CARS OWNED</span></div></div>
             <div class="menu-rank-summary"><div id="menu-rank-badge" class="menu-rank-badge"></div><div><span>LOCAL RANK</span><strong id="menu-rank-name">Rookie</strong><small id="menu-rank-points">0 RP</small></div><button id="menu-rank-select" type="button" aria-label="Select Ranked Racing">↗</button></div>
-            <p class="menu-footnote">Local, unverified stats. Best score and longest run exclude ranked; daily, weekly and seasonal bests reset. Dev runs and abandoned regular runs aren't recorded.</p>
+            <p class="menu-footnote">Local, unverified stats. Best score and longest run exclude ranked. Dev runs and abandoned regular runs aren't recorded.</p>
           </section>
           </div>
           <div id="drawer-season" class="drawer-page hidden">
           <section class="menu-info-card season-pass-card" aria-label="Season pass">
             <div class="menu-card-head"><span>SEASON PASS</span><span class="menu-chip" id="season-period">UTC QUARTER</span></div>
-            <h2>QUEST <em>REWARDS.</em></h2><p>Complete in-run quests for XP. The seasonal challenge awards 200 XP; other quests award 100 XP.</p>
+            <h2>QUEST <em>REWARDS.</em></h2><p>Complete in-run quests to earn season XP.</p>
             <div class="season-pass-progress"><strong id="season-xp">0 / 800 XP</strong><div class="season-pass-bar"><i id="season-xp-fill"></i></div><small id="season-next"></small></div>
             <div class="premium-pass"><strong>PREMIUM · COSMETICS ONLY</strong><p>Unlock a second reward track for 50 gems. Earn gems from quests; buy later and receive every premium tier you already reached. No gameplay boosts.</p><span id="season-wallet">0 gems available</span><button id="season-premium-buy" type="button">UNLOCK PREMIUM · 50 GEMS</button></div>
             <details class="season-rewards"><summary>VIEW FREE &amp; PREMIUM REWARDS</summary><div class="reward-lists"><ol id="season-reward-list"></ol><ol id="season-premium-list"></ol></div><div class="reward-pager"><button id="reward-prev" type="button">‹</button><span id="reward-page-label"></span><button id="reward-next" type="button">›</button></div></details>

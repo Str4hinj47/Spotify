@@ -11,7 +11,7 @@ export const RUN_MODES = {
     medals: { bronze: 2500, silver: 6000, gold: 12000 },
   },
   ranked: { id: 'ranked', label: 'Ranked Racing', duration: null, tagline: 'Race AI across five tracks and climb the local ladder.', medals: { bronze: 2000, silver: 5000, gold: 10000 } },
-  trial: { id: 'trial', label: 'Time Trial', duration: null, tagline: 'Reach 3 km as fast as possible.', medals: { bronze: 2000, silver: 5000, gold: 10000 } },
+  trial: { id: 'trial', label: 'Time Attack', duration: null, tagline: 'Reach 3 km as fast as possible.', medals: { bronze: 2000, silver: 5000, gold: 10000 } },
   seasonal: { id: 'seasonal', label: 'Seasonal Challenge', duration: 180, tagline: 'A local challenge rotates every UTC quarter.', medals: { bronze: 1500, silver: 3500, gold: 7000 } },
   convoy: { id: 'convoy', label: 'Convoy Run', duration: 150, tagline: 'Pass six cars in a slower traffic convoy.', medals: { bronze: 1500, silver: 3500, gold: 7000 } },
   checkpoint: { id:'checkpoint', label:'Checkpoint Chase', duration:35, tagline:'Start with 35 seconds. Every 500 m adds 15 seconds and 250 points.', medals:{ bronze:2000, silver:5000, gold:10000 } },
@@ -27,6 +27,11 @@ export const RUN_MODES = {
     medals: { bronze: 1800, silver: 4000, gold: 7500 },
   },
 };
+
+// Legacy modes remain in RUN_MODES only to read old histories and backups.
+// They are not selectable or startable in the game.
+export const PLAYABLE_RUN_MODES = Object.freeze(['endless','rush','trial','circuit','ranked']);
+export function playableRunMode(mode) { return PLAYABLE_RUN_MODES.includes(mode) ? mode : 'endless'; }
 
 const CONTRACT_POOL = [
   { id: 'pass5', title: 'Clean five', desc: 'Overtake 5 cars', metric: 'overtakes', target: 5, reward: 400 },

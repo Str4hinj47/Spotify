@@ -1,4 +1,7 @@
 export type RunMode = 'circuit' | 'endless' | 'rush' | 'trial' | 'near' | 'daily' | 'weekly' | 'ranked' | 'seasonal' | 'convoy' | 'ghost' | 'checkpoint' | 'precision' | 'speed';
+export type PlayableRunMode = 'endless' | 'rush' | 'trial' | 'circuit' | 'ranked';
+export const PLAYABLE_RUN_MODES: readonly PlayableRunMode[];
+export function playableRunMode(mode: unknown): PlayableRunMode;
 export type Medal = 'bronze' | 'silver' | 'gold' | null;
 export interface RunContract { id: string; title: string; desc: string; metric: string; target: number; reward: number; }
 export interface RunState {

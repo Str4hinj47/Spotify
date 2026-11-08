@@ -956,3 +956,7 @@ body:has(#main-menu:not(.hidden)) .tag, body:has(#main-menu:not(.hidden)) .site-
 .lobby-track { min-height:44px; padding:0 12px; border:1px solid #77ccde77; border-radius:4px; background:#0d222ddd; color:#c4f4ff; font-size:10px; font-weight:800; letter-spacing:.06em; cursor:pointer; }
 .lobby-track:hover { background:#234552; }
 @media(max-width:700px) { .lobby-track { position:absolute; right:0; bottom:calc(100% + 7px); min-height:32px; padding:0 10px; font-size:9px; } }
+
+/* Regular circuit races live alongside the highway events in the picker. */
+.main-menu .circuit-event-card { background-size:cover; background-position:center; text-shadow:0 1px 4px #000; }
+.main-menu .circuit-event-card.active { border-color:#d2b9ff; box-shadow:inset 0 0 0 2px #d2b9ff55; }

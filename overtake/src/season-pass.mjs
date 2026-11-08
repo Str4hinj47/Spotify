@@ -1,5 +1,4 @@
-// Local seasonal reward track. The UTC quarter is shared with Seasonal
-// Challenge; completed quests are repeatable across runs. Rewards stay owned.
+// Local quarterly reward track; completed quests repeat across runs and rewards stay owned.
 export const SEASON_TIERS = Object.freeze([
   {xp:100, car:'golf', type:'tune', key:'front', value:'street', label:'Flux · GT front lip'},
   {xp:200, car:'golf', type:'upgrade', key:'tires', level:1, label:'Flux · tire upgrade stage 1'},

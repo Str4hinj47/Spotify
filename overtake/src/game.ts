@@ -40,7 +40,7 @@ import { biomeParams, biomeWeights, dominantBiome } from './world/biomes.mjs';
 import { snowDriftHeight } from './world/road-snow.mjs';
 import { createWeatherState, stepWeather, weatherGrip, weatherLabel, type WeatherState } from './world/weather.mjs';
 import { createClock, stepClock, formatHour, dayFactor } from './world/clock.mjs';
-import { createRun, tickRun, registerPass, finishRun, runSummary, contractProgress, medalFor, RUN_MODES, type RunMode, type RunState, type RunEvent, type Medal } from './run.mjs';
+import { createRun, tickRun, registerPass, finishRun, runSummary, contractProgress, medalFor, RUN_MODES, playableRunMode, type RunMode, type RunState, type RunEvent, type Medal } from './run.mjs';
 import { createTrafficAI, findLeader, stepTraffic, hazardAhead, trafficCruise, chooseTruck, canOvertakeTruck, startOvertake, stepOvertake, type TrafficAI, type Hazard } from './traffic-ai.mjs';
 import { chooseTrafficModel, chooseTrafficPaint } from './traffic-appearance.mjs';
 import { emptyRecords, sanitizeRecords, recordRun, bestFor, type Records } from './records.mjs';
@@ -1563,9 +1563,9 @@ export class OvertakeGame {
 
   setRunMode(mode: RunMode) {
     if (this.mode !== 'garage' && this.mode !== 'gameover') return;
-    this.runMode = mode;
-    this.best = bestFor(this.records, mode);
-    try { localStorage.setItem('overtake-mode', mode); } catch { /* ignore */ }
+    this.runMode = playableRunMode(mode);
+    this.best = bestFor(this.records, this.runMode);
+    try { localStorage.setItem('overtake-mode', this.runMode); } catch { /* ignore */ }
   }
   getRunMode() { return this.runMode; }
   getRanked() { return sanitizeRanked(this.ranked); }
@@ -1652,11 +1652,17 @@ export class OvertakeGame {
       const savedMode = localStorage.getItem('overtake-mode');
       // Introduce the new racing mode once for returning players, without
       // altering progression, records, or future explicit mode selections.
-      if (localStorage.getItem('overtake-circuit-intro-v1') !== '1') {
+      if (savedMode && playableRunMode(savedMode) !== savedMode) {
+        // A retired event must never become the startup mode, even for a
+        // returning player who has not seen the circuit introduction yet.
+        this.runMode = 'endless';
+        localStorage.setItem('overtake-mode', 'endless');
+        localStorage.setItem('overtake-circuit-intro-v1', '1');
+      } else if (localStorage.getItem('overtake-circuit-intro-v1') !== '1') {
         this.runMode = 'circuit';
         localStorage.setItem('overtake-mode', 'circuit');
         localStorage.setItem('overtake-circuit-intro-v1', '1');
-      } else if (savedMode && Object.hasOwn(RUN_MODES, savedMode)) this.runMode = savedMode as RunMode;
+      } else if (savedMode) this.runMode = playableRunMode(savedMode);
     } catch { this.records = emptyRecords(); }
   }
   private saveRecords() {

@@ -517,6 +517,17 @@ function formatRankCountdown(seconds: number) { const t = Math.floor(Math.max(0,
 
 function formatTime(seconds: number) { return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, '0')}`; }
 
+function buildCircuitEventCards() {
+  const list=document.querySelector<HTMLElement>('.mode-select')!, ranked=list.querySelector('.ranked-mode-card')!;
+  for(const scenario of SCENARIOS) {
+    const card=document.createElement('button');card.type='button';card.className='mode-card circuit-event-card';
+    card.dataset.mode='circuit';card.dataset.track=scenario.id;
+    card.style.backgroundImage=`linear-gradient(90deg,rgba(12,27,40,.94),rgba(12,27,40,.56)),url('${(import.meta as any).env?.BASE_URL ?? '/'}tracks/${scenario.id}.webp')`;
+    card.innerHTML=`<span class="mode-name">${scenario.title}</span><span class="mode-desc">${scenario.laps} laps · 5 AI rivals</span><span class="mode-best">${scenario.kind==='drift' ? 'DRIFT CAR REQUIRED' : 'CIRCUIT RACE · NO RP'}</span>`;
+    list.insertBefore(card,ranked);
+  }
+}
+
 function syncModeUI() {
   if (!game) return;
   const mode = game.getRunMode();
@@ -531,23 +542,14 @@ function syncModeUI() {
   $('best-top').textContent = fmt(mode === 'ranked' ? game.getRanked().points : game.getBest());
   document.querySelector('.best-pill')?.setAttribute('title', mode === 'ranked' ? 'Local rank points' : 'Personal best score');
   document.querySelectorAll<HTMLButtonElement>('.mode-card').forEach((b) => {
-    const active = b.dataset.mode === mode;
+    const active = b.dataset.mode === mode && (mode !== 'circuit' || b.dataset.track === game.getCircuitScenario().id);
     b.classList.toggle('active', active);
     b.setAttribute('aria-pressed', String(active));
   });
-  $('mode-best-circuit').textContent = fmt(bestFor(records, 'circuit'));
   $('mode-best-endless').textContent = fmt(bestFor(records, 'endless'));
   $('mode-best-rush').textContent = fmt(bestFor(records, 'rush'));
-  for (const key of ['near', 'daily', 'weekly', 'seasonal', 'convoy', 'checkpoint', 'precision', 'speed'] as const) $('mode-best-' + key).textContent = fmt(bestFor(records, key));
   $('mode-best-trial').textContent = records.modes.trial.bestTime === null ? '—' : formatTime(records.modes.trial.bestTime);
-  const ghost = game.getGhost();
-  $('mode-best-ghost').textContent = ghost ? formatTime(ghost.time) : '—';
-  $('seasonal-desc').textContent = eventFor('seasonal').contract.desc + ' · UTC quarter';
-  $('ghost-menu-note').classList.toggle('hidden', mode !== 'ghost');
-  $('ghost-menu-note').textContent = ghost ? `Your local ${getCar(selected).name} ghost: ${formatTime(ghost.time)} · traffic and conditions vary · not included in backups` : 'No ghost for this car yet. Finish 3 km to record one locally; replays are not included in backups.';
-  $('daily-desc').textContent = eventFor('daily').contract.desc + ' · UTC';
-  $('weekly-desc').textContent = eventFor('weekly').contract.desc + ' · UTC';
-  $('active-mode-info').textContent = mode === 'daily' || mode === 'weekly' || mode === 'seasonal' ? `${RUN_MODES[mode].label} · ${eventFor(mode).contract.desc} · UTC` : RUN_MODES[mode].tagline;
+  $('active-mode-info').textContent = mode === 'circuit' ? `${game.getCircuitScenario().title} · 3 laps · 5 AI rivals · no RP` : RUN_MODES[mode].tagline;
   const recent = records.modes[mode].recent.slice(0, 3);
   $('recent-runs').classList.toggle('hidden', recent.length === 0);
   $('recent-mode').textContent = RUN_MODES[mode].label;
@@ -1007,7 +1009,10 @@ function bindUI() {
   $('car-next').addEventListener('click',()=>{carPage++;updateCarPage()});
   window.addEventListener('resize',()=>updateCarPage(true));
   $('open-modes').addEventListener('click',()=>openLobbyDrawer('modes'));
-  $('open-tracks').addEventListener('click',()=>openLobbyDrawer('modes',true));
+  $('open-tracks').addEventListener('click',()=>{
+    if(game.getRunMode()==='ranked') openLobbyDrawer('modes',true);
+    else {const cards=[...document.querySelectorAll<HTMLButtonElement>('.mode-card')];modePage=Math.floor(Math.max(0,cards.findIndex(b=>b.dataset.track===game.getCircuitScenario().id))/6);openLobbyDrawer('modes');}
+  });
   $('open-stats').addEventListener('click',()=>openLobbyDrawer('stats'));
   $('open-season').addEventListener('click',()=>openLobbyDrawer('season'));
   $('drawer-close').addEventListener('click',closeLobbyDrawer);
@@ -1039,7 +1044,12 @@ function bindUI() {
   });
   $('buy-car').addEventListener('click', () => { if (game.purchaseCar(selected)) { syncProgressionUI(); audio.click(); } });
   document.querySelectorAll<HTMLButtonElement>('.mode-card').forEach((b) => {
-    b.addEventListener('click', () => { const mode=b.dataset.mode as RunMode; selectMode(mode); if (mode === 'ranked' || mode === 'circuit') showRankDrawer(true); else closeLobbyDrawer(); });
+    b.addEventListener('click', () => {
+      const mode=b.dataset.mode as RunMode;
+      if(mode==='circuit' && b.dataset.track)game.setCircuitScenario(b.dataset.track as ScenarioId);
+      selectMode(mode);
+      if(mode==='ranked')showRankDrawer(true);else closeLobbyDrawer();
+    });
   });
   $('btn-pause').addEventListener('click', togglePause);
   $('btn-camera').addEventListener('click', toggleCameraPanel);
@@ -1353,6 +1363,7 @@ async function boot() {
   if (requestedMode && Object.hasOwn(RUN_MODES, requestedMode)) game.setRunMode(requestedMode as RunMode);
   game.setSelectedCar(selected);
   updateDetail(selected);
+  buildCircuitEventCards();
   syncModeUI();
   $('best-top').textContent = fmt(game.getBest());
   syncSoundUI();
