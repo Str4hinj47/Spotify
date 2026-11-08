@@ -143,6 +143,24 @@ export function fitGolfBodywork(inner:THREE.Group,wrapper:THREE.Group,kit:THREE.
     }
     return result;
   };
+  if(config.front==='golf-splitter') {
+    // Replace the entire grille area, including the painted bars between the
+    // openings, so the new smooth panel never overlays the factory surface.
+    const cut=(faces:Vertex[][]) => {
+      const keep:Vertex[][]=[];
+      const planes:Plane[]=[p=>p.y-.205,p=>.405-p.y,p=>p.x+.675,p=>.675-p.x,p=>-1.70-p.z];
+      for(const face of faces) {
+        let inside=face;
+        for(const plane of planes) {
+          if(!inside.length)break;
+          const [yes,no]=split(inside,plane);triangles(no,keep);inside=yes;
+        }
+      }
+      return keep;
+    };
+    stock.splice(0,stock.length,...cut(stock));
+    for(let i=0;i<areas.length;i++) if(areas[i].part==='front') fitted[i]=cut(fitted[i]);
+  }
   const trimmed=build(stock);mesh.geometry=trimmed;
   const owned=[trimmed];
   if(config.rear==='golf-r32'||config.rear==='golf-clean') {
@@ -165,6 +183,37 @@ export function fitGolfBodywork(inner:THREE.Group,wrapper:THREE.Group,kit:THREE.
       const arrays=attr.map(()=>[] as number[]);for(const face of keep)for(const v of face)attr.forEach(([,b],j)=>arrays[j].push(...v.a[j].slice(0,b.itemSize)));
       const geometry=new THREE.BufferGeometry();attr.forEach(([name,b],i)=>geometry.setAttribute(name,new THREE.Float32BufferAttribute(arrays[i],b.itemSize,b.normalized)));
       trim.geometry=geometry;owned.push(geometry);
+    }
+  }
+  if(config.front==='golf-splitter') {
+    // Remove only the lower factory grille slats. Preserve the upper rubbing
+    // strip and all other trim, then close the original openings with a
+    // body-colored surface recessed behind the surrounding painted bumper.
+    const trim=inner.getObjectByName('golf_mesh') as THREE.Mesh | undefined;
+    if(trim?.isMesh) {
+      const source=trim.geometry,attr=Object.entries(source.attributes),idx=source.index,pos=attr.findIndex(([name])=>name==='position');
+      const toCar=new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(trim.matrixWorld);
+      const vertex=(i:number):Vertex=>{const a=attr.map(([,b])=>Array.from({length:b.itemSize},(_,j)=>b.getComponent(i,j)));return {a,p:new THREE.Vector3(...(a[pos] as [number,number,number])).applyMatrix4(toCar)};};
+      const keep:Vertex[][]=[],n=idx?idx.count:source.getAttribute('position').count;
+      for(let i=0;i+2<n;i+=3) {
+        let inside=[vertex(idx?idx.getX(i):i),vertex(idx?idx.getX(i+1):i+1),vertex(idx?idx.getX(i+2):i+2)];
+        for(const plane of [((p:THREE.Vector3)=>p.y-.285),((p:THREE.Vector3)=>.405-p.y),((p:THREE.Vector3)=>-1.70-p.z)]) {
+          if(!inside.length)break;const [yes,no]=split(inside,plane);triangles(no,keep);inside=yes;
+        }
+      }
+      const arrays=attr.map(()=>[] as number[]);for(const face of keep)for(const v of face)attr.forEach(([,b],j)=>arrays[j].push(...v.a[j].slice(0,b.itemSize)));
+      const geometry=new THREE.BufferGeometry();attr.forEach(([name,b],i)=>geometry.setAttribute(name,new THREE.Float32BufferAttribute(arrays[i],b.itemSize,b.normalized)));trim.geometry=geometry;owned.push(geometry);
+    }
+    const section=kit.getObjectByName('custom-front');
+    if(section) {
+      const positions:number[]=[],indices:number[]=[];const columns=64;
+      for(let i=0;i<=columns;i++) for(const y of [.205,.405]) {
+        const x=(i/columns*2-1)*.675,z=-2.04+.47*x*x-.24*(y-.34);
+        positions.push(x,y,z);
+      }
+      for(let i=0;i<columns;i++){const a=i*2,b=a+1,c=a+2,d=a+3;indices.push(a,b,c,b,d,c);}
+      const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setIndex(indices);geometry.computeVertexNormals();
+      const cover=new THREE.Mesh(geometry,(kit.userData.ownedMaterials as THREE.Material[])[0]);cover.name='golf-filled-front-grille';section.add(cover);
     }
   }
   const materials=kit.userData.ownedMaterials as THREE.Material[];

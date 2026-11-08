@@ -388,10 +388,10 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       // The fitted lower fascia is created by fitGolfBodywork; accessories
       // remain below the bumper seam and well clear of the headlights.
       if(config.front==='golf-splitter') {
-        const blade=new THREE.Mesh(taperedBand(.83,-2.25,.145,.36,.018,.24),carbon);blade.name='front-splitter';a.add(blade);
+        const blade=new THREE.Mesh(taperedBand(.76,-2.16,.145,.28,.018,.18),carbon);blade.name='front-splitter';a.add(blade);
         for(const side of [-1,1]) {
-          supportRod(new THREE.Vector3(side*.43,.31,-2.03),new THREE.Vector3(side*.49,.16,-2.20),metal,a);
-          for(let i=0;i<3;i++){const fin=box(.18,.014,.17,side*(.61+i*.008),.24+i*.045,-1.88+i*.025,carbon,a,'front-canard');fin.rotation.y=side*.22;}
+          supportRod(new THREE.Vector3(side*.38,.31,-2.03),new THREE.Vector3(side*.43,.16,-2.13),metal,a);
+          for(let i=0;i<3;i++){const fin=box(.14,.014,.13,side*(.60+i*.006),.24+i*.045,-1.88+i*.025,carbon,a,'front-canard');fin.rotation.y=side*.22;}
         }
       }
     } else if(id==='mercedes' && (config.front==='mercedes-aero'||config.front==='mercedes-splitter')) {
