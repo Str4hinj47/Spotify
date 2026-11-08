@@ -502,9 +502,9 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     const a=reg('spoiler'),track=isTrack('spoiler'),amount=level('spoiler'),panel=config.spoilerFinish==='carbon'?woven:body;
     const roof=f.character==='compact'||f.character==='wagon';
     if(id==='golf' && config.spoiler==='golf-wing') {
-      for(const side of [-1,1]) {const support=new THREE.Mesh(wingSupport(side*.39,1.385,1.54,.30,.33),panel);support.name='wing-pedestal';a.add(support);}
-      const wing=new THREE.Mesh(wingProfile(.80,1.90,1.685,.40),panel);wing.name='wing-blade';a.add(wing);
-      for(const side of [-1,1])box(.018,.12,.36,side*.785,1.70,1.88,carbon,a,'wing-endplate');
+      for(const side of [-1,1]) {const support=new THREE.Mesh(wingSupport(side*.39,1.385,1.54,.30,.55),panel);support.name='wing-pedestal';a.add(support);}
+      const wing=new THREE.Mesh(wingProfile(.80,2.12,1.685,.40),panel);wing.name='wing-blade';a.add(wing);
+      for(const side of [-1,1])box(.018,.12,.36,side*.785,1.70,2.10,carbon,a,'wing-endplate');
     } else if(roof) {
       const lip=new THREE.Mesh(id==='audi'?audiRoofExtension(amount):id==='golf'?golfRoofExtension(amount):roofExtension(f.spoilerW,f.spoilerZ,f.spoilerY,track),panel);
       lip.name='roof-extension';a.add(lip);
