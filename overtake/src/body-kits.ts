@@ -629,6 +629,15 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   }
   // Dispose also the unreferenced materials created for the chosen combination.
   g.userData.ownedMaterials=[body,carbon,woven,metal,dark];
+  const partMaterials:Record<string,THREE.Material>={};
+  for(const part of ['front','rear','skirts','spoiler','hood','roof'] as const) {
+    const color=config[`${part}Color`];if(!color)continue;
+    const group=g.getObjectByName(`custom-${part}`);if(!group)continue;
+    const material=new THREE.MeshPhysicalMaterial({color,metalness:.45,roughness:.34,clearcoat:.42,clearcoatRoughness:.22});
+    material.name=`custom-${part}-color`;partMaterials[part]=material;g.userData.ownedMaterials.push(material);
+    group.traverse(o=>{const mesh=o as THREE.Mesh;if(mesh.isMesh)mesh.material=material;});
+  }
+  g.userData.partMaterials=partMaterials;
   return g;
 }
 export function disposeBodyKit(group:THREE.Group) {

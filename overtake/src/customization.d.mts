@@ -8,6 +8,7 @@ export type FinishKey = 'frontFinish' | 'rearFinish' | 'skirtsFinish' | 'spoiler
 export interface Customization {
   front:PartOption|'golf-wide'|'golf-splitter'|'mercedes-aero'|'mercedes-splitter'|'audi-aero'|'audi-splitter'; rear:PartOption|GolfRearOption|'mercedes-clean'|'mercedes-diffuser'|'audi-clean'|'audi-diffuser'; skirts:PartOption|'golf-superwide'|'mercedes-wide'|'audi-wide'; spoiler:PartOption|'golf-wing'; exhaust:PartOption|'flame'|'golf-quad-flame'; hood:PartOption|'golf-vented'|'golf-rally'; roof:PartOption|'golf-roof-scoop'|'golf-roof-vents';
   frontFinish:'standard'|'carbon'; rearFinish:'standard'|'carbon'; skirtsFinish:'standard'|'carbon'; spoilerFinish:'standard'|'carbon'; exhaustFinish:'standard'|'carbon'; hoodFinish:'standard'|'carbon'; roofFinish:'standard'|'carbon';
+  frontColor:string; rearColor:string; skirtsColor:string; spoilerColor:string; hoodColor:string; roofColor:string;
   paintScheme:'single'|'upper'|'lower'|'roof-only'; secondaryColor:string; secondaryFinish:'paint'|'carbon';
   afterfire:boolean; removePlates:boolean;
   rim:string; rimColor:string; tireWidth:'narrow'|'standard'|'wide'; tireProfile:'low'|'standard'|'thick'; flameColor:string; rearDiffuserColor:string; headlights:'stock'|'smoked'|'halo'; taillights:'stock'|'smoked'|'led'; mirrors:'stock'|'sport'|'carbon';

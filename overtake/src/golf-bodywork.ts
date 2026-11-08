@@ -213,7 +213,7 @@ export function fitGolfBodywork(inner:THREE.Group,wrapper:THREE.Group,kit:THREE.
       }
       for(let i=0;i<columns;i++){const a=i*2,b=a+1,c=a+2,d=a+3;indices.push(a,b,c,b,d,c);}
       const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setIndex(indices);geometry.computeVertexNormals();
-      const cover=new THREE.Mesh(geometry,(kit.userData.ownedMaterials as THREE.Material[])[0]);cover.name='golf-filled-front-grille';section.add(cover);
+      const cover=new THREE.Mesh(geometry,kit.userData.partMaterials?.front ?? (kit.userData.ownedMaterials as THREE.Material[])[0]);cover.name='golf-filled-front-grille';section.add(cover);
     }
   }
   const materials=kit.userData.ownedMaterials as THREE.Material[];
@@ -222,7 +222,7 @@ export function fitGolfBodywork(inner:THREE.Group,wrapper:THREE.Group,kit:THREE.
   materials.push(diffuser);
   areas.forEach((area,i)=>{
     const group=kit.getObjectByName(`custom-${area.part}`);if(!group||!fitted[i].length)return;
-    const finish=config[`${area.part}Finish`]==='carbon' ? materials[2] : area.part==='skirts' && config.skirts==='golf-superwide' ? materials[1] : materials[0];
+    const finish=kit.userData.partMaterials?.[area.part] ?? (config[`${area.part}Finish`]==='carbon' ? materials[2] : area.part==='skirts' && config.skirts==='golf-superwide' ? materials[1] : materials[0]);
     const replacement=new THREE.Mesh(build(fitted[i],area),[finish,diffuser]);
     replacement.name=area.part==='skirts'?'side-skirt':area.part==='rear'?'rear-valance':'front-fascia';
     replacement.matrix.copy(matrix);replacement.matrixAutoUpdate=false;replacement.castShadow=true;group.add(replacement);

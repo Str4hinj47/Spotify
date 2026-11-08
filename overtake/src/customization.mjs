@@ -11,6 +11,7 @@ export const AUDI_PART_OPTIONS = Object.freeze({front:['audi-aero','audi-splitte
 export const DEFAULT_CUSTOMIZATION = Object.freeze({
   front:'stock', rear:'stock', skirts:'stock', spoiler:'stock', exhaust:'stock', hood:'stock', roof:'stock',
   frontFinish:'standard', rearFinish:'standard', skirtsFinish:'standard', spoilerFinish:'standard', exhaustFinish:'standard', hoodFinish:'standard', roofFinish:'standard',
+  frontColor:'', rearColor:'', skirtsColor:'', spoilerColor:'', hoodColor:'', roofColor:'',
   paintScheme:'single', secondaryColor:'#141b24', secondaryFinish:'paint',
   livery:'none', liveryColor:'#f2f5f7', underglow:false, glowColor:'#00ddff',
   afterfire:false, removePlates:false, rim:'stock', rimColor:'', tireWidth:'standard', tireProfile:'standard', flameColor:'#ff6a1a', rearDiffuserColor:'', headlights:'stock', taillights:'stock', mirrors:'stock',
@@ -24,6 +25,7 @@ export function sanitizeCustomization(value) {
     if (PART_OPTIONS.includes(raw[part]) || (part === 'exhaust' && raw[part] === 'flame') || (GOLF_PART_OPTIONS[part]?.includes(raw[part])) || (MERCEDES_PART_OPTIONS[part]?.includes(raw[part])) || (AUDI_PART_OPTIONS[part]?.includes(raw[part]))) out[part] = raw[part];
     if (raw[`${part}Finish`] === 'carbon') out[`${part}Finish`] = 'carbon';
   }
+  for (const part of ['front','rear','skirts','spoiler','hood','roof']) out[`${part}Color`] = normalizeHex(raw[`${part}Color`]) || '';
   if (PAINT_SCHEMES.includes(raw.paintScheme)) out.paintScheme = raw.paintScheme;
   if (raw.secondaryFinish === 'carbon') out.secondaryFinish = 'carbon';
   if (LIVERY_OPTIONS.some(option => option.id === raw.livery)) out.livery = raw.livery;

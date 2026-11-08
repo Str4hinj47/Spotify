@@ -60,7 +60,7 @@ export function fitMercedesBodywork(inner:THREE.Group,wrapper:THREE.Group,kit:TH
   if(!paint){trim=mesh.material.clone();const m=trim as THREE.MeshStandardMaterial;if(m.map)m.map=m.map.clone();materials.push(trim);}
   areas.forEach((area,j)=>{
    if(!fitted[j].length)return;const group=kit.getObjectByName(`custom-${area.part}`);if(!group)return;
-   const finish=paint?(config[`${area.part}Finish`]==='carbon'?materials[2]:area.part==='skirts'?materials[1]:materials[0]):trim!;
+   const finish=paint?(kit.userData.partMaterials?.[area.part] ?? (config[`${area.part}Finish`]==='carbon'?materials[2]:area.part==='skirts'?materials[1]:materials[0])):trim!;
    const replacement=new THREE.Mesh(build(fitted[j],area),finish);replacement.name=`mercedes-fitted-${area.part}`;
    replacement.matrix.copy(matrix);replacement.matrixAutoUpdate=false;replacement.castShadow=true;group.add(replacement);
   });

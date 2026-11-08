@@ -233,6 +233,13 @@ function syncCustomizationUI() {
     const finish = $(`custom-${part}-finish`) as HTMLSelectElement;
     finish.value = config[`${part}Finish`]; finish.disabled = config[part] === 'stock';
   }
+  for(const part of ['front','rear','skirts','spoiler','hood','roof'] as const) {
+    const input=$(`custom-${part}-color`) as HTMLInputElement;
+    input.value=config[`${part}Color`] || paints[selected] || getCar(selected).color;
+    input.disabled=part!=='hood' && part!=='roof' && config[part]==='stock';
+    const reset=document.querySelector<HTMLButtonElement>(`[data-part-color-reset="${part}"]`)!;
+    reset.disabled=!config[`${part}Color`];
+  }
   ($('custom-primary-color') as HTMLInputElement).value=paints[selected] ?? getCar(selected).color;
   ($('custom-paint-scheme') as HTMLSelectElement).value=config.paintScheme;
   ($('custom-secondary-color') as HTMLInputElement).value=config.secondaryColor;
@@ -1248,6 +1255,10 @@ function bindUI() {
     applyCustomization({ ...currentCustomization(), [key]:value, ...(suggestedColor ? { liveryColor:suggestedColor } : {}) } as Customization);
   });
   for (const [id,key,event] of [['custom-rim','rim','change'],['custom-rim-color','rimColor','change'],['custom-tire-width','tireWidth','change'],['custom-tire-profile','tireProfile','change'],['custom-flame-color','flameColor','change'],['custom-headlights','headlights','change'],['custom-taillights','taillights','change'],['custom-mirrors','mirrors','change']] as const) $(id).addEventListener(event, e => applyCustomization({ ...currentCustomization(), [key]:(e.target as HTMLInputElement | HTMLSelectElement).value } as Customization));
+  for(const part of ['front','rear','skirts','spoiler','hood','roof'] as const) {
+    $(`custom-${part}-color`).addEventListener('change',event=>applyCustomization({...currentCustomization(),[`${part}Color`]:(event.target as HTMLInputElement).value}));
+    document.querySelector<HTMLButtonElement>(`[data-part-color-reset="${part}"]`)!.addEventListener('click',()=>applyCustomization({...currentCustomization(),[`${part}Color`]:''}));
+  }
   $('custom-diffuser-color').addEventListener('change', event => applyCustomization({ ...currentCustomization(), rearDiffuserColor:(event.target as HTMLInputElement).value }));
   $('custom-diffuser-reset').addEventListener('click', () => applyCustomization({ ...currentCustomization(), rearDiffuserColor:'' }));
   $('custom-afterfire').addEventListener('change', event => applyCustomization({ ...currentCustomization(), afterfire:(event.target as HTMLInputElement).checked }));

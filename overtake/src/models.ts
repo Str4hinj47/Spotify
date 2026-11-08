@@ -488,7 +488,7 @@ export class ModelLibrary {
             }
             base = cached;
           }
-          if (config && isPlayableCar(id) && (config.paintScheme !== 'single' || config.livery !== 'none')) {
+          if (config && isPlayableCar(id) && (config.paintScheme !== 'single' || config.livery !== 'none' || !!config.hoodColor || !!config.roofColor)) {
             const meshToCar = new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
             const custom = customPaintMaterial(base, meshToCar, id, config);
             customPaintCopies.push(custom);

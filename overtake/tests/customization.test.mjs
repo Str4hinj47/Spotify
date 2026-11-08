@@ -86,3 +86,9 @@ test('Golf taillight styles are validated and scoped',()=>{
  const c=sanitizeCustomizations({golf:{taillights:'led'},audi:{taillights:'smoked'}},['golf','audi']);
  assert.equal(c.golf.taillights,'led');assert.equal(c.audi.taillights,'stock');assert.equal(sanitizeCustomization({taillights:'invalid'}).taillights,'stock');
 });
+
+test('independent body-part colors sanitize and round-trip',()=>{
+ const result=sanitizeCustomization({frontColor:'#f00',rearColor:'#112233',skirtsColor:'invalid',spoilerColor:'#000',hoodColor:'#abcdef',roofColor:'#987654'});
+ assert.equal(result.frontColor,'#ff0000');assert.equal(result.rearColor,'#112233');assert.equal(result.skirtsColor,'');assert.equal(result.spoilerColor,'#000000');assert.equal(result.hoodColor,'#abcdef');assert.equal(result.roofColor,'#987654');
+ assert.deepEqual(sanitizeCustomization(JSON.parse(JSON.stringify(result))),result);
+});
