@@ -587,6 +587,7 @@ function syncSeasonPassUI() {
   $('season-period').textContent=seasonLabel(pass.period);
   $('season-xp').textContent=`${fmt(pass.xp)} / ${fmt(max)} XP`;
   $('season-xp-fill').style.width=`${Math.min(100,pass.xp/max*100)}%`;
+  $('season-progress').setAttribute('aria-valuenow',String(pass.xp));
   const upcoming=SEASON_TIERS.find(t=>t.xp>pass.xp);
   $('season-next').textContent=upcoming ? `Next: ${upcoming.label} · ${fmt(upcoming.xp-pass.xp)} XP to go` : 'Reward track complete';
   const progress=game.getProgression();
@@ -595,19 +596,25 @@ function syncSeasonPassUI() {
   buy.textContent=pass.premium ? 'PREMIUM ACTIVE THIS SEASON' : `UNLOCK PREMIUM · ${PREMIUM_PASS_PRICE} GEMS`;
   buy.disabled=pass.premium || progress.gems<PREMIUM_PASS_PRICE;
   if (!pass.premium) buy.innerHTML=`UNLOCK PREMIUM · ${currency(PREMIUM_PASS_PRICE,'gem')}`;
-  const list=$('season-reward-list');list.replaceChildren(...SEASON_TIERS.map((tier,i)=>{
-    const item=document.createElement('li');item.className=tier.xp<=pass.xp?'earned':'';
-    const title=document.createElement('span');title.textContent=`${String(i+1).padStart(2,'0')} / FREE · ${tier.label}`;
-    const status=document.createElement('b');status.textContent=tier.xp<=pass.xp?'UNLOCKED':`${tier.xp} XP`;
-    item.append(title,status);return item;
+  function rewardCard(tier: typeof SEASON_TIERS[number], premium: boolean) {
+    const reached=tier.xp<=pass.xp, unlocked=reached && (!premium || pass.premium);
+    const item=document.createElement('li');
+    item.className=`pass-reward ${premium?'premium-reward':'free-reward'}${unlocked?' earned':''}${!premium || pass.premium?'':' premium-locked'}`;
+    const parts=tier.label.split(' · '), car=document.createElement('span'), icon=document.createElement('span'), title=document.createElement('strong'), status=document.createElement('b');
+    car.className='reward-car';car.textContent=parts[0];
+    icon.className=`reward-symbol ${tier.type==='upgrade'?'upgrade-symbol':''}`;icon.setAttribute('aria-hidden','true');
+    const symbols: Record<string,string>={front:'▰',tires:'◎',underglow:'✺',spoiler:'➜',engine:'⚙',hood:'▲',roof:'▥',livery:'✧'};
+    icon.textContent=symbols[tier.key] ?? '✦';
+    title.textContent=parts.slice(1).join(' · ') || tier.label;
+    status.textContent=unlocked?'UNLOCKED':premium && !pass.premium && reached?'NEEDS PREMIUM':`${tier.xp} XP`;
+    item.append(car,icon,title,status);return item;
+  }
+  $('season-premium-list').replaceChildren(...PREMIUM_TIERS.map(tier=>rewardCard(tier,true)));
+  $('season-reward-list').replaceChildren(...SEASON_TIERS.map(tier=>rewardCard(tier,false)));
+  $('season-tier-markers').replaceChildren(...SEASON_TIERS.map((tier,i)=>{
+    const item=document.createElement('li');item.className=tier.xp<=pass.xp?'reached':'';
+    item.textContent=String(i+1).padStart(2,'0');item.setAttribute('aria-label',`Tier ${i+1}, ${tier.xp} XP`);return item;
   }));
-  const premium=$('season-premium-list');premium.replaceChildren(...PREMIUM_TIERS.map((tier,i)=>{
-    const item=document.createElement('li');item.className=pass.premium && tier.xp<=pass.xp?'earned':'';
-    const title=document.createElement('span');title.textContent=`${String(i+1).padStart(2,'0')} / PREMIUM · ${tier.label}`;
-    const status=document.createElement('b');status.textContent=pass.premium && tier.xp<=pass.xp?'UNLOCKED':tier.xp<=pass.xp?'NEEDS PREMIUM':`${tier.xp} XP`;
-    item.append(title,status);return item;
-  }));
-  updateRewardPage();
 }
 
 let rankTrackPage=0;
@@ -958,7 +965,7 @@ function bindHold(id: string, name: 'throttle' | 'brake' | 'left' | 'right' | 'h
   el.addEventListener('pointercancel', up);
 }
 
-let modePage = 0, rewardPage = 0, carPage = 0;
+let modePage = 0, carPage = 0;
 function carsPerPage() { return window.innerWidth <= 700 && window.innerHeight > window.innerWidth ? 3 : window.innerHeight <= 500 ? 3 : 5; }
 function updateCarPage(focusSelected=false) {
   const cards=[...document.querySelectorAll<HTMLButtonElement>('.car-card')], count=carsPerPage(), pages=Math.ceil(cards.length/count);
@@ -977,15 +984,6 @@ function updateModePage() {
   ($('mode-prev') as HTMLButtonElement).disabled = modePage === 0;
   ($('mode-next') as HTMLButtonElement).disabled = modePage === pages - 1;
 }
-function updateRewardPage() {
-  const perPage=2, pages=Math.ceil(SEASON_TIERS.length/perPage);
-  rewardPage=Math.max(0,Math.min(pages-1,rewardPage));
-  for(const id of ['season-reward-list','season-premium-list'])
-    [...$(id).children].forEach((item,i)=>item.classList.toggle('hidden',Math.floor(i/perPage)!==rewardPage));
-  $('reward-page-label').textContent=`${rewardPage+1} / ${pages}`;
-  ($('reward-prev') as HTMLButtonElement).disabled=rewardPage===0;
-  ($('reward-next') as HTMLButtonElement).disabled=rewardPage===pages-1;
-}
 function showRankDrawer(open: boolean) {
   $('menu-drive').classList.toggle('hidden',open);
   document.querySelector('.mode-pager')!.classList.toggle('hidden',open);
@@ -1001,8 +999,13 @@ function openLobbyDrawer(page: 'modes' | 'stats' | 'season', rank=false) {
   for(const name of ['modes','stats','season']) $('drawer-'+name).classList.toggle('hidden',name!==page);
   $('drawer-title').textContent=page==='modes'?'GAME MODES':page==='stats'?'YOUR PROFILE':'SEASON PASS';
   if(page==='modes') { updateModePage(); showRankDrawer(rank); }
-  if(page==='season') updateRewardPage();
+  if(page==='season') requestAnimationFrame(syncPassScrollControls);
   $('drawer-close').focus();
+}
+function syncPassScrollControls() {
+  const road=$('season-road-viewport'), max=Math.max(0,road.scrollWidth-road.clientWidth);
+  ($('pass-scroll-prev') as HTMLButtonElement).disabled=road.scrollLeft<=1;
+  ($('pass-scroll-next') as HTMLButtonElement).disabled=road.scrollLeft>=max-1;
 }
 function bindUI() {
   $('car-prev').addEventListener('click',()=>{carPage--;updateCarPage()});
@@ -1022,8 +1025,15 @@ function bindUI() {
   $('rank-track-next').addEventListener('click',()=>{rankTrackPage++;syncRankUI()});
   $('mode-prev').addEventListener('click',()=>{modePage--;updateModePage()});
   $('mode-next').addEventListener('click',()=>{modePage++;updateModePage()});
-  $('reward-prev').addEventListener('click',()=>{rewardPage--;updateRewardPage()});
-  $('reward-next').addEventListener('click',()=>{rewardPage++;updateRewardPage()});
+  $('season-road-viewport').addEventListener('scroll',syncPassScrollControls);
+  window.addEventListener('resize',syncPassScrollControls);
+  $('pass-scroll-prev').addEventListener('click',()=>$('season-road-viewport').scrollBy({left:-400,behavior:'smooth'}));
+  $('pass-scroll-next').addEventListener('click',()=>$('season-road-viewport').scrollBy({left:400,behavior:'smooth'}));
+  $('season-road-viewport').addEventListener('keydown',(event:KeyboardEvent)=>{
+    const road=$('season-road-viewport');
+    if(event.key==='Home' || event.key==='End') { event.preventDefault();road.scrollLeft=event.key==='Home'?0:road.scrollWidth; }
+    else if(event.key==='ArrowLeft' || event.key==='ArrowRight') { event.preventDefault();road.scrollLeft+=event.key==='ArrowLeft'?-120:120; }
+  });
   $('btn-settings-menu').addEventListener('click',()=>{const panel=$('settings-actions');const open=panel.classList.toggle('hidden')===false;$('btn-settings-menu').setAttribute('aria-expanded',String(open));});
   $('btn-start').addEventListener('click', startRun);
   $('menu-start').addEventListener('click', startRun);

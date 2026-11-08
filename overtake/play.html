@@ -137,12 +137,22 @@
           </div>
           <div id="drawer-season" class="drawer-page hidden">
           <section class="menu-info-card season-pass-card" aria-label="Season pass">
-            <div class="menu-card-head"><span>SEASON PASS</span><span class="menu-chip" id="season-period">UTC QUARTER</span></div>
-            <h2>QUEST <em>REWARDS.</em></h2><p>Complete in-run quests to earn season XP.</p>
-            <div class="season-pass-progress"><strong id="season-xp">0 / 800 XP</strong><div class="season-pass-bar"><i id="season-xp-fill"></i></div><small id="season-next"></small></div>
-            <div class="premium-pass"><strong>PREMIUM · COSMETICS ONLY</strong><p>Unlock a second reward track for 50 gems. Earn gems from quests; buy later and receive every premium tier you already reached. No gameplay boosts.</p><span id="season-wallet">0 gems available</span><button id="season-premium-buy" type="button">UNLOCK PREMIUM · 50 GEMS</button></div>
-            <details class="season-rewards"><summary>VIEW FREE &amp; PREMIUM REWARDS</summary><div class="reward-lists"><ol id="season-reward-list"></ol><ol id="season-premium-list"></ol></div><div class="reward-pager"><button id="reward-prev" type="button">‹</button><span id="reward-page-label"></span><button id="reward-next" type="button">›</button></div></details>
-            <p class="menu-footnote">Local, unverified pass · XP and premium access reset each UTC quarter; unlocked rewards stay yours. This track repeats each quarter. Rewards for unowned cars wait in their garage. Quests award 5 gems (10 in Seasonal). Circuit finishes award 5 gems and quest XP; Ghost runs have no quest earnings. Real-money checkout is not available.</p>
+            <div class="pass-overview">
+              <div class="pass-heading"><span class="pass-eyebrow">OVERTAKE / SEASON PASS</span><h3>THE REWARD <em>ROAD.</em></h3><span id="season-period" class="pass-period">UTC QUARTER</span></div>
+              <div class="premium-pass"><div><strong>✦ PREMIUM PASS</strong><p>Unlock the premium reward track. Rewards you have already reached unlock immediately.</p><span id="season-wallet">0 gems available</span></div><button id="season-premium-buy" type="button">UNLOCK PREMIUM · 50 GEMS</button></div>
+            </div>
+            <div class="season-pass-progress"><div class="pass-progress-heading"><span>SEASON PROGRESS</span><strong id="season-xp">0 / 800 XP</strong></div><div class="season-pass-bar" id="season-progress" role="progressbar" aria-label="Season progress" aria-valuemin="0" aria-valuemax="800" aria-valuenow="0"><i id="season-xp-fill"></i></div><small id="season-next"></small></div>
+            <div class="pass-road-heading"><div><strong>YOUR REWARDS</strong><span>Earn XP by completing quests</span></div><div class="pass-scroll-controls"><button id="pass-scroll-prev" type="button" aria-label="Scroll rewards left">‹</button><button id="pass-scroll-next" type="button" aria-label="Scroll rewards right">›</button></div></div>
+            <div id="season-road-viewport" class="season-road-viewport" tabindex="0" role="region" aria-label="Season reward road, scroll horizontally to see all tiers">
+              <div class="season-road">
+                <div class="road-track-label premium-label">✦ PREMIUM TRACK <span>8 EXCLUSIVE COSMETICS</span></div>
+                <ol id="season-premium-list" class="pass-reward-row" aria-label="Premium rewards"></ol>
+                <ol id="season-tier-markers" class="pass-tier-markers" aria-label="Reward tiers"></ol>
+                <div class="road-track-label free-label">◆ FREE TRACK <span>REWARDS FOR EVERYONE</span></div>
+                <ol id="season-reward-list" class="pass-reward-row" aria-label="Free rewards"></ol>
+              </div>
+            </div>
+            <div class="pass-fineprint">Scroll to explore all 8 tiers · Premium is cosmetic-only · Pass XP and access reset each UTC quarter; earned rewards stay yours.</div>
           </section>
           </div>
         </div>
