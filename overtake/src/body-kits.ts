@@ -594,11 +594,28 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   }
   if(id==='golf' && config.mirrors!=='stock') {
     const a=reg('mirrors'),finish=config.mirrors==='carbon'?woven:body;
-    const glass=new THREE.MeshStandardMaterial({color:0x607681,metalness:.7,roughness:.14});g.userData.ownedMaterials ??=[];
+    const glass=new THREE.MeshStandardMaterial({color:0x738b98,metalness:.8,roughness:.12});
+    const indicator=new THREE.MeshStandardMaterial({color:0xd9e5e5,metalness:.25,roughness:.25});
     for(const side of [-1,1]) {
-      const stem=box(.11,.038,.075,side*.79,.947,-.47,carbon,a,'mirror-stem');stem.rotation.z=side*.12;
-      const housing=box(.19,.095,.16,side*.875,.96,-.46,finish,a,'mirror-housing');housing.rotation.y=side*.16;
-      const face=box(.15,.065,.009,side*.88,.96,-.375,glass,a,'mirror-glass');face.rotation.y=side*.16;
+      const mirror=new THREE.Group();mirror.position.set(side*.875,.96,-.46);mirror.rotation.y=side*.16;a.add(mirror);
+      // Rounded, tapered shell and separate rubber bezel/glass, instead of a
+      // single sharp-edged box. The short stalk joins the door at its base.
+      const stem=new THREE.Mesh(new RoundedBoxGeometry(.12,.043,.076,5,.018),carbon);
+      stem.name='mirror-stem';stem.position.set(-side*.095,-.012,0);stem.rotation.z=side*.16;mirror.add(stem);
+      const shellGeometry=new RoundedBoxGeometry(.205,.108,.16,8,.043);
+      const p=shellGeometry.getAttribute('position');
+      for(let i=0;i<p.count;i++) {
+        const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
+        p.setXYZ(i,x,y+(side*x)*.11,z+(side*x)*.10);
+      }
+      shellGeometry.computeVertexNormals();
+      const housing=new THREE.Mesh(shellGeometry,finish);housing.name='mirror-housing';mirror.add(housing);
+      const bezel=new THREE.Mesh(new RoundedBoxGeometry(.168,.075,.014,6,.022),dark);
+      bezel.name='mirror-bezel';bezel.position.set(side*.005,0,.078);mirror.add(bezel);
+      const face=new THREE.Mesh(new RoundedBoxGeometry(.151,.059,.006,6,.018),glass);
+      face.name='mirror-glass';face.position.set(side*.005,0,.087);mirror.add(face);
+      const signal=new THREE.Mesh(new RoundedBoxGeometry(.105,.008,.005,4,.003),indicator);
+      signal.name='mirror-indicator';signal.position.set(side*.015,-.021,-.078);mirror.add(signal);
     }
   }
   if(id==='golf' && config.headlights==='halo') {
