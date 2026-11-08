@@ -5,7 +5,7 @@ import { CARS, TRUCKS, TRAFFIC_ONLY, isPlayableCar, type CarId, type TrafficId }
 import { indicatorMaterial, isIndicatorMaterial, addFrontIndicator, isFrontIndicatorMaterial, type IndicatorUniforms } from './indicators';
 import { createBodyKit, disposeBodyKit, BODY_FITS } from './body-kits';
 import { rigWheels } from './wheels';
-import { fitGolfBodywork } from './golf-bodywork';
+import { fitGolfBodywork, removeGolfTailgateHandle } from './golf-bodywork';
 import { fitMercedesBodywork } from './mercedes-bodywork';
 import { fitAudiBodywork } from './audi-bodywork';
 import { createCarbonMaterial, customPaintMaterial } from './livery';
@@ -428,7 +428,7 @@ export class ModelLibrary {
     let factoryPaint: number | undefined;
     const customPaintCopies: THREE.Material[] = [];
     const customGeometries: THREE.BufferGeometry[] = [];
-    const config = opts.player && isPlayableCar(id) ? this.customization.get(id) : undefined;
+    const config = opts.player && isPlayableCar(id) ? (this.customization.get(id) ?? (id==='golf' ? sanitizeCustomization(undefined) : undefined)) : undefined;
     wrapper.updateMatrixWorld(true);
     if (id === 'bmw-m3' && config && config.spoiler !== 'stock') customGeometries.push(...removeBmwFactoryWing(inner, wrapper));
     inner.traverse((o) => {
@@ -545,6 +545,7 @@ export class ModelLibrary {
           if(id==='mercedes') customGeometries.push(...fitMercedesBodywork(inner,wrapper,kit,config));
           if(id==='golf') {
             customGeometries.push(...fitGolfBodywork(inner,wrapper,kit,config));
+            customGeometries.push(...removeGolfTailgateHandle(inner,wrapper));
             if(config.mirrors!=='stock')customGeometries.push(...removeGolfMirrors(inner,wrapper));
             if(config.taillights!=='stock') {
               // The indicator/brake material is already unique to this player.

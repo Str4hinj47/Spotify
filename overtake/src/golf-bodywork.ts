@@ -229,3 +229,41 @@ export function fitGolfBodywork(inner:THREE.Group,wrapper:THREE.Group,kit:THREE.
   });
   return owned;
 }
+
+/** Smooth the Golf's tailgate handle on player cars without touching doors,
+ * license plate, original shared GLB or traffic copies. */
+export function removeGolfTailgateHandle(inner:THREE.Group,wrapper:THREE.Group):THREE.BufferGeometry[] {
+  const owned:THREE.BufferGeometry[]=[];
+  wrapper.updateMatrixWorld(true);
+  const planes:Plane[]=[p=>p.x+.16,p=>.16-p.x,p=>p.y-.64,p=>.77-p.y,p=>p.z-1.89];
+  let paint:THREE.Mesh|undefined,paintToCar:THREE.Matrix4|undefined;
+  for(const name of ['golf_mesh','golf_mesh_2','golf_mesh_3']) {
+    const mesh=inner.getObjectByName(name) as THREE.Mesh|undefined;
+    if(!mesh?.isMesh || !mesh.geometry.getAttribute('position'))continue;
+    const source=mesh.geometry,attr=Object.entries(source.attributes),idx=source.index,pos=attr.findIndex(([key])=>key==='position');
+    const matrix=new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
+    const vertex=(i:number):Vertex=>{const a=attr.map(([,b])=>Array.from({length:b.itemSize},(_,j)=>b.getComponent(i,j)));return {a,p:new THREE.Vector3(...(a[pos] as [number,number,number])).applyMatrix4(matrix)};};
+    const keep:Vertex[][]=[],count=idx?idx.count:source.getAttribute('position').count;
+    for(let i=0;i+2<count;i+=3) {
+      let inside=[vertex(idx?idx.getX(i):i),vertex(idx?idx.getX(i+1):i+1),vertex(idx?idx.getX(i+2):i+2)];
+      for(const plane of planes) {if(!inside.length)break;const [yes,no]=split(inside,plane);triangles(no,keep);inside=yes;}
+    }
+    const arrays=attr.map(()=>[] as number[]);
+    for(const face of keep)for(const v of face)attr.forEach(([,b],j)=>arrays[j].push(...v.a[j].slice(0,b.itemSize)));
+    const result=new THREE.BufferGeometry();attr.forEach(([key,b],i)=>result.setAttribute(key,new THREE.Float32BufferAttribute(arrays[i],b.itemSize,b.normalized)));
+    mesh.geometry=result;owned.push(result);
+    if(name==='golf_mesh_3'){paint=mesh;paintToCar=matrix;}
+  }
+  if(paint && paintToCar) {
+    const inverse=paintToCar.clone().invert(),normalToLocal=new THREE.Matrix3().getNormalMatrix(paintToCar).invert(),positions:number[]=[],normals:number[]=[],indices:number[]=[],columns=16;
+    for(let i=0;i<=columns;i++) for(const y of [.64,.77]) {
+      const x=(i/columns*2-1)*.16,z=1.999+.065*(y-.70)-.15*x*x;
+      const v=new THREE.Vector3(x,y,z).applyMatrix4(inverse);positions.push(v.x,v.y,v.z);
+      const n=new THREE.Vector3(.20*x,-.08+1.25*(y-.70),1).normalize().applyMatrix3(normalToLocal).normalize();normals.push(n.x,n.y,n.z);
+    }
+    for(let i=0;i<columns;i++){const a=i*2,b=a+1,c=a+2,d=a+3;indices.push(a,c,b,b,c,d);}
+    const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));geometry.setIndex(indices);owned.push(geometry);
+    const patch=new THREE.Mesh(geometry,paint.material);patch.name='golf-smooth-tailgate';patch.matrix.copy(paintToCar);patch.matrixAutoUpdate=false;wrapper.add(patch);
+  }
+  return owned;
+}
