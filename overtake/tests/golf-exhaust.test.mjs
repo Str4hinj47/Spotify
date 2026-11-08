@@ -10,7 +10,7 @@ test('R32 rear consistently supplies two widely spaced pipes, even with factory 
     assert.deepEqual(l.centers,[-.48,.48]);assert.ok(l.radius>.05 && l.radius<.07);assert.equal(l.y,.29);
   }
   assert.deepEqual(golfExhaustLayout(sanitizeCustomization({rear:'golf-clean',exhaust:'stock'})).centers,[]);
-  assert.equal(golfExhaustLayout(sanitizeCustomization({rear:'golf-clean',exhaust:'sport'})).centers.length,1);
+  assert.deepEqual(golfExhaustLayout(sanitizeCustomization({rear:'golf-clean',exhaust:'sport'})).centers,[-.48,.48]);
 });
 test('new rear purchases charge once and retain owned tokens', () => {
   const initial={...emptyProgression(),gems:100};
@@ -34,4 +34,11 @@ test('independent afterfire purchase is reusable across exhaust styles',()=>{
  const first=buyTune(initial,'golf','afterfire','on');assert.equal(first.ok,true);assert.equal(first.progress.gems,100-tunePrice('afterfire','on'));
  const again=buyTune(first.progress,'golf','afterfire','on');assert.equal(again.progress.gems,first.progress.gems);
  assert.equal(tunePrice('afterfire','off'),0);
+});
+
+test('Golf sport exhaust has a matching outlet on each side for every rear',()=>{
+ for(const rear of ['stock','street','touring','sport','track','golf-r32','golf-clean','golf-diffuser']) {
+  const {centers,radius}=golfExhaustLayout(sanitizeCustomization({rear,exhaust:'sport'}));
+  assert.deepEqual(centers,[-.48,.48]); assert.equal(radius,.063);
+ }
 });

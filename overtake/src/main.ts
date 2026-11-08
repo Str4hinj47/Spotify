@@ -123,15 +123,15 @@ function initializeEconomy() {
     localStorage.removeItem('overtake-car');
   } catch { /* storage may be unavailable */ }
 }
-function loadPaints() {
+function loadPaints(dev = false) {
   try {
-    paints = sanitizePaints(JSON.parse(localStorage.getItem('overtake-paints') || '{}'), CAR_CONTENT.map((c) => c.id));
+    paints = sanitizePaints(JSON.parse(localStorage.getItem(dev ? 'overtake-paints-dev' : 'overtake-paints') ?? (dev ? localStorage.getItem('overtake-paints') : null) ?? '{}'), CAR_CONTENT.map((c) => c.id));
     if (!paints['aventador-game'] && paints.aventador) paints['aventador-game'] = paints.aventador;
   } catch { paints = {}; }
 }
 
-function loadCustomizations() {
-  try { customizations = sanitizeCustomizations(JSON.parse(localStorage.getItem('overtake-customization-v1') || '{}'), CAR_CONTENT.map(c => c.id)); if (!customizations['aventador-game'] && customizations.aventador) customizations['aventador-game'] = { ...customizations.aventador }; }
+function loadCustomizations(dev = false) {
+  try { customizations = sanitizeCustomizations(JSON.parse(localStorage.getItem(dev ? 'overtake-customization-dev-v1' : 'overtake-customization-v1') ?? (dev ? localStorage.getItem('overtake-customization-v1') : null) ?? '{}'), CAR_CONTENT.map(c => c.id)); if (!customizations['aventador-game'] && customizations.aventador) customizations['aventador-game'] = { ...customizations.aventador }; }
   catch { customizations = {}; }
 }
 function currentCustomization() { return sanitizeCustomization(customizations[selected] ?? DEFAULT_CUSTOMIZATION); }
@@ -252,8 +252,8 @@ function syncCustomizationUI() {
   ($('custom-rim-color') as HTMLInputElement).value=config.rimColor || '#bbc2cb';
   ($('custom-tire-width') as HTMLSelectElement).value=config.tireWidth;
   ($('custom-tire-profile') as HTMLSelectElement).value=config.tireProfile;
-  ($('custom-afterfire') as HTMLInputElement).checked=config.afterfire || config.exhaust==='flame' || config.exhaust==='golf-quad-flame';
-  ($('custom-afterfire') as HTMLInputElement).disabled=config.exhaust==='flame' || config.exhaust==='golf-quad-flame';
+  ($('custom-afterfire') as HTMLInputElement).checked=config.afterfire || config.exhaust==='flame' || config.exhaust==='golf-quad-flame' || (selected==='golf' && config.exhaust==='sport');
+  ($('custom-afterfire') as HTMLInputElement).disabled=config.exhaust==='flame' || config.exhaust==='golf-quad-flame' || (selected==='golf' && config.exhaust==='sport');
   ($('custom-remove-plates') as HTMLInputElement).checked=config.removePlates;
   ($('custom-flame-color') as HTMLInputElement).value=config.flameColor;
   ($('custom-headlights') as HTMLSelectElement).value=config.headlights;
@@ -277,10 +277,9 @@ function applyCustomization(value: Customization) {
     }
   }
   customizations[selected] = config;
-  if (!game.getProgression().dev) {
-    try { localStorage.setItem('overtake-customization-v1', JSON.stringify(customizations)); } catch { /* storage may be unavailable */ }
-  }
-  $('tune-message').textContent = game.getProgression().dev ? 'Dev preview is temporary. Paid options remain yours.' : 'Purchased options can be reused free.';
+  try { localStorage.setItem(game.getProgression().dev ? 'overtake-customization-dev-v1' : 'overtake-customization-v1', JSON.stringify(customizations));
+    $('tune-message').textContent = game.getProgression().dev ? 'Dev customization saved on this device.' : 'Customization saved on this device. Purchased options can be reused free.';
+  } catch { $('tune-message').textContent = 'Could not save customization on this device.'; }
   library.setCustomization(selected, config);
   game.setSelectedCar(selected);
   syncCustomizationUI(); syncProgressionUI();
@@ -295,7 +294,7 @@ function showCustomization(show: boolean) {
 }
 
 function savePaints() {
-  try { if (!game.getProgression().dev) localStorage.setItem('overtake-paints', JSON.stringify(paints)); } catch { /* ignore */ }
+  try { localStorage.setItem(game.getProgression().dev ? 'overtake-paints-dev' : 'overtake-paints', JSON.stringify(paints)); } catch { $('tune-message').textContent = 'Could not save paint on this device.'; }
 }
 
 function syncPaintUI(id: CarId) {
@@ -1047,8 +1046,8 @@ function bindUI() {
   $('dev-toggle').addEventListener('click', () => {
     const enabled = !game.getProgression().dev;
     game.setDeveloperMode(enabled);
-    if (!enabled) {
-      loadPaints(); loadCustomizations();
+    {
+      loadPaints(enabled); loadCustomizations(enabled);
       for (const car of CARS) { library.setPaint(car.id, paints[car.id] ? hexToNumber(paints[car.id]) : null); library.setCustomization(car.id, customizations[car.id] ?? { ...DEFAULT_CUSTOMIZATION }); void refreshThumbnail(car.id); }
       game.setSelectedCar(selected); syncPaintUI(selected);
     }
@@ -1322,8 +1321,10 @@ function bindUI() {
 async function boot() {
   initializeEconomy();
   library = new ModelLibrary();
-  loadPaints();
-  loadCustomizations();
+  let dev = false;
+  try { dev = JSON.parse(localStorage.getItem('overtake-progression-v2') || '{}').dev === true; } catch { /* malformed save */ }
+  loadPaints(dev);
+  loadCustomizations(dev);
   try {
     await library.loadAll((done, total, label) => {
       $('load-bar').style.width = `${(done / total) * 90}%`;

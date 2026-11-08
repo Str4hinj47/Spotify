@@ -39,7 +39,7 @@ try {
   const exhaust=[];
   for(const variant of ['street','touring','sport','track','flame']) {
    const c=car({rear:'track',exhaust:variant,rearFinish:'carbon'}),panel=c.getObjectByName('rear-valance');
-   const centers=variant==='sport'?[-.52]:[-.52-.10*(variant==='touring'?.38:.5),-.52+.10*(variant==='touring'?.38:.5)];
+   const centers=variant==='sport'?[-.48,.48]:[-.52-.10*(variant==='touring'?.38:.5),-.52+.10*(variant==='touring'?.38:.5)];
    const hits=centers.map(x=>new T.Raycaster(new T.Vector3(x,.29,2.4),new T.Vector3(0,0,-1)).intersectObject(panel).length);
    exhaust.push({variant,hits,carbon:panel.material[0].name});dispose(c);
   }
@@ -48,7 +48,7 @@ try {
  });
  for(const c of result.check){assert.equal(c.inside,0,`${c.variant}/${c.part}: factory triangles remain in replacement region`);assert.ok(c.cloned && c.sourceIntact);if(c.part==='all'||c.part==='rear')assert.ok(c.names.includes('rear-valance'));if(c.part==='all'||c.part==='front')assert.ok(c.names.includes('front-fascia'));if(c.part==='all'||c.part==='skirts')assert.equal(c.names.filter(n=>n==='side-skirt').length,2);}
  for(const f of result.full){assert.equal(f.paint,0,`${f.rear} factory paint`);assert.equal(f.trim,0,`${f.rear} factory rubbing strip`);assert.deepEqual(f.mouths,f.rear==='golf-r32'?[-.48,.48]:[]);}
- for(const e of result.r32){assert.deepEqual(e.hits,[0,0],`${e.exhaust} R32 outlets`);assert.equal(e.carbon,'custom-carbon');assert.deepEqual(e.mouths.map(x=>x[0]),[-.48,.48]);if(e.exhaust==='flame')assert.deepEqual(e.flames,e.mouths);else assert.deepEqual(e.flames,[]);}
+ for(const e of result.r32){assert.deepEqual(e.hits,[0,0],`${e.exhaust} R32 outlets`);assert.equal(e.carbon,'custom-carbon');assert.deepEqual(e.mouths.map(x=>x[0]),[-.48,.48]);if(e.exhaust==='flame'||e.exhaust==='sport')assert.deepEqual(e.flames,e.mouths);else assert.deepEqual(e.flames,[]);}
  for(const e of result.exhaust){assert.deepEqual(e.hits,e.hits.map(()=>0),`${e.variant} exhaust cutout`);assert.equal(e.carbon,'custom-carbon');}
  assert.deepEqual(result.intact,{stock:true,traffic:true,trafficKit:false});assert.deepEqual(errors,[]);
  fs.mkdirSync('test-results',{recursive:true});await page.evaluate(()=>{const g=window.__overtake;g.toGarage();g.setLobbyPreview(false);g.garageAuto=false;g.garageWorkshop=false;g.library.setCustomization('golf',{front:'track',rear:'track',skirts:'track',exhaust:'track'});g.setSelectedCar('golf');g.garageZoom=5.6;g.garagePitch=.16;});await page.addStyleTag({content:'#topbar,#main-menu,#garage,#hud{visibility:hidden!important}'});

@@ -6,6 +6,7 @@ export function golfExhaustLayout(config) {
     const radius = config.exhaust === 'sport' ? .063 : config.exhaust === 'track' || config.exhaust === 'flame' ? .061 : .055;
     return {centers:[-.48,.48], radius, y:.29};
   }
+  if (config.exhaust === 'sport') return {centers:[-.48,.48],radius:.063,y:.29};
   if (config.exhaust === 'stock') return {centers:[],radius:0,y:.29};
   const amount={street:0,touring:.34,sport:.67,track:1,flame:1}[config.exhaust] ?? 0;
   return {centers:config.exhaust==='sport'?[-.52]:[-.52-.10*(config.exhaust==='touring'?.38:.5),-.52+.10*(config.exhaust==='touring'?.38:.5)],

@@ -270,11 +270,11 @@ function wingProfile(width:number,z:number,y:number,chord:number) {
   }
   return loft(sections,false,.22);
 }
-function wingSupport(x:number,y:number,z:number,height:number) {
+function wingSupport(x:number,y:number,z:number,height:number,lean=0) {
   const sections:Point3[][]=[];
   for(let i=0;i<=12;i++) {
     const dx=THREE.MathUtils.lerp(-.027,.027,i/12);
-    sections.push([[x+dx,y-.035,z-.13],[x+dx,y-.035,z+.10],[x+dx,y+height,z+.045],[x+dx,y+height,z-.055]]);
+    sections.push([[x+dx,y-.035,z-.13],[x+dx,y-.035,z+.10],[x+dx,y+height,z+.045+lean],[x+dx,y+height,z-.055+lean]]);
   }
   return loft(sections,false,.10);
 }
@@ -502,9 +502,9 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     const a=reg('spoiler'),track=isTrack('spoiler'),amount=level('spoiler'),panel=config.spoilerFinish==='carbon'?woven:body;
     const roof=f.character==='compact'||f.character==='wagon';
     if(id==='golf' && config.spoiler==='golf-wing') {
-      for(const side of [-1,1]) {const support=new THREE.Mesh(wingSupport(side*.39,1.385,1.54,.30),panel);support.name='wing-pedestal';a.add(support);}
-      const wing=new THREE.Mesh(wingProfile(.80,1.57,1.685,.40),panel);wing.name='wing-blade';a.add(wing);
-      for(const side of [-1,1])box(.018,.12,.36,side*.785,1.70,1.55,carbon,a,'wing-endplate');
+      for(const side of [-1,1]) {const support=new THREE.Mesh(wingSupport(side*.39,1.385,1.54,.30,.33),panel);support.name='wing-pedestal';a.add(support);}
+      const wing=new THREE.Mesh(wingProfile(.80,1.90,1.685,.40),panel);wing.name='wing-blade';a.add(wing);
+      for(const side of [-1,1])box(.018,.12,.36,side*.785,1.70,1.88,carbon,a,'wing-endplate');
     } else if(roof) {
       const lip=new THREE.Mesh(id==='audi'?audiRoofExtension(amount):id==='golf'?golfRoofExtension(amount):roofExtension(f.spoilerW,f.spoilerZ,f.spoilerY,track),panel);
       lip.name='roof-extension';a.add(lip);
@@ -562,7 +562,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       if(id==='golf') tip(a,x,stock.y,stock.z-.054,radius,finish,dark);
       else {const mouth=new THREE.Object3D();mouth.name='exhaust-mouth';mouth.position.set(x,stock.y,stock.z);a.add(mouth);}
     }
-    if (config.afterfire || config.exhaust==='flame' || (id==='golf' && config.exhaust==='golf-quad-flame')) {
+    if (config.afterfire || config.exhaust==='flame' || (id==='golf' && (config.exhaust==='golf-quad-flame' || config.exhaust==='sport'))) {
       const flames=new THREE.Group(); flames.name='exhaust-flames';
       const flameMaterials:THREE.ShaderMaterial[]=[];
       for (const [i,x] of centers.entries()) {
