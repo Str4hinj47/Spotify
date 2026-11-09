@@ -423,7 +423,7 @@ function syncProgressionUI() {
   });
   const levels = upgradeLevels(progress, selected);
   const list = $('upgrade-list'); list.replaceChildren();
-  for (const [key, name, effect] of [['engine','Engine','+8% acceleration, +4% top speed'],['tires','Tires','+6% grip'],['brakes','Brakes','+10% braking']] as [Upgrade,string,string][]) {
+  for (const [key, name, effect] of [['engine','Engine','+8% acceleration, +4% top speed'],['tires','Tires','+6% grip'],['brakes','Brakes','+10% brake power (limited by tire grip)']] as [Upgrade,string,string][]) {
     const level = levels[key], price = UPGRADE_PRICES[key][level];
     const button = document.createElement('button'); button.type = 'button'; button.dataset.upgrade = key;
     button.innerHTML = `${name} ${level}/3 · ${price === undefined ? 'MAX' : currency(price,'coin')}`;
