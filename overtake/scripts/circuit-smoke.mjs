@@ -20,14 +20,17 @@ try {
     const g=window.__overtake,{trackAt}=await import('/src/circuit.mjs');g.toGarage();g.setRunMode('circuit');g.start();g.raceCountdown=0;
     // Keep the simulation realistic while omitting expensive frame rendering.
     g.updateWorld=()=>{};g.updateCamera=()=>{};g.emitHud=()=>{};
-    let steps=0;while(g.mode==='driving' && steps++<7000) {
-     const bend=trackAt(g.vehicle.s+45).curvature!==0 || trackAt(g.vehicle.s).curvature!==0,target=bend?25:40;
-     const desired=Math.max(-.3,Math.min(.3,g.vehicle.offset*.02)), error=desired-g.vehicle.heading;
-     g.input.throttle=g.vehicle.speed<target;g.input.brake=g.vehicle.speed>target+1;g.input.left=error>.03;g.input.right=error<-.03;g.updateCircuit(.05);
+    let steps=0;while(g.mode==='driving' && steps++<15000) {
+     // Brake for the actual upcoming curvature rather than treating every
+     // nonzero spline value as the same bend at a fixed 25 m/s.
+     const bend=Math.max(.001,Math.abs(trackAt(g.vehicle.s).curvature),Math.abs(trackAt(g.vehicle.s+30).curvature));
+     const target=Math.min(33,Math.sqrt(5/bend));
+     const desired=Math.max(-.25,Math.min(.25,g.vehicle.offset*.025)), error=desired-g.vehicle.heading;
+     g.input.throttle=g.vehicle.speed<target;g.input.brake=g.vehicle.speed>target+1;g.input.left=error>.025;g.input.right=error<-.025;g.updateCircuit(.025);
     }
     return {mode:g.mode,steps,position:g.raceFinishPosition,distance:g.run.distance,score:g.run.score};
    });
-   assert.equal(full.mode,'gameover');assert.ok(full.steps<7000);assert.ok(full.position>=1 && full.position<=6);assert.ok(full.distance>4000);assert.ok(full.score>=500);
+   assert.equal(full.mode,'gameover');assert.ok(full.steps<15000);assert.ok(full.position>=1 && full.position<=6);assert.ok(full.distance>4000);assert.ok(full.score>=500);
   }
   await page.evaluate(()=>{const g=window.__overtake;g.toGarage();g.setRunMode('endless')});await page.reload({waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});assert.equal(await page.evaluate(()=>window.__overtake.getRunMode()),'endless');
   assert.deepEqual(errors,[]);console.log(label,'passed');await page.close();
