@@ -127,3 +127,13 @@ test('stopping partway through a timestep still travels the correct distance',()
   stepVehicle(car,input({brake:true}),{grip:2,brake:2,drag:0,roadAssist:false},.05);
   assert.equal(car.speed,0);assert.ok(Math.abs(car.s-expected)<1e-10,`${car.s} vs ${expected}`);
 });
+
+test('straight-line stopping distance matches constant-deceleration kinematics',()=>{
+  const p={grip:1.25,brake:100,drag:0,roadAssist:false};
+  const deceleration=1.25*9.81+.35+1.1,initial=28,expected=initial**2/(2*deceleration);
+  for(const dt of [.05,.01,1/120]){
+    const v=createVehicleState();v.speed=initial;
+    while(v.speed>0)stepVehicle(v,input({brake:true}),p,dt);
+    assert.ok(Math.abs(v.s-expected)<1e-8,`dt ${dt}: ${v.s} vs ${expected}`);
+  }
+});
