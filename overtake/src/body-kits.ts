@@ -1,3 +1,4 @@
+import { bmwExhaustLayout } from './bmw-exhaust.mjs';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import type { CarId } from './catalog';
@@ -146,7 +147,7 @@ function audiFrontLip(level:number) {
 function importedFrontLip(id:CarId,level:number) {
   const profiles:Partial<Record<CarId,{y:number,z:number[]}>>={
     bugatti:{y:.15,z:[-2.267,-2.256,-2.212,-2.125,-2.095,-2.073,-2.056,-2.003,-1.915]},
-    'bmw-m3':{y:.28,z:[-2.161,-2.156,-2.147,-2.133,-2.103,-2.055,-2.006,-1.954,-1.890]},
+    'bmw-m3':{y:.16,z:[-2.08,-2.075,-2.066,-2.052,-2.022,-1.974,-1.925,-1.873,-1.809]},
     skyline:{y:.23,z:[-2.251,-2.249,-2.243,-2.230,-2.206,-2.172,-2.133,-2.091,-2.005]},
     aventador:{y:.28,z:[-2.289,-2.268,-2.239,-2.195,-2.175,-2.150,-2.100,-2.050,-1.916]},
     'aventador-game':{y:.28,z:[-2.322,-2.293,-2.261,-2.227,-2.154,-2.080,-2.034,-1.980,-1.982]},
@@ -458,6 +459,15 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
         const diffuser=new THREE.Mesh(taperedBand(.44,2.34,.275,.16,.018,-.02),config.rearFinish==='carbon'?woven:carbon);diffuser.name='rear-diffuser';a.add(diffuser);
         for(const x of [-.33,-.165,0,.165,.33]){const fin=box(.014,.06,.14,x,.26,2.42,carbon,a,'diffuser-fin');fin.rotation.x=-.1;}
       }
+    } else if(id==='bmw-m3') {
+      // The street fascia rolls inward at its bottom. Keep the accessory
+      // underneath it and inside the exhaust span, rather than hanging the
+      // generic, much deeper valance and fins off the tail.
+      const diffuser=new THREE.Mesh(taperedBand(.39,2.005,.115,THREE.MathUtils.lerp(.10,.15,amount),.012,-.025),config.rearFinish==='carbon'?woven:carbon);
+      diffuser.name='rear-diffuser';a.add(diffuser);
+      if(amount>=.67)for(const x of (track?[-.30,-.15,0,.15,.30]:[-.25,0,.25])){
+        const fin=box(.012,.045,.10,x,.112,2.085,carbon,a,'diffuser-fin');fin.rotation.x=-.08;
+      }
     } else if(id==='bugatti') {
       const blade=new THREE.Mesh(taperedBand(.58,2.02,.23,THREE.MathUtils.lerp(.08,.13,amount),.015,-.04),config.rearFinish==='carbon'?woven:carbon);
       blade.name='rear-diffuser-extension';a.add(blade);
@@ -542,7 +552,8 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     const oval=f.character==='luxury'||f.character==='wagon'||f.character==='midengine';
     // One mouth position is shared by the pipe and flame. The measured rear
     // offsets place the rim just beyond the stock bumper, not inside it.
-    const z=id==='mustang' ? 2.240 : id==='ferrari' ? 1.948 : f.rearZ-.06, mouthZ=z+.054, y=id==='mustang' ? .401 : id==='ferrari' ? .334 : f.tipY+.08;
+    const bmwLayout=id==='bmw-m3'?bmwExhaustLayout(config.exhaust):null;
+    const z=bmwLayout?bmwLayout.mouthZ-.054:id==='mustang' ? 2.240 : id==='ferrari' ? 1.948 : f.rearZ-.06, mouthZ=z+.054, y=bmwLayout?bmwLayout.y:id==='mustang' ? .401 : id==='ferrari' ? .334 : f.tipY+.08;
     // The exact same outlet descriptions drive rims and flame origins.
     const factory=config.exhaust==='stock' && !(id==='golf' && config.rear==='golf-r32');
     const ferrariFactoryFlame=id==='ferrari' && (factory || config.exhaust==='flame');
@@ -550,16 +561,16 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     const factoryOutlets:Partial<Record<CarId,{x:number[];y:number;z:number;r:number}>>={
       golf:{x:[-.52],y:.20,z:2.04,r:.04},mercedes:{x:[-.68,.68],y:.26,z:2.51,r:.07},audi:{x:[-.71,.71],y:.28,z:2.35,r:.075},
       r8:{x:[-.70,-.61,.61,.70],y:.268,z:2.155,r:.04},challenger:{x:[-.60,-.49,.49,.60],y:.319,z:2.442,r:.045},
-      'bmw-m3':{x:[-.55,-.46,.46,.55],y:.28,z:2.23,r:.04},skyline:{x:[-.414],y:.33,z:2.258,r:.07},
+      skyline:{x:[-.414],y:.33,z:2.258,r:.07},
       'aventador-game':{x:[-.14,-.05,.05,.14],y:.29,z:2.25,r:.04},aventador:{x:[-.14,-.05,.05,.14],y:.29,z:2.25,r:.04},
       bugatti:{x:[-.16,-.05,.05,.16],y:.25,z:2.14,r:.04},
     };
-    const stock=factory ? factoryOutlets[id] : undefined;
-    const centers=stock ? stock.x : mustangFactoryFlame ? [-.598,-.515,.526,.609] : id==='ferrari' ? [-.061,.048,.150] : id==='golf'
+    const stock=factory ? (bmwLayout ? {x:bmwLayout.centers,y:bmwLayout.y,z:bmwLayout.mouthZ,r:bmwLayout.radius} : factoryOutlets[id]) : undefined;
+    const centers=bmwLayout ? bmwLayout.centers : stock ? stock.x : mustangFactoryFlame ? [-.598,-.515,.526,.609] : id==='ferrari' ? [-.061,.048,.150] : id==='golf'
       ? golfExhaustLayout(config).centers
       : (track||config.exhaust==='sport') ? [-f.tipX-f.tipSpacing*(track?.5:.4),-f.tipX+f.tipSpacing*(track?.5:.4),f.tipX-f.tipSpacing*(track?.5:.4),f.tipX+f.tipSpacing*(track?.5:.4)]
       : [-f.tipX,f.tipX];
-    const radius=stock ? stock.r : id==='ferrari' ? f.tipRadius*THREE.MathUtils.lerp(.68,.85,amount) : id==='golf'
+    const radius=bmwLayout ? bmwLayout.radius : stock ? stock.r : id==='ferrari' ? f.tipRadius*THREE.MathUtils.lerp(.68,.85,amount) : id==='golf'
       ? golfExhaustLayout(config).radius : f.tipRadius*((track||config.exhaust==='sport')?.64:THREE.MathUtils.lerp(.85,1.02,amount));
     if(mustangFactoryFlame) {
       // Four real factory tailpipes, measured from the source mesh.
