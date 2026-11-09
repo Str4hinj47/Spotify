@@ -137,3 +137,29 @@ test('straight-line stopping distance matches constant-deceleration kinematics',
     assert.ok(Math.abs(v.s-expected)<1e-8,`dt ${dt}: ${v.s} vs ${expected}`);
   }
 });
+
+test('brake brings the car to rest before engaging bounded reverse; throttle returns to forward',()=>{
+  const car=createVehicleState();car.speed=4;
+  let wentBackWhileMoving=false;
+  for(let i=0;i<600;i++){
+    const previous=car.speed;stepVehicle(car,input({brake:true}),{...base,roadAssist:false},1/120);
+    if(previous>0 && car.speed<0)wentBackWhileMoving=true;
+  }
+  assert.equal(wentBackWhileMoving,false);assert.ok(car.speed< -5 && car.speed>=-8);assert.ok(car.s<0);
+  const backwards=car.s;run(car,{...base,roadAssist:false},input({throttle:true}),3);
+  assert.ok(car.speed>0);assert.ok(car.s>backwards);
+});
+
+test('reverse steering rotates opposite to forward steering and release coasts to rest',()=>{
+  const forward=createVehicleState(),reverse=createVehicleState();forward.speed=reverse.speed=4;reverse.speed=-4;
+  run(forward,{...base,roadAssist:false},input({left:true}),.5);
+  run(reverse,{...base,roadAssist:false},input({left:true}),.5);
+  assert.ok(forward.heading>0 && reverse.heading<0);assert.ok(reverse.s<0);
+  run(reverse,{...base,roadAssist:false},input(),10);assert.equal(reverse.speed,0);
+});
+
+test('circuit steering can turn past the old heading clamp without road-following snaps',()=>{
+ const car=createVehicleState();car.heading=.88;car.speed=12;
+ run(car,{...base,roadAssist:false},input({left:true}),1);
+ assert.ok(car.heading>.95,'steering must not pin the car at the old 0.9-radian limit');
+});

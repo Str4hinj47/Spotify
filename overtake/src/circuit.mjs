@@ -78,12 +78,25 @@ export function trackSample(distance,id='stadium') {
  const s=((distance%track.length)+track.length)%track.length, samples=track.samples;
  let lo=0,hi=samples.length-1;while(lo+1<hi){const mid=(lo+hi)>>1;if(samples[mid].s<=s)lo=mid;else hi=mid;}
  const a=samples[lo],b=samples[hi],u=(s-a.s)/(b.s-a.s||1);
- const heading=(p,q)=>Math.atan2(-(q.x-p.x),-(q.z-p.z));
- const yaw=heading(a,b);
+ // Cubic Hermite interpolation through the sampled centreline. The previous
+ // segment-direction yaw snapped at every sample boundary, especially visible
+ // in the rigid chase camera at speed. Shared vertex tangents make position
+ // and heading continuous, including across the finish-line seam.
  const prev=samples[(lo-1+samples.length-1)%(samples.length-1)],next=samples[(hi+1)%(samples.length-1)];
- const h0=heading(prev,a),h1=heading(b,next),delta=Math.atan2(Math.sin(h1-h0),Math.cos(h1-h0));
- const curvature=delta/Math.max(.001,Math.hypot(a.x-prev.x,a.z-prev.z)+Math.hypot(b.x-a.x,b.z-a.z)+Math.hypot(next.x-b.x,next.z-b.z));
- return {x:a.x+(b.x-a.x)*u,z:a.z+(b.z-a.z)*u,yaw,curvature};
+ const tangent=(p,q)=>{const x=q.x-p.x,z=q.z-p.z,l=Math.hypot(x,z)||1;return [x/l,z/l];};
+ const [ax,az]=tangent(prev,b),[bx,bz]=tangent(a,next),length=b.s-a.s;
+ const calc=(v0,v1,m0,m1)=>{
+  const c1=m0*length,c2=3*(v1-v0)-2*c1-m1*length,c3=2*(v0-v1)+c1+m1*length;
+  return [v0+c1*u+c2*u*u+c3*u*u*u,c1+2*c2*u+3*c3*u*u];
+ };
+ const [x,dx]=calc(a.x,b.x,ax,bx),[z,dz]=calc(a.z,b.z,az,bz);
+ const yaw=Math.atan2(-dx,-dz);
+ // Average tangent rotation across the segment damps second-derivative
+ // spikes at spline joins while keeping its direction and magnitude.
+ const heading=(p,q)=>Math.atan2(-(q.x-p.x),-(q.z-p.z));
+ const startYaw=heading(prev,a),endYaw=heading(b,next);
+ const curvature=Math.atan2(Math.sin(endYaw-startYaw),Math.cos(endYaw-startYaw))/Math.max(.001,Math.hypot(a.x-prev.x,a.z-prev.z)+length+Math.hypot(next.x-b.x,next.z-b.z));
+ return {x,z,yaw,curvature};
 }
 export function trackPoint(distance,offset=0,id='stadium') {
  const p=trackSample(distance,id);return {x:p.x+Math.cos(p.yaw)*offset,z:p.z-Math.sin(p.yaw)*offset,yaw:p.yaw,curvature:p.curvature};

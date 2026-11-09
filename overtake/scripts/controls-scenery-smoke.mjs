@@ -15,7 +15,7 @@ try {
   await page.goto(`${process.env.BASE_URL || 'http://localhost:3000'}/play.html?test=1`);
   await page.waitForSelector('#topbar:not(.hidden)', { timeout: 180000 });await page.click('#menu-garage');
   await page.click('.car-card[data-car="audi"]');
-  await page.click('#btn-start');
+  await page.click('#btn-start');await page.click('#menu-start');
   await page.evaluate(() => {
     const g = window.__overtake;
     g.clearTraffic(); g.trySpawn = () => {};

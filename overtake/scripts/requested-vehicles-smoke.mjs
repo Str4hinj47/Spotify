@@ -13,7 +13,7 @@ try {
  await page.click('#car-next');await page.click('[data-car=aventador-game]');assert.match(await page.locator('#d-class').innerText(),/LEGENDARY · TIER 10/);assert.equal(await page.locator('#btn-start').isEnabled(),true);
  await page.click('[data-garage-tab=style]');await page.click('#btn-customize');await page.click('[data-workshop-tab=body]');await page.click('[data-workshop-part=front]');await page.click('[data-part-panel=front] .workshop-card[data-value="street"]');
  const kit=await page.evaluate(()=>{const g=window.__overtake;g.composer.render();return {kit:!!g.player.getObjectByName('front-fascia'),wheels:g.player.userData.wheels.length}});assert.deepEqual(kit,{kit:true,wheels:4});await page.click('#custom-done');
- await page.click('#btn-start');assert.equal(await page.evaluate(()=>window.__overtake.mode),'driving');
+ await page.click('#btn-start');await page.click('#menu-start');assert.equal(await page.evaluate(()=>window.__overtake.mode),'driving');
  const traffic=await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf);g.clearTraffic();g.score=0;for(let i=0;i<16;i++)g.spawnSame(150,20);let same=g.traffic.map(t=>t.id);g.clearTraffic();for(let i=0;i<16;i++)g.spawnOncoming(150,20);let opposite=g.traffic.map(t=>t.id);let wheels={};for(const id of ['mercedes-560','range-rover']){const c=g.library.create(id);wheels[id]=c.userData.wheels.map(w=>w.children.length)}g.clearTraffic();return {same,opposite,wheels}});
  for(const lane of ['same','opposite'])for(const id of ['mercedes-560','range-rover','camry'])assert.ok(traffic[lane].includes(id),`${id} missing from ${lane} lane`);
  for(const wheels of Object.values(traffic.wheels))assert.ok(wheels.length===4&&wheels.every(n=>n>=2),'traffic wheels and rims must rotate');

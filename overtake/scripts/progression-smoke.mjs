@@ -38,7 +38,7 @@ try {
   await page.click('[data-part-panel=front] .workshop-choices button[data-value=street]');
   assert.equal(await page.locator('#custom-front').inputValue(),'stock');
   assert.match(await page.locator('#tune-message').innerText(),/not enough/i);
-  await page.click('#custom-done');await page.click('#btn-start');
+  await page.click('#custom-done');await page.click('#btn-start');await page.click('#menu-start');
   await page.evaluate(async()=>{const g=window.__overtake,{registerPass}=await import('/src/run.mjs');cancelAnimationFrame(g.raf);for(let i=0;i<5;i++)g.handleRunEvents(registerPass(g.run,'same',false,1).events);g.run.score=5000;g.endRun('crash');});
   assert.equal((await state()).coins,11250);assert.match(await page.locator('#final-progress').innerText(),/\+11,250 coins/);
   await page.click('#btn-garage');assert.equal((await state()).coins,11250);
@@ -51,7 +51,7 @@ try {
   await page.click('[data-part-panel=spoiler] .workshop-choices button[data-value=street]');assert.equal((await state()).gems,0);
   await page.click('#custom-done');await page.click('[data-car=challenger]');await page.click('#buy-car');
   assert.equal((await state()).credits,8250);assert.ok((await state()).owned.includes('challenger'));
-  await page.click('#btn-start');
+  await page.click('#btn-start');await page.click('#menu-start');
   await page.evaluate(()=>{const g=window.__overtake;cancelAnimationFrame(g.raf);g.run.score=2000;g.pause();g.toGarage();g.toGarage();});
   assert.equal((await state()).credits,11250);
   await load();assert.equal((await state()).credits,11250);assert.ok((await state()).owned.includes('challenger'));assert.equal((await state()).upgrades.golf.engine,1);

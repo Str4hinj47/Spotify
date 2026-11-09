@@ -14,7 +14,7 @@ await page.addStyleTag({ content: '*{backdrop-filter:none!important;animation:no
 await page.click('.car-card[data-car="ferrari"]');
 await page.waitForTimeout(800);
 await page.screenshot({ path: out + 'ferrari-garage.png', timeout: 90000 });
-await page.click('#btn-start');
+await page.click('#btn-start');await page.click('#menu-start');
 await page.keyboard.down('ArrowUp');
 await page.waitForFunction(() => window.__overtake.speed > 22, { timeout: 40000 });
 await page.waitForTimeout(300);

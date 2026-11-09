@@ -30,7 +30,7 @@ await shot('garage.png');
 await page.click('.car-card[data-car="ferrari"]');
 await page.waitForTimeout(500);
 await shot('garage-ferrari.png');
-await page.click('#btn-start');
+await page.click('#btn-start');await page.click('#menu-start');
 await page.keyboard.down('ArrowUp');
 await page.waitForFunction(() => window.__overtake.speed > 30, undefined, { timeout: 90000 });
 const before = await g(() => ({ offset: window.__overtake.offset, speed: window.__overtake.speed, s: window.__overtake.playerS }));

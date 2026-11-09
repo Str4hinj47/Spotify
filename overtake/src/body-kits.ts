@@ -187,45 +187,38 @@ function skirtBlade(id:CarId,side:number,level:number) {
   }
   return loft(sections,side>0);
 }
-// A radial shell around the outside of the Golf's wheel opening. The inner
-// edge clears the tire; the outer edge projects outward as a wide fender flare.
+// Body-mounted rounded flares follow the Golf's measured wheel openings.
+// The outer edge sits on the panel; the inner lip clears the tire.
+function golfArchBase(z:number,angle:number) {
+  const angles=[0,.35,.7,1.05,1.57,2.1,2.45,2.8,Math.PI];
+  const x=z<0?[.768,.787,.795,.797,.785,.777,.775,.764,.752]:[.754,.781,.795,.810,.803,.802,.809,.811,.797];
+  return sampleProfile(angles,x,THREE.MathUtils.clamp(angle,0,Math.PI));
+}
 function golfArch(side:number, z:number) {
   const sections:Point3[][]=[];
   for(let i=0;i<=64;i++) {
-    const angle=-.40+(Math.PI+.80)*i/64, c=Math.cos(angle), sn=Math.sin(angle);
-    sections.push([[side*.82,.315+sn*.365,z+c*.365],[side*1.025,.315+sn*.365,z+c*.365],
-      [side*1.025,.315+sn*.445,z+c*.445],[side*.82,.315+sn*.445,z+c*.445]]);
+    const angle=Math.PI*i/64,c=Math.cos(angle),sn=Math.sin(angle),base=golfArchBase(z,angle);
+    const point=(r:number,x:number):Point3=>[side*(base+x),.315+sn*r,z+c*r];
+    sections.push([point(.35,.055),point(.365,.085),point(.405,.065),point(.445,.004),point(.44,-.008),point(.35,.035)]);
   }
-  return loft(sections,side>0,.06);
+  return loft(sections,side>0,.08);
 }
-// The exposed sill joins the inboard portions of two wheel-centred arcs.
-// Continuing either arc would wrap around its wheel; the body hides the rest.
-function golfWideOuter(z:number) {
-  const radius=.66;
-  const arc=(center:number)=>Math.sqrt(Math.max(0,radius*radius-(z-center)*(z-center)));
-  return .82+.46*Math.max(arc(-1.182),arc(1.347));
-}
+// A low, continuous blade with a triangular upstand at the rear end, matching
+// the side profile rather than the previous free-standing vertical cone.
 function golfWideBlade(side:number) {
   const sections:Point3[][]=[];
   for(let i=0;i<=96;i++) {
-    const z=THREE.MathUtils.lerp(-.80,.98,i/96),outer=golfWideOuter(z);
-    // The top edge rises into each wheel opening, not a straight rocker box.
-    const wheelDistance=Math.min(Math.abs(z+1.182),Math.abs(z-1.347));
-    const rise=.28*Math.sqrt(Math.max(0,.445*.445-wheelDistance*wheelDistance));
-    sections.push([[side*.76,.22+rise,z],[side*outer,.19+rise,z],[side*outer,.105,z],[side*.76,.105,z]]);
+    const z=THREE.MathUtils.lerp(-.80,.98,i/96);
+    const ramp=.19*THREE.MathUtils.clamp((z-.66)/.32,0,1);
+    const outer=.865;
+    sections.push([[side*.745,.17+ramp,z],[side*outer,.17+ramp,z],[side*outer,.125,z],[side*.745,.125,z]]);
   }
-  return loft(sections,side>0,.10);
+  return loft(sections,side>0,.035);
 }
-// One tapered vertical fin at the rear end of each skirt. Its centreline is
-// parallel to the car's Y axis (perpendicular to the ground plane).
-function golfSkirtSpike(side:number) {
-  const sections:Point3[][]=[],z=.955,x=side*(golfWideOuter(z)+.03);
-  for(let i=0;i<=16;i++) {
-    const t=i/16,y=.15+.28*t,halfZ=.068*(1-t)+.002,halfX=.055*(1-t)+.002;
-    sections.push([[x-side*halfX,y,z-halfZ],[x+side*halfX,y,z-halfZ],
-      [x+side*halfX,y,z+halfZ],[x-side*halfX,y,z+halfZ]]);
-  }
-  return loft(sections,side<0,.05);
+function golfDiffuserFin(x:number) {
+  const sections:Point3[][]=[];
+  for(const dx of [-.007,.007])sections.push([[x+dx,.262,1.84],[x+dx,.262,2.10],[x+dx,.175,2.10],[x+dx,.235,1.84]]);
+  return loft(sections,false,.025);
 }
 // Mercedes W222: the long rocker and 0.342m wheels differ from the Golf.
 function mercedesWideBlade(side:number) {
@@ -369,6 +362,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   const woven=createCarbonMaterial();
   const metal=new THREE.MeshStandardMaterial({ color:0xb6c7cf,metalness:.9,roughness:.22 });
   const dark=new THREE.MeshBasicMaterial({ color:0x090d10, side:THREE.DoubleSide });
+  const extraMaterials:THREE.Material[]=[];
   const reg=(part:string)=>{const partGroup=new THREE.Group();partGroup.name=`custom-${part}`;g.add(partGroup);return partGroup;};
   const level=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>({stock:0,street:0,touring:.34,sport:.67,track:1,flame:1,'golf-r32':.67,'golf-clean':.34,'golf-diffuser':1,'golf-wide':1,'golf-splitter':1,'golf-superwide':1,'golf-wing':1,'golf-quad-flame':1,'mercedes-aero':.34,'mercedes-splitter':1,'mercedes-clean':.34,'mercedes-diffuser':1,'mercedes-wide':1,'audi-aero':.34,'audi-splitter':1,'audi-clean':.34,'audi-diffuser':1,'audi-wide':1,'bmw-race-front':1,'bmw-race-rear':1,'mustang-heritage':.67,'mustang-valance':.67,'mustang-rockers':.67,'challenger-aero':.67,'challenger-diffuser':1,'challenger-wide':1}[config[part]]);
   const isTrack=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>config[part]==='track'||(part==='exhaust' && (config.exhaust==='flame'||config.exhaust==='golf-quad-flame'));
@@ -472,7 +466,12 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       // Fitted against the source mesh in fitGolfBodywork after this group is created.
       // These short vertical strakes belong to the replacement's diffuser;
       // they do not sit over any retained factory bumper surface.
-      if(amount>=.67 && config.rear!=='golf-r32') for(const x of (config.rear==='golf-diffuser' ? [-.36,-.24,-.12,0,.12,.24,.36] : track ? [-.29,-.10,.10,.29] : [-.23,0,.23])) {
+      if(config.rear==='golf-diffuser') {
+        const finish=config.rearDiffuserColor ? new THREE.MeshStandardMaterial({color:config.rearDiffuserColor,metalness:.25,roughness:.58}) : carbon;
+        if(finish!==carbon)extraMaterials.push(finish);
+        const tray=new THREE.Mesh(taperedBand(.42,1.84,.26,.26,.012,0),finish);tray.name='golf-diffuser-tray';a.add(tray);
+        for(const x of [-.36,-.24,-.12,0,.12,.24,.36]){const fin=new THREE.Mesh(golfDiffuserFin(x),finish);fin.name='diffuser-fin';a.add(fin);}
+      } else if(amount>=.67 && config.rear!=='golf-r32') for(const x of (track ? [-.29,-.10,.10,.29] : [-.23,0,.23])) {
         const fin=box(.012,.075,.10,x,.245,1.98,carbon,a,'diffuser-fin');fin.rotation.x=-.18;
       }
     } else if(id==='mercedes' && (config.rear==='mercedes-clean'||config.rear==='mercedes-diffuser')) {
@@ -523,8 +522,13 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     if(id==='challenger' && config.skirts==='challenger-wide')for(const side of [-1,1])for(const z of [-1.562,1.431]){const arch=new THREE.Mesh(challengerArch(side,z),config.skirtsFinish==='carbon'?woven:body);arch.name='challenger-wheel-arch-flare';a.add(arch);}
     if(id==='golf' && config.skirts==='golf-superwide') for(const side of [-1,1]) {
       const blade=new THREE.Mesh(golfWideBlade(side),wideFinish);blade.name='superwide-skirt';a.add(blade);
-      for(const z of [-1.182,1.347]) {const arch=new THREE.Mesh(golfArch(side,z),wideFinish);arch.name='wheel-arch-flare';a.add(arch);}
-      const spike=new THREE.Mesh(golfSkirtSpike(side),wideFinish);spike.name='skirt-spike';a.add(spike);
+      for(const z of [-1.182,1.347]) {
+        const arch=new THREE.Mesh(golfArch(side,z),panel);arch.name='wheel-arch-flare';a.add(arch);
+        for(const angle of [.22,.67,1.12,1.57,2.02,2.47,2.92]) {
+          const rivet=new THREE.Mesh(new THREE.SphereGeometry(.009,10,8),metal);rivet.name='golf-flare-rivet';
+          rivet.position.set(side*(golfArchBase(z,angle)+.052),.315+Math.sin(angle)*.414,z+Math.cos(angle)*.414);a.add(rivet);
+        }
+      }
     }
     if(id==='mercedes' && config.skirts==='mercedes-wide')for(const side of [-1,1]){
       const blade=new THREE.Mesh(mercedesWideBlade(side),wideFinish);blade.name='superwide-skirt';a.add(blade);
@@ -702,14 +706,14 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     plane.name='underglow-pool';plane.rotation.x=-Math.PI/2;plane.position.set(0,.035,0);plane.renderOrder=2;a.add(plane);
   }
   // Dispose also the unreferenced materials created for the chosen combination.
-  g.userData.ownedMaterials=[body,carbon,woven,metal,dark];
+  g.userData.ownedMaterials=[body,carbon,woven,metal,dark,...extraMaterials];
   const partMaterials:Record<string,THREE.Material>={};
   for(const part of ['front','rear','skirts','spoiler','hood','roof'] as const) {
     const color=config[`${part}Color`];if(!color)continue;
     const group=g.getObjectByName(`custom-${part}`);if(!group)continue;
     const material=new THREE.MeshPhysicalMaterial({color,metalness:.45,roughness:.34,clearcoat:.42,clearcoatRoughness:.22});
     material.name=`custom-${part}-color`;partMaterials[part]=material;g.userData.ownedMaterials.push(material);
-    group.traverse(o=>{const mesh=o as THREE.Mesh;if(mesh.isMesh)mesh.material=material;});
+    group.traverse(o=>{const mesh=o as THREE.Mesh;if(mesh.isMesh && mesh.name!=='golf-flare-rivet' && !(id==='golf' && part==='rear' && config.rear==='golf-diffuser' && ['golf-diffuser-tray','diffuser-fin'].includes(mesh.name)))mesh.material=material;});
   }
   g.userData.partMaterials=partMaterials;
   return g;

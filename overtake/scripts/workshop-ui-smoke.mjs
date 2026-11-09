@@ -31,7 +31,7 @@ try {
   assert.ok(await page.locator('[data-workshop-part="front"]').isVisible());
   await page.click('[data-workshop-tab="lighting"]');assert.ok(await page.locator('#custom-glow-enabled').isVisible());
   await page.screenshot({path:'test-results/workshop-redesign-mobile.png',timeout:120000});
-  await page.click('#custom-done');await page.click('#btn-start');
+  await page.click('#custom-done');await page.click('#btn-start');await page.click('#menu-start');
   const shadow=await page.evaluate(()=>{let g=window.__overtake;g.updateContactShadow();const p=g.contactShadow.geometry.attributes.position;let ys=[];for(let i=0;i<p.count;i++)ys.push(p.getY(i));return {vertices:p.count,min:Math.min(...ys),max:Math.max(...ys),finite:ys.every(Number.isFinite)}});
   assert.ok(shadow.vertices>4 && shadow.finite);assert.ok(shadow.max>shadow.min);
   await page.click('#btn-camera'); await page.click('[data-cam="free"]');

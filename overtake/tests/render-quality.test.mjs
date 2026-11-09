@@ -32,3 +32,17 @@ test('hard budget and GPU size cap apply to every preset even at high DPI', () =
     assert.ok(vehiclePixelRatio(3,2000,1000,false,1024,quality) <= 1024/2000);
   }
 });
+
+test('adaptive driving resolution reacts only to sustained slow frames and recovers',async()=>{
+ const {createAdaptiveResolution,stepAdaptiveResolution}=await import('../src/render-quality.mjs'),a=createAdaptiveResolution();
+ for(let i=0;i<20;i++)stepAdaptiveResolution(a,1/25);assert.equal(a.scale,1,'brief hitch keeps quality');
+ for(let i=0;i<100;i++)stepAdaptiveResolution(a,1/25);assert.ok(a.scale<1);
+ for(let i=0;i<1000;i++)stepAdaptiveResolution(a,1/25);assert.equal(a.scale,.65);
+ const old=a.scale;stepAdaptiveResolution(a,1,false);assert.equal(a.scale,old);
+ for(let i=0;i<1500;i++)stepAdaptiveResolution(a,1/60);assert.equal(a.scale,1);
+});
+
+test('severe sustained frame drops still trigger resolution reduction',async()=>{
+ const {createAdaptiveResolution,stepAdaptiveResolution}=await import('../src/render-quality.mjs'),a=createAdaptiveResolution();
+ for(let i=0;i<25;i++)stepAdaptiveResolution(a,.5);assert.ok(a.scale<1);
+});

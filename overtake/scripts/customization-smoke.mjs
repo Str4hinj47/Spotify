@@ -34,7 +34,7 @@ try {
   await page.click('[data-workshop-tab="body"]'); await page.click('[data-workshop-part="front"]'); await page.click('[data-part-panel="front"] .workshop-choices button[data-value="street"]');
   await page.click('.car-card[data-car="golf"]'); assert.equal(await page.locator('#custom-front').inputValue(),'track');
   assert.equal(await page.locator('#custom-glow-enabled').isChecked(),true);
-  await page.click('#custom-done'); await page.click('#btn-start');
+  await page.click('#custom-done'); await page.click('#btn-start');await page.click('#menu-start');
   assert.equal(await page.evaluate(()=>!!window.__overtake.player.getObjectByName('underglow-pool')),true);
   const traffic=await page.evaluate(()=>window.__overtake.traffic.map(t=>!!t.group.getObjectByName('custom-body-kit')));
   assert.ok(traffic.every(x=>!x));
@@ -53,7 +53,7 @@ try {
   await page.setViewportSize({width:390,height:844});
   const compact = await page.evaluate(() => { const g=window.__overtake;g.updateCamera(0);g.composer.render();return {view:g.camera.view?.enabled, list:getComputedStyle(document.querySelector('.car-list')).display}; });
   assert.equal(compact.view,true); assert.equal(compact.list,'none');
-  await page.click('#custom-done'); await page.click('#btn-start');
+  await page.click('#custom-done'); await page.click('#btn-start');await page.click('#menu-start');
   assert.equal(await page.evaluate(()=>{const g=window.__overtake;g.updateCamera(0);return !!g.camera.view?.enabled}),false,'workshop camera offset must not leak into driving');
   assert.deepEqual(errors,[]);console.log({custom, fits, errors});
 } finally {await browser.close();}

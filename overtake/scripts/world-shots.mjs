@@ -24,7 +24,7 @@ await page.addStyleTag({ content: '*{backdrop-filter:none!important;animation:no
 await page.waitForTimeout(800);
 await shot('world-garage.png');
 
-await page.click('#btn-start');
+await page.click('#btn-start');await page.click('#menu-start');
 await page.waitForFunction(() => window.__overtake?.mode === 'driving', undefined, { timeout: 30000 });
 // Freeze the clock and clear traffic so each world state can be inspected.
 await page.evaluate(() => {

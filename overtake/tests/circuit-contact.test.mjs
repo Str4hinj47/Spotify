@@ -48,3 +48,21 @@ test('player impact keeps the driver heading and a rear impact pushes forward',(
  assert.ok(p.progress>=100,'a rear hit must not move the player backwards');
  assert.ok(p.speed>15,'a rear impact transfers forward momentum');
 });
+
+test('braking into reverse moves both grip and drift cars away from a wall',async()=>{
+ const {stepVehicle}=await import('../src/physics.mjs');
+ const params={grip:1,accel:8,brake:11,maxSpeed:55,wheelbase:2.7,maxSteer:.5,roadAssist:false};
+ const input={throttle:false,brake:true,left:false,right:false,handbrake:false};
+ for(const step of [stepVehicle,stepCircuitDriftVehicle]){
+  const v={...createVehicleState(),offset:12,heading:-.7,speed:0},track={halfWidth:10};
+  resolveCircuitWall(v,track,2,4.5);const contact=v.offset;
+  for(let i=0;i<240;i++){step(v,input,params,1/120);resolveCircuitWall(v,track,2,4.5);}
+  assert.ok(v.speed<0);assert.ok(v.offset<contact-1,'car should reverse away from the wall');
+ }
+});
+
+test('a separating player keeps signed reverse speed after car contact',()=>{
+ const a={progress:100,offset:0,speed:-4,length:4.5,width:2,heading:0};
+ const b={progress:96,offset:0,speed:0,length:4.5,width:2,heading:0};
+ assert.ok(resolveCircuitCarContact(a,b,1000,true));assert.ok(a.speed<0,'collision must not clamp the player to forward-only motion');
+});

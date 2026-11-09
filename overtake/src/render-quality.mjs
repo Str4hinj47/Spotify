@@ -20,3 +20,21 @@ export function vehiclePixelRatio(devicePixelRatio, width, height, coarsePointer
   const budgeted = mode === 'sharp' ? Math.min(preferred, Math.max(baseline, extraBudget)) : preferred;
   return Math.min(budgeted, hardBudget, deviceLimit);
 }
+
+// Adapt only the driving render target, never the saved graphics preference.
+// Sustained slow frames lower GPU fill cost; brief hitches do nothing and a
+// longer fast period restores detail gradually. Hidden tabs are ignored.
+export function createAdaptiveResolution() { return {scale:1,slow:0,fast:0,cooldown:0}; }
+export function stepAdaptiveResolution(state,dt,active=true) {
+  if(!active || !Number.isFinite(dt) || dt<=0) {state.slow=0;state.fast=0;return false;}
+  dt=Math.min(dt,.1);
+  state.cooldown=Math.max(0,state.cooldown-dt);
+  if(dt>.026){state.slow+=dt;state.fast=0;}
+  else if(dt<.019){state.fast+=dt;state.slow=0;}
+  else {state.slow=0;state.fast=0;}
+  if(state.cooldown>0)return false;
+  const previous=state.scale;
+  if(state.slow>=2){state.scale=Math.max(.65,Math.round((state.scale-.1)*100)/100);state.slow=0;state.cooldown=1.5;}
+  else if(state.fast>=5){state.scale=Math.min(1,Math.round((state.scale+.1)*100)/100);state.fast=0;state.cooldown=1.5;}
+  return previous!==state.scale;
+}

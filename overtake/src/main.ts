@@ -401,12 +401,12 @@ function syncProgressionUI() {
   buy.disabled = prerequisite !== null || progress.credits < CAR_PRICES[selected];
   const eligible=game.canEnterSelectedRace();
   if (available && !eligible) $('car-requirement').textContent='Choose a drift car for this track';
-  ($('btn-start') as HTMLButtonElement).disabled = !available || !eligible;
+  ($('btn-start') as HTMLButtonElement).disabled = !available;
   ($('btn-customize') as HTMLButtonElement).disabled = !available;
   document.querySelectorAll<HTMLButtonElement>('.paint-swatch').forEach(button => { button.disabled = !available; });
   ($('paint-custom') as HTMLInputElement).disabled = !available;
   ($('paint-reset') as HTMLButtonElement).disabled = !available;
-  const startLabel = !available ? 'Buy car to drive' : !eligible ? 'Choose a drift car' : game.getRunMode() === 'ranked' ? 'Start ranked race' : 'Start engine';
+  const startLabel = !available ? 'Buy car to select' : 'Select';
   $('start-label').textContent = startLabel;
   $('menu-start-label').textContent = !available ? 'LOCKED' : !eligible ? 'DRIFT CAR NEEDED' : 'PLAY';
   ($('menu-start') as HTMLButtonElement).disabled = !available || !eligible;
@@ -690,8 +690,8 @@ function onHud(h: HudState) {
   if(h.race) updateRaceHud(h.race,h.elapsed);
   else { $('race-map').classList.add('hidden');$('race-feedback').classList.add('hidden');audio.raceAmbience(false,0); }
   $('hud-score').textContent = fmt(h.score);
-  $('speed-bonus-active').classList.toggle('hidden', h.speed <= HIGH_SPEED_THRESHOLD * 3.6);
-  $('hud-speed').textContent = String(Math.round(h.speed));
+  $('speed-bonus-active').classList.toggle('hidden', h.reversing || h.speed <= HIGH_SPEED_THRESHOLD * 3.6);
+  $('hud-speed').textContent = `${h.reversing ? 'R ' : ''}${Math.round(h.speed)}`;
   const maxSpeed = game.getMaxSpeed() * 3.6;
   $('speed-max').textContent = String(Math.round(maxSpeed));
   $('speed-arc').style.strokeDashoffset = String(100 * (1 - Math.min(1, Math.max(0, h.speed / maxSpeed))));
@@ -1065,7 +1065,7 @@ function bindUI() {
     else if(event.key==='ArrowLeft' || event.key==='ArrowRight') { event.preventDefault();road.scrollLeft+=event.key==='ArrowLeft'?-120:120; }
   });
   $('btn-settings-menu').addEventListener('click',()=>{const panel=$('settings-actions');const open=panel.classList.toggle('hidden')===false;$('btn-settings-menu').setAttribute('aria-expanded',String(open));});
-  $('btn-start').addEventListener('click', startRun);
+  $('btn-start').addEventListener('click', () => { if(game.canDrive(selected)) { audio.click(); showFrontScreen('menu'); } });
   $('menu-start').addEventListener('click', startRun);
   $('menu-mobile-start').addEventListener('click', startRun);
   $('menu-mobile-garage').addEventListener('click', () => showFrontScreen('garage'));
@@ -1337,7 +1337,8 @@ function bindUI() {
       case 'v': case 'V': toggleCameraPanel(); break;
       case 'b': case 'B': toggleWorldPanel(); break;
       case 'Enter':
-        if (game.mode === 'garage' || game.mode === 'gameover') startRun();
+        if (game.mode === 'garage' && frontScreen === 'garage') { if(game.canDrive(selected) && $('custom-panel').classList.contains('hidden')) showFrontScreen('menu'); }
+        else if (game.mode === 'garage' || game.mode === 'gameover') startRun();
         else if (game.mode === 'paused') game.resume();
         break;
     }

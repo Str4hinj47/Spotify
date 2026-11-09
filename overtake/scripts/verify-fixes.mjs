@@ -30,7 +30,7 @@ const golfPaint = await page.evaluate(() => {
   return { saved: JSON.parse(localStorage.getItem('overtake-paints')||'{}'), playerHex: hex };
 });
 await page.screenshot({ path: out + 'golf-garage-paint.png', timeout: 90000 });
-await page.click('#btn-start');
+await page.click('#btn-start');await page.click('#menu-start');
 await page.keyboard.down('ArrowUp');
 await page.waitForFunction(() => window.__overtake.speed > 12, { timeout: 40000 });
 await page.screenshot({ path: out + 'golf-rear-lights.png', timeout: 90000 });
@@ -41,7 +41,7 @@ await page.click('.car-card[data-car="ferrari"]');
 await page.click('.paint-swatch[data-hex="#d40f1e"]');
 await page.waitForTimeout(400);
 await page.screenshot({ path: out + 'ferrari-garage-paint.png', timeout: 90000 });
-await page.click('#btn-start');
+await page.click('#btn-start');await page.click('#menu-start');
 await page.keyboard.down('ArrowUp');
 await page.waitForFunction(() => window.__overtake.speed > 18, { timeout: 40000 });
 await page.screenshot({ path: out + 'ferrari-aligned.png', timeout: 90000 });

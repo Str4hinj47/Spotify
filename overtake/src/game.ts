@@ -23,7 +23,7 @@ import { Atmosphere } from './world/atmosphere';
 import { Precipitation } from './world/precipitation';
 import { RoadSpray } from './world/road-spray';
 import { TrafficShadows } from './world/traffic-shadows';
-import { vehiclePixelRatio, sanitizeGraphicsQuality, type GraphicsQuality } from './render-quality.mjs';
+import { vehiclePixelRatio, sanitizeGraphicsQuality, createAdaptiveResolution, stepAdaptiveResolution, type GraphicsQuality } from './render-quality.mjs';
 import { createTreeGeometries } from './world/trees';
 import { createRidgeGeometry, createBuildingGeometry, createGrassGeometry, createDistantTreeGeometries, createRockGeometry } from './world/landscape';
 import { createGroundMaterial } from './world/ground';
@@ -71,6 +71,7 @@ export const CAMERA_ORDER: CameraPreset[] = ['close', 'chase', 'far', 'hood', 'b
 export interface HudState {
   score: number;
   speed: number;
+  reversing: boolean;
   distance: number;
   combo: number;
   mult: number;
@@ -205,6 +206,7 @@ export class OvertakeGame {
   private trafficShadows!: TrafficShadows;
   private composer!: EffectComposer;
   private testMode = false;
+  private adaptiveResolution = createAdaptiveResolution();
   private graphicsQuality: GraphicsQuality = 'sharp';
   private sceneryQuality: SceneryQuality = 'high';
   private detailedScenery!: DetailedScenery;
@@ -1672,7 +1674,11 @@ export class OvertakeGame {
     } catch { /* ignore */ }
   }
 
-  private setMode(m: Mode) { this.mode = m; this.cb.onMode(m); }
+  private setMode(m: Mode) {
+    this.mode = m;
+    if(m!=='driving') { const changed=this.adaptiveResolution.scale!==1;this.adaptiveResolution=createAdaptiveResolution();if(changed)this.resize(); }
+    this.cb.onMode(m);
+  }
 
   private disposeCarLights(group: THREE.Group) {
     disposeVehicleLights(group);
@@ -1796,7 +1802,7 @@ export class OvertakeGame {
     }
     const prog = contractProgress(this.run);
     this.cb.onHud({
-      score: this.score, speed: this.speed * 3.6, distance: this.distance,
+      score: this.score, speed: Math.abs(this.speed) * 3.6, reversing: this.speed < -0.05, distance: this.distance,
       combo: this.combo, mult: multiplierFor(this.combo), best: this.best,
       overtakes: this.overtakes, nearMisses: this.nearMisses, oncoming, offroad: Math.abs(this.offset) > ((this.run.mode === 'circuit' || this.run.mode === 'ranked') ? getTrack(this.raceTrack).halfWidth - 1 : ROAD_HALF - 0.4),
       throttle: this.input.throttle ? 1 : 0,
@@ -1902,7 +1908,7 @@ export class OvertakeGame {
     }
     const spec=getCar(this.selected), upgrades=effectiveUpgrades(this.progression,this.selected);
     const params={...vehicleParameters(spec,upgrades,this.library.getCustomization(this.selected).tireWidth,weatherGrip(this.weather)), roadAssist:false};
-    const previous=this.vehicle.s, steps=Math.max(1,Math.ceil(dt/(1/120))), h=dt/steps;
+    const previous=this.vehicle.s, previousOffset=this.vehicle.offset, steps=Math.max(1,Math.ceil(dt/(1/120))), h=dt/steps;
     const track=getTrack(this.raceTrack), raceDistance=track.length*track.laps;
     for(let i=0;i<steps;i++) {
       (isDriftCar(this.selected)?stepCircuitDriftVehicle:stepVehicle)(this.vehicle,this.input,params,h,trackSample(this.vehicle.s,this.raceTrack).curvature);
@@ -1911,7 +1917,7 @@ export class OvertakeGame {
     }
     this.speed=this.vehicle.speed;this.steer=this.vehicle.steer;this.playerS=this.vehicle.s;this.offset=this.vehicle.offset;
     const p=trackPoint(this.playerS,this.offset,this.raceTrack);this.yaw=p.yaw+this.vehicle.heading+(this.vehicle.driftAngle??0);this.pos.set(p.x,0,p.z);
-    if(this.player) {spinWheels(this.player,this.playerS-previous);this.player.position.copy(this.pos);this.player.rotation.set(0,this.yaw,THREE.MathUtils.clamp(-this.vehicle.latAccel/9.81*.025,-.035,.035));}
+    if(this.player) {spinWheels(this.player,Math.sign(this.speed)*Math.hypot(this.playerS-previous,this.offset-previousOffset));this.player.position.copy(this.pos);this.player.rotation.set(0,this.yaw,THREE.MathUtils.clamp(-this.vehicle.latAccel/9.81*.025,-.035,.035));}
     // Plan all drivers from the same frame so update order cannot grant an
     // advantage. The player is part of the field, including across the lap seam.
     const surface=weatherGrip(this.weather);
@@ -1992,13 +1998,13 @@ export class OvertakeGame {
     // Barrier / off-road
     if (hitsRoadBarrier(this.offset, this.playerMeta.width, this.playerMeta.length, this.vehicle.heading)) { this.crash('You hit the barrier'); return; }
     if (Math.abs(this.offset) > ROAD_HALF - 0.2) {
-      this.speed = Math.max(0, this.speed - 6 * dt);
+      this.speed = Math.sign(this.speed) * Math.max(0, Math.abs(this.speed) - 6 * dt);
       this.vehicle.speed = this.speed;
       this.shake = Math.max(this.shake, 0.15);
     }
 
     if (this.player) {
-      spinWheels(this.player, Math.hypot(this.playerS - previousS, this.offset - previousOffset));
+      spinWheels(this.player, Math.sign(this.speed) * Math.hypot(this.playerS - previousS, this.offset - previousOffset));
       this.player.position.copy(this.pos);
       // Keep the body level under throttle/brake; only a small cornering roll.
       const roll = THREE.MathUtils.clamp(-this.vehicle.latAccel / 9.81 * 0.025, -0.035, 0.035);
@@ -2279,7 +2285,8 @@ export class OvertakeGame {
 
   private loop = () => {
     this.raf = requestAnimationFrame(this.loop);
-    const dt = Math.min(this.clock.getDelta(), 0.05);
+    const frameTime = this.clock.getDelta(), dt = Math.min(frameTime, 0.05);
+    if(!this.testMode && this.mode==='driving' && stepAdaptiveResolution(this.adaptiveResolution,frameTime,!document.hidden))this.resize();
     if (this.mode === 'driving') {
       this.updateDriving(dt);
     } else {
@@ -2298,7 +2305,7 @@ export class OvertakeGame {
     const gl = this.renderer.getContext();
     const maxSize = Math.min(this.renderer.capabilities.maxTextureSize, gl.getParameter(gl.MAX_RENDERBUFFER_SIZE));
     const ratio = this.testMode ? 1 : vehiclePixelRatio(window.devicePixelRatio, w, h, window.matchMedia('(pointer: coarse)').matches, maxSize, this.graphicsQuality);
-    this.renderer.setPixelRatio(ratio);
+    this.renderer.setPixelRatio(ratio * (this.mode==='driving' ? this.adaptiveResolution.scale : 1));
     this.renderer.setSize(w, h, false);
     this.composer.setSize(w, h);
     this.camera.aspect = w / h;

@@ -32,7 +32,7 @@ try {
   assert.ok(state.carbon.includes('front-fascia')&&state.carbon.includes('rear-valance')&&state.carbon.includes('side-skirt')&&state.carbon.includes('roof-extension'));
   assert.ok(state.paintMaterials>0);assert.equal(state.flameCount,2);
   fs.mkdirSync('test-results',{recursive:true});await page.screenshot({path:'test-results/paint-workshop.png',timeout:120000});
-  await page.click('#custom-done');await page.click('#btn-start');
+  await page.click('#custom-done');await page.click('#btn-start');await page.click('#menu-start');
   const drive = await page.evaluate(()=>{
     const g=window.__overtake; cancelAnimationFrame(g.raf);g.clearTraffic();g.trySpawn=()=>{};
     g.vehicle.speed=18; g.input.throttle=true; g.input.brake=false;g.updateDriving(0);g.loop();cancelAnimationFrame(g.raf);

@@ -58,7 +58,7 @@ export function stepVehicle(st, input, p, dt, curvature = 0) {
   const handbrake = input.handbrake ? 0.55 : 1;
   const tireLimit = (p.grip ?? clamp(p.surfaceGrip ?? 1, 0.35, 1)) * G * transfer * handbrake;
   const maxLat = tireLimit * .85;
-  const maxYaw = maxLat / Math.max(st.speed, 2);
+  const maxYaw = maxLat / Math.max(Math.abs(st.speed), 2);
   const targetYaw = clamp(desiredYaw, -maxYaw, maxYaw);
   st.slip = clamp(Math.abs(desiredYaw) / Math.max(maxYaw, 1e-3) - 1, 0, 1);
   st.yawRate += (targetYaw - st.yawRate) * Math.min(1, dt * (p.yawResponse ?? 6.5));
@@ -69,19 +69,30 @@ export function stepVehicle(st, input, p, dt, curvature = 0) {
   // surface loss is already included in p.grip by vehicleParameters.
   const availableLong = longitudinalGrip(tireLimit, st.latAccel);
   const baseMax = p.maxSpeed ?? 60;
-  const cap = Math.max(baseMax, st.speed);
-  const accelRate = p.accel ?? 8;
-  const power = input.throttle ? accelRate * (1 - 0.45 * Math.pow(st.speed / cap, 2)) : 0;
-  // Brake specs are game-tuned; 80% represents usable brake hardware force,
-  // with the tire limit preventing unrealistically large brake upgrades.
-  const brake = ((input.brake ? (p.brake ?? 11) : 0) + (input.handbrake ? (p.brake ?? 11) * 0.75 : 0)) * .80;
-  const tireAcceleration = clamp(power-brake,-availableLong,availableLong);
-  // Quadratic aerodynamic load plus rolling and off-throttle engine braking.
-  const drag = (p.drag ?? 0.0008) * st.speed * st.speed + 0.35 + (input.throttle ? 0 : 1.1);
-  st.accel = tireAcceleration - drag;
-  if (st.speed <= 0 && st.accel < 0) st.accel = 0;
-  const oldSpeed=st.speed;
-  st.speed = clamp(st.speed + st.accel * dt, 0, cap);
+  const cap = Math.max(baseMax, st.speed), reverseCap = p.reverseSpeed ?? 8;
+  const accelRate = p.accel ?? 8, oldSpeed = st.speed;
+  // Down/S brakes while moving forward, then engages reverse after a stop.
+  // Up/W similarly brakes in reverse before propelling the car forwards.
+  const braking=(p.brake ?? 11)*.80;
+  let request=0;
+  if(oldSpeed>=0) {
+    const power=input.throttle ? accelRate*(1-.45*Math.pow(oldSpeed/cap,2)) : 0;
+    if(oldSpeed===0 && input.brake && !input.throttle && !input.handbrake) request=-(p.reverseAccel ?? 3.5);
+    else request=power-(input.brake?braking:0)-(input.handbrake?braking*.75:0);
+  } else if(input.handbrake || input.throttle) {
+    request=braking*((input.throttle?1:0)+(input.handbrake?.75:0));
+  } else if(input.brake) request=-(p.reverseAccel ?? 3.5);
+  const tireAcceleration=clamp(request,-availableLong,availableLong);
+  const drivingReverse=input.brake && oldSpeed<=0 && !input.throttle && !input.handbrake;
+  const powered=(input.throttle && oldSpeed>=0) || drivingReverse;
+  const drag=(p.drag ?? .0008)*oldSpeed*oldSpeed+.35+(powered?0:1.1);
+  st.accel=tireAcceleration-(Math.sign(oldSpeed)||Math.sign(tireAcceleration))*drag;
+  if(oldSpeed===0 && (!powered || (input.throttle && input.brake) || (st.accel<0 && !drivingReverse)))st.accel=0;
+  let next=clamp(oldSpeed+st.accel*dt,-reverseCap,cap);
+  // Never cross through rest in one step: braking transitions into the other
+  // direction on the next substep and rolling resistance cannot reverse it.
+  if(oldSpeed>0 && next<0 || oldSpeed<0 && next>0)next=0;
+  st.speed=next;
   if (st.speed > baseMax) st.speed = Math.max(baseMax, st.speed - 7 * dt);
 
   // Heading is relative to the road tangent. Curvature rotates the tangent.
@@ -92,10 +103,12 @@ export function stepVehicle(st, input, p, dt, curvature = 0) {
     st.yawRate += ((assist ? feed : 0) - st.yawRate) * Math.min(1, dt * 3.0);
     if (assist) st.heading *= Math.exp(-dt * 2.2);
   }
-  st.heading = clamp(st.heading, -0.9, 0.9);
+  // Circuit headings must not snap to a 51-degree limit: that forces the
+  // car to turn with the road and makes recovery at a wall feel unnatural.
+  st.heading = assist ? clamp(st.heading,-.9,.9) : Math.atan2(Math.sin(st.heading),Math.cos(st.heading));
   // Trapezoidal distance integration, including the fraction of a step
   // actually spent moving if braking brings the car to rest mid-step.
-  const movingTime=st.speed===0 && st.accel<0 ? Math.min(dt,oldSpeed/-st.accel) : dt;
+  const movingTime=st.speed===0 && oldSpeed!==0 && st.accel*oldSpeed<0 ? Math.min(dt,Math.abs(oldSpeed/st.accel)) : dt;
   const distance=(oldSpeed+st.speed)*.5*movingTime;
   const rates=roadFrameRates(distance/dt,st.heading,st.offset,curvature);
   st.offset += rates.offset*dt;

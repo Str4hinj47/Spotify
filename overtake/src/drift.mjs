@@ -17,7 +17,7 @@ export function stepDriftVehicle(state,input,params,dt,curvature=0) {
  state.driftAngle=clamp(old+(demand-old)*Math.min(1,h*response),-.34,.34);
  stepVehicle(state,input,{...params,grip:params.grip*(input.handbrake?.83:.96)},h,curvature);
  state.offset-=state.speed*Math.sin(state.driftAngle)*.12*h;
- state.speed=Math.max(0,state.speed-Math.abs(state.driftAngle)*.45*h);
+ state.speed=Math.sign(state.speed)*Math.max(0,Math.abs(state.speed)-Math.abs(state.driftAngle)*.45*h);
  return state;
 }
 

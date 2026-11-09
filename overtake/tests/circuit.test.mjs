@@ -79,3 +79,12 @@ test('reworked circuits have safe separated sections, mixed turns and a usable s
   if(track.id==='coast')assert.ok(Math.max(...samples.map(p=>p.x))+track.halfWidth+4<125,'coastal road must remain on dry ground');
  }
 });
+
+test('track tangent and camera direction stay continuous across sample boundaries and the lap seam',async()=>{
+ const {TRACKS,trackSample}=await import('../src/circuit.mjs');
+ for(const track of TRACKS) {
+  const angle=(a,b)=>Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)));
+  for(let s=0;s<track.length;s+=.07){const a=trackSample(s,track.id),b=trackSample(s+.001,track.id);assert.ok(angle(a.yaw,b.yaw)<.001,`${track.id} camera snap at ${s}`);}
+  assert.ok(angle(trackSample(-.001,track.id).yaw,trackSample(.001,track.id).yaw)<.001,`${track.id} lap seam`);
+ }
+});

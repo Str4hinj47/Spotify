@@ -50,7 +50,7 @@ function velocity(car) {
 function setVelocity(car,v,preserveHeading=false) {
  if(preserveHeading) {
   const heading=car.heading||0;
-  car.speed=Math.max(0,v[0]*Math.cos(heading)-v[1]*Math.sin(heading));
+  car.speed=v[0]*Math.cos(heading)-v[1]*Math.sin(heading);
   return;
  }
  // Vehicles cannot drive backwards in this arcade model. Constrain reverse

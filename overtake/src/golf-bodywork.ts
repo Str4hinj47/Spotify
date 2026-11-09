@@ -239,7 +239,7 @@ export function fitGolfBodywork(inner:THREE.Group,wrapper:THREE.Group,kit:THREE.
   materials.push(diffuser);
   areas.forEach((area,i)=>{
     const group=kit.getObjectByName(`custom-${area.part}`);if(!group||!fitted[i].length)return;
-    const finish=kit.userData.partMaterials?.[area.part] ?? (config[`${area.part}Finish`]==='carbon' ? materials[2] : area.part==='skirts' && config.skirts==='golf-superwide' ? materials[1] : materials[0]);
+    const finish=kit.userData.partMaterials?.[area.part] ?? (config[`${area.part}Finish`]==='carbon' ? materials[2] : materials[0]);
     const replacement=new THREE.Mesh(build(fitted[i],area),[finish,diffuser]);
     replacement.name=area.part==='skirts'?'side-skirt':area.part==='rear'?'rear-valance':'front-fascia';
     replacement.matrix.copy(matrix);replacement.matrixAutoUpdate=false;replacement.castShadow=true;group.add(replacement);
