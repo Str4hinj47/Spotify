@@ -3,6 +3,7 @@
 // traffic uses its separate traffic AI and never calls this module.
 import { getTrack, trackSample } from './circuit.mjs';
 import { resolveCircuitCarContact } from './circuit-contact.mjs';
+import { roadFrameRates } from './physics.mjs';
 
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const profiles=[
@@ -117,13 +118,15 @@ export function stepRaceDriver(driver,plan,dt,trackId,surface=1) {
   const speed=Math.max(driver.speed,2);
   const desiredHeading=-Math.atan2(desiredLateral,speed);
   driver.heading=driver.heading ?? 0;driver.yawRate=driver.yawRate ?? 0;
-  const desiredYaw=curvature*driver.speed+(desiredHeading-driver.heading)*2.8;
+  const frameYaw=curvature*roadFrameRates(driver.speed,driver.heading,driver.offset,curvature).progress;
+  const desiredYaw=frameYaw+(desiredHeading-driver.heading)*2.8;
   const maxYaw=driver.profile.grip*clamp(surface,.6,1.05)/speed;
   const targetYaw=clamp(desiredYaw,-maxYaw,maxYaw);
   driver.yawRate+=(targetYaw-driver.yawRate)*Math.min(1,h*5);
-  driver.heading=clamp(driver.heading+(driver.yawRate-curvature*driver.speed)*h,-.7,.7);
-  driver.offset=clamp(driver.offset-driver.speed*Math.sin(driver.heading)*h,-maxOffset,maxOffset);
-  driver.progress+=Math.max(0,driver.speed*Math.cos(driver.heading)*h/Math.max(.65,1+curvature*driver.offset));
+  driver.heading=clamp(driver.heading+(driver.yawRate-frameYaw)*h,-.7,.7);
+  const rates=roadFrameRates(driver.speed,driver.heading,driver.offset,curvature);
+  driver.offset=clamp(driver.offset+rates.offset*h,-maxOffset,maxOffset);
+  driver.progress+=Math.max(0,rates.progress*h);
   driver.lateralSpeed=h?(driver.offset-oldOffset)/h:0;
   driver.braking=oldSpeed-driver.speed>h*.65;
   return driver;

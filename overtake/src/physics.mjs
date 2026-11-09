@@ -13,6 +13,14 @@ export function longitudinalGrip(limit, lateralAcceleration) {
   return Math.sqrt(Math.max(0,available*available-lateral*lateral));
 }
 
+/** Velocity in a road's curvilinear frame. Positive offset is to the
+ * right of the road; curvature is d(road yaw)/d(centerline distance).
+ * The bounded denominator avoids the coordinate singularity off the road. */
+export function roadFrameRates(speed, heading, offset, curvature) {
+  const progress=speed*Math.cos(heading)/Math.max(.65,1+curvature*offset);
+  return {progress,offset:-speed*Math.sin(heading)};
+}
+
 export function createVehicleState() {
   return {
     s: 0, offset: 0, speed: 0, heading: 0, yawRate: 0, steer: 0,
@@ -40,7 +48,7 @@ export function stepVehicle(st, input, p, dt, curvature = 0) {
   // Highway driving retains its gentle road-following assist. On a circuit,
   // the driver must steer through the bend; road-relative heading still
   // subtracts the rotation of the track in both modes.
-  const feed = curvature * st.speed;
+  const feed = curvature * roadFrameRates(st.speed,st.heading,st.offset,curvature).progress;
   const assist = p.roadAssist !== false;
   let desiredYaw = st.speed * Math.tan(steerAngle) / (p.wheelbase ?? 2.7) / understeer + (assist ? feed : 0);
 
@@ -72,6 +80,7 @@ export function stepVehicle(st, input, p, dt, curvature = 0) {
   const drag = (p.drag ?? 0.0008) * st.speed * st.speed + 0.35 + (input.throttle ? 0 : 1.1);
   st.accel = tireAcceleration - drag;
   if (st.speed <= 0 && st.accel < 0) st.accel = 0;
+  const oldSpeed=st.speed;
   st.speed = clamp(st.speed + st.accel * dt, 0, cap);
   if (st.speed > baseMax) st.speed = Math.max(baseMax, st.speed - 7 * dt);
 
@@ -84,7 +93,12 @@ export function stepVehicle(st, input, p, dt, curvature = 0) {
     if (assist) st.heading *= Math.exp(-dt * 2.2);
   }
   st.heading = clamp(st.heading, -0.9, 0.9);
-  st.offset -= st.speed * Math.sin(st.heading) * dt;
-  st.s += st.speed * Math.cos(st.heading) * dt;
+  // Trapezoidal distance integration, including the fraction of a step
+  // actually spent moving if braking brings the car to rest mid-step.
+  const movingTime=st.speed===0 && st.accel<0 ? Math.min(dt,oldSpeed/-st.accel) : dt;
+  const distance=(oldSpeed+st.speed)*.5*movingTime;
+  const rates=roadFrameRates(distance/dt,st.heading,st.offset,curvature);
+  st.offset += rates.offset*dt;
+  st.s += rates.progress*dt;
   return st;
 }

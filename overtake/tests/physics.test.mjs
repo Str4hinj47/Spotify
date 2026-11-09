@@ -110,3 +110,20 @@ test('braking while cornering uses less longitudinal tire force than braking str
   stepVehicle(corner,input({brake:true,left:true}),params,.01);
   assert.ok(corner.accel>straight.accel,'cornering must leave less tire force for braking');
 });
+
+test('curved road coordinates advance according to offset path length',async()=>{
+  const {roadFrameRates}=await import('../src/physics.mjs');
+  const middle=roadFrameRates(30,0,0,.01),outside=roadFrameRates(30,0,10,.01),inside=roadFrameRates(30,0,-10,.01);
+  assert.equal(middle.progress,30);assert.ok(Math.abs(outside.progress-30/1.1)<1e-10);assert.ok(Math.abs(inside.progress-30/.9)<1e-10);
+  const angled=roadFrameRates(20,.2,5,-.01);
+  assert.ok(Math.abs(angled.progress*(1-.05)-20*Math.cos(.2))<1e-10);
+  assert.ok(Math.abs(angled.offset+20*Math.sin(.2))<1e-10);
+});
+
+test('stopping partway through a timestep still travels the correct distance',()=>{
+  const car=createVehicleState();car.speed=.08;
+  // Brake hardware .8*2 plus fixed rolling .35 and engine braking 1.1.
+  const deceleration=3.05,expected=car.speed**2/(2*deceleration);
+  stepVehicle(car,input({brake:true}),{grip:2,brake:2,drag:0,roadAssist:false},.05);
+  assert.equal(car.speed,0);assert.ok(Math.abs(car.s-expected)<1e-10,`${car.s} vs ${expected}`);
+});
