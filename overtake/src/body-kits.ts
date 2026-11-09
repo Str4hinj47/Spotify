@@ -197,21 +197,34 @@ function golfArch(side:number, z:number) {
   }
   return loft(sections,side>0,.06);
 }
+// The exposed sill joins the inboard portions of two wheel-centred arcs.
+// Continuing either arc would wrap around its wheel; the body hides the rest.
+function golfWideOuter(z:number) {
+  const radius=.66;
+  const arc=(center:number)=>Math.sqrt(Math.max(0,radius*radius-(z-center)*(z-center)));
+  return .82+.46*Math.max(arc(-1.182),arc(1.347));
+}
 function golfWideBlade(side:number) {
   const sections:Point3[][]=[];
-  for(let i=0;i<=64;i++) {
-    const t=i/64,z=THREE.MathUtils.lerp(-.80,.98,t),taper=Math.pow(Math.sin(Math.PI*t),.35),outer=.87+.20*taper;
-    sections.push([[side*.76,.22,z],[side*outer,.19,z],[side*outer,.105,z],[side*.76,.105,z]]);
+  for(let i=0;i<=96;i++) {
+    const z=THREE.MathUtils.lerp(-.80,.98,i/96),outer=golfWideOuter(z);
+    // The top edge rises into each wheel opening, not a straight rocker box.
+    const wheelDistance=Math.min(Math.abs(z+1.182),Math.abs(z-1.347));
+    const rise=.28*Math.sqrt(Math.max(0,.445*.445-wheelDistance*wheelDistance));
+    sections.push([[side*.76,.22+rise,z],[side*outer,.19+rise,z],[side*outer,.105,z],[side*.76,.105,z]]);
   }
   return loft(sections,side>0,.10);
 }
-function golfSkirtSpike(side:number,z:number) {
-  const sections:Point3[][]=[];
-  for(let i=0;i<=12;i++) {
-    const t=i/12,x=side*(1.045+.18*t),half=.075*(1-t)+.004;
-    sections.push([[x,.105,z-half],[x,.15,z-half],[x,.15,z+half],[x,.105,z+half]]);
+// One tapered vertical fin at the rear end of each skirt. Its centreline is
+// parallel to the car's Y axis (perpendicular to the ground plane).
+function golfSkirtSpike(side:number) {
+  const sections:Point3[][]=[],z=.955,x=side*(golfWideOuter(z)+.03);
+  for(let i=0;i<=16;i++) {
+    const t=i/16,y=.15+.28*t,halfZ=.068*(1-t)+.002,halfX=.055*(1-t)+.002;
+    sections.push([[x-side*halfX,y,z-halfZ],[x+side*halfX,y,z-halfZ],
+      [x+side*halfX,y,z+halfZ],[x-side*halfX,y,z+halfZ]]);
   }
-  return loft(sections,side>0,.10);
+  return loft(sections,side<0,.05);
 }
 // Mercedes W222: the long rocker and 0.342m wheels differ from the Golf.
 function mercedesWideBlade(side:number) {
@@ -479,7 +492,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     if(id==='golf' && config.skirts==='golf-superwide') for(const side of [-1,1]) {
       const blade=new THREE.Mesh(golfWideBlade(side),wideFinish);blade.name='superwide-skirt';a.add(blade);
       for(const z of [-1.182,1.347]) {const arch=new THREE.Mesh(golfArch(side,z),wideFinish);arch.name='wheel-arch-flare';a.add(arch);}
-      for(const z of [-.57,-.20,.17,.54,.84]) {const spike=new THREE.Mesh(golfSkirtSpike(side,z),wideFinish);spike.name='skirt-spike';a.add(spike);}
+      const spike=new THREE.Mesh(golfSkirtSpike(side),wideFinish);spike.name='skirt-spike';a.add(spike);
     }
     if(id==='mercedes' && config.skirts==='mercedes-wide')for(const side of [-1,1]){
       const blade=new THREE.Mesh(mercedesWideBlade(side),wideFinish);blade.name='superwide-skirt';a.add(blade);
