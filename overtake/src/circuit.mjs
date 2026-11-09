@@ -41,10 +41,10 @@ const definitions = [
  // Linking long sweepers to slower transitions gives the drift layouts more
  // than an oval while preserving recovery room and closed-lap racing.
  {id:'dockside', name:'Dockside Drift', kind:'drift', halfWidth:13, theme:'industrial', feature:'Linked drift turns and sweepers', points:[
-  [170,80],[170,-15],[155,-90],[115,-135],[55,-135],[10,-165],
+  [170,80],[170,-15],[155,-90],[125,-120],[90,-120],[50,-125],[10,-165],
   [-50,-180],[-115,-155],[-155,-110],[-150,-65],[-105,-45],[-55,-55],
   [-15,-20],[-30,25],[-85,40],[-145,35],[-185,75],[-175,125],
-  [-130,155],[-80,150],[-35,180],[30,215],[110,210],[170,160]]},
+  [-130,155],[-80,150],[-35,180],[25,200],[70,190],[110,210],[170,160]]},
  // Outer sweep followed by an infield switchback: a flat interpretation of
  // the outer-to-inner transition used in stadium drifting.
  {id:'neon', name:'Neon Slide', kind:'drift', halfWidth:13, theme:'neon', feature:'Long sweep into infield transitions', points:[
