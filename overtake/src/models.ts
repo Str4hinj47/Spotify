@@ -178,6 +178,56 @@ function removeGolfMirrors(inner:THREE.Group,wrapper:THREE.Group):THREE.BufferGe
   return owned;
 }
 
+// Fit the Golf's projector bezels to the actual lens surface. Cache only the
+// sampled coordinates, not GPU geometry/materials, so every player clone
+// remains independently disposable and the shared traffic GLB is untouched.
+let golfHaloVertices: number[][] | undefined;
+function fitGolfHalos(wrapper:THREE.Group, kit:THREE.Group, lens:THREE.Mesh) {
+  const group=kit.getObjectByName('custom-headlights');if(!group)return;
+  const rings=group.children.filter(o=>o.name==='headlight-halo') as THREE.Mesh[];
+  if(rings.length!==2)return;
+  const steps=64,radii=[.034,.037,.039,.042,.044];
+  if(!golfHaloVertices) {
+    wrapper.updateMatrixWorld(true);
+    const ray=new THREE.Raycaster(), direction=new THREE.Vector3(0,0,1).transformDirection(wrapper.matrixWorld);
+    const samples:number[][]=[];
+    for(const side of [-1,1]) {
+      const vertices:number[]=[];
+      for(let i=0;i<=steps;i++)for(const radius of radii) {
+        const angle=i*Math.PI*2/steps, x=side*.48+Math.cos(angle)*radius, y=.665+Math.sin(angle)*radius;
+        ray.set(wrapper.localToWorld(new THREE.Vector3(x,y,-3)),direction);
+        const hit=ray.intersectObject(lens,false)[0];
+        // If an asset is replaced and no longer contains these points, retain
+        // the original fallback rings rather than projecting onto the body.
+        if(!hit)return;
+        const p=wrapper.worldToLocal(hit.point.clone());vertices.push(p.x,p.y,p.z-.0015);
+      }
+      samples.push(vertices);
+    }
+    golfHaloVertices=samples;
+  }
+  const dark=new THREE.MeshStandardMaterial({color:0x222b32,metalness:.55,roughness:.38,side:THREE.DoubleSide});
+  const trim=new THREE.MeshStandardMaterial({color:0x81939d,metalness:.8,roughness:.26,side:THREE.DoubleSide});
+  for(let side=0;side<2;side++) {
+    const ring=rings[side], geometry=new THREE.BufferGeometry(),indices:number[]=[];
+    geometry.setAttribute('position',new THREE.Float32BufferAttribute(golfHaloVertices[side],3));
+    // Four independently finished concentric bands: inner recess, metallic
+    // rim, narrow light guide and outer bezel. All follow the lens curvature.
+    for(let band=0;band<4;band++) {
+      const start=indices.length;
+      for(let i=0;i<steps;i++) {
+        const a=i*radii.length+band,b=a+1,c=a+radii.length,d=c+1;
+        indices.push(a,c,b,b,c,d);
+      }
+      geometry.addGroup(start,indices.length-start,[0,1,2,0][band]);
+    }
+    geometry.setIndex(indices);geometry.computeVertexNormals();
+    const oldGeometry=ring.geometry,halo=ring.material as THREE.MeshBasicMaterial;
+    halo.color.set(0xd9f5ff);halo.side=THREE.DoubleSide;
+    ring.geometry=geometry;ring.material=[dark,trim,halo];ring.position.set(0,0,0);ring.rotation.set(0,0,0);oldGeometry.dispose();
+  }
+}
+
 // Change tire sidewall depth radially, keeping the outer contact diameter and
 // the independent tread-width/handling setting unchanged. Clone only player
 // position buffers; the stock and traffic models remain shared and untouched.
@@ -588,6 +638,7 @@ export class ModelLibrary {
                 material.color.set(config.headlights==='smoked'?0x38424b:0xb6dcf1);
                 material.opacity=config.headlights==='smoked'?.52:.24;material.transparent=true;material.depthWrite=false;
                 lens.material=material;customPaintCopies.push(material);
+                if(config.headlights==='halo')fitGolfHalos(wrapper,kit,lens);
               }
             }
           }
