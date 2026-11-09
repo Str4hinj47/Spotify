@@ -1,3 +1,4 @@
+import { fitBmwStreetBody } from './bmw-bodywork';
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
@@ -9,7 +10,7 @@ import { fitGolfBodywork, removeGolfTailgateHandle } from './golf-bodywork';
 import { fitMercedesBodywork } from './mercedes-bodywork';
 import { fitAudiBodywork } from './audi-bodywork';
 import { createCarbonMaterial, customPaintMaterial } from './livery';
-import { GOLF_PART_OPTIONS, sanitizeCustomization, type Customization } from './customization.mjs';
+import { BMW_PART_OPTIONS, GOLF_PART_OPTIONS, sanitizeCustomization, type Customization } from './customization.mjs';
 
 export interface CarModel {
   id: TrafficId;
@@ -102,18 +103,18 @@ function removeMustangFactoryWing(inner:THREE.Group, wrapper:THREE.Group):THREE.
 }
 
 // The race car's factory wing is merged with body/trim in the source. Clip
-// only the raised rear aero element on an aftermarket-equipped player clone.
+// only the separate raised rear aero trim components on a player clone.
 function removeBmwFactoryWing(inner: THREE.Group, wrapper: THREE.Group): THREE.BufferGeometry[] {
   const owned: THREE.BufferGeometry[] = [];
   inner.traverse(o => {
     const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh || Array.isArray(mesh.material) || !/^(paint__Material|trim__plastic)$/.test(mesh.material.name)) return;
+    if (!mesh.isMesh || Array.isArray(mesh.material) || mesh.material.name !== 'trim__plastic') return;
     const geo=mesh.geometry, index=geo.index, pos=geo.getAttribute('position'); if (!index || !pos) return;
     const transform=new THREE.Matrix4().copy(wrapper.matrixWorld).invert().multiply(mesh.matrixWorld);
     const point=new THREE.Vector3(), c=new THREE.Vector3(), kept:number[]=[];
     for(let i=0;i+2<index.count;i+=3) {
       c.set(0,0,0); for(let j=0;j<3;j++) c.add(point.fromBufferAttribute(pos,index.getX(i+j)).applyMatrix4(transform)); c.multiplyScalar(1/3);
-      if (!(c.z>1.55 && c.y>.86)) kept.push(index.getX(i),index.getX(i+1),index.getX(i+2));
+      if (!(c.z>1.91 && c.y>.80)) kept.push(index.getX(i),index.getX(i+1),index.getX(i+2));
     }
     const copy=geo.clone();copy.setIndex(kept);copy.clearGroups();mesh.geometry=copy;owned.push(copy);
   });
@@ -348,7 +349,7 @@ export class ModelLibrary {
                 std.emissive.set(0x000000);std.emissiveIntensity=0;
               } else {
                 std.emissive = new THREE.Color(0xf6f9ff);
-                std.emissiveIntensity = spec.id === 'golf' ? 0.28 : 0.85;
+                std.emissiveIntensity = spec.id === 'golf' ? 0.28 : 0.42;
               }
             } else if (m.name.startsWith('taillight__')) {
               std.emissive = new THREE.Color(0xff2020);
@@ -453,6 +454,7 @@ export class ModelLibrary {
       clean.leftFrontDoorColor='';clean.rightFrontDoorColor='';clean.leftRearDoorColor='';clean.rightRearDoorColor='';clean.rearDiffuserColor='';clean.headlights='stock';clean.taillights='stock';clean.mirrors='stock';clean.tireProfile='standard';
     }
     if(id!=='mercedes') { for(const part of ['front','rear','skirts'] as const) if(clean[part].startsWith('mercedes-')) (clean as unknown as Record<string,string>)[part]='stock'; }
+    if(id!=='bmw-m3') { for(const [part,options] of Object.entries(BMW_PART_OPTIONS)) if(options?.includes(clean[part as keyof typeof BMW_PART_OPTIONS] as never)) (clean as unknown as Record<string,string>)[part]='stock'; }
     if(id!=='audi') { for(const part of ['front','rear','skirts'] as const) if(clean[part].startsWith('audi-')) (clean as unknown as Record<string,string>)[part]='stock'; }
     this.customization.set(id, clean);
   }
@@ -478,9 +480,9 @@ export class ModelLibrary {
     let factoryPaint: number | undefined;
     const customPaintCopies: THREE.Material[] = [];
     const customGeometries: THREE.BufferGeometry[] = [];
-    const config = opts.player && isPlayableCar(id) ? (this.customization.get(id) ?? (id==='golf' ? sanitizeCustomization(undefined) : undefined)) : undefined;
+    const config = opts.player && isPlayableCar(id) ? (this.customization.get(id) ?? (id==='golf' || id==='bmw-m3' ? sanitizeCustomization(undefined) : undefined)) : undefined;
     wrapper.updateMatrixWorld(true);
-    if (id === 'bmw-m3' && config && config.spoiler !== 'stock') customGeometries.push(...removeBmwFactoryWing(inner, wrapper));
+    if (id === 'bmw-m3' && config) customGeometries.push(...removeBmwFactoryWing(inner, wrapper));
     inner.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
@@ -588,6 +590,7 @@ export class ModelLibrary {
             const finish=createCarbonMaterial();factoryExhaust.material=finish;customPaintCopies.push(finish);
           }
         }
+        if(id==='bmw-m3') customGeometries.push(...fitBmwStreetBody(inner,wrapper,config,customPaintCopies));
         if (BODY_FITS[id]) {
           const kit=createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080);
           wrapper.add(kit);
@@ -723,7 +726,13 @@ export class ModelLibrary {
     let kit: THREE.Group | undefined;
     let material: THREE.Material | undefined;
     let object: THREE.Object3D | undefined;
-    if(part==='rim') {
+    let previewCar:THREE.Group | undefined;
+    if(id==='bmw-m3' && value.startsWith('bmw-race-')) {
+      const prior=this.customization.get(id);
+      this.setCustomization(id, sanitizeCustomization({[part]:value}));
+      try { previewCar=this.create(id,{player:true}); } finally { if(prior)this.customization.set(id,prior);else this.customization.delete(id); }
+      object=previewCar;scene.add(previewCar);
+    } else if(part==='rim') {
       const geo=this.rims.get(value);
       if(geo) { material=new THREE.MeshStandardMaterial({color:0xc4d2dd,metalness:.65,roughness:.27,side:THREE.DoubleSide}); object=new THREE.Mesh(geo,material); scene.add(object); }
     } else {
@@ -741,12 +750,13 @@ export class ModelLibrary {
       object.updateWorldMatrix(true,true);
       const bounds=new THREE.Box3().setFromObject(object), center=bounds.getCenter(new THREE.Vector3()), size=bounds.getSize(new THREE.Vector3());
       const extent=Math.max(size.x,size.y,size.z,.1);
-      const direction=part==='rim' ? new THREE.Vector3(.12,.10,1) : new THREE.Vector3(1,.8,1.6);
+      const direction=part==='rim' ? new THREE.Vector3(.12,.10,1) : previewCar && part==='front' ? new THREE.Vector3(1,.8,-1.6) : new THREE.Vector3(1,.8,1.6);
       camera.position.copy(center).add(direction.normalize().multiplyScalar(extent*2.4));
       camera.lookAt(center); camera.updateProjectionMatrix(); renderer.render(scene,camera);
     }
     const url=renderer.domElement.toDataURL('image/png');
     if(kit) disposeBodyKit(kit); material?.dispose();
+    if(previewCar) {const previewKit=previewCar.getObjectByName('custom-body-kit');if(previewKit)disposeBodyKit(previewKit as THREE.Group);for(const geo of previewCar.userData.customGeometries)geo.dispose();for(const m of previewCar.userData.customPaintMaterials)m.dispose();for(const m of [...previewCar.userData.headlightMaterials,...previewCar.userData.brakeMaterials,...previewCar.userData.indicatorMaterials])m.dispose();}
     this.workshopThumbs.set(cacheKey,url); return url;
   }
 

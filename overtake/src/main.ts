@@ -224,6 +224,7 @@ function syncCustomizationUI() {
       options.push(...(extra[part] ?? []));
     }
     if(selected==='mercedes') { const extra:Partial<Record<string,string[][]>>={front:[['mercedes-aero','Executive lower fascia'],['mercedes-splitter','Canard splitter fascia']],rear:[['mercedes-clean','Clean rear fascia'],['mercedes-diffuser','Touring diffuser rear']],skirts:[['mercedes-wide','Superwide spike skirts']]};options.push(...(extra[part]??[])); }
+    if(selected==='bmw-m3') { const extra:Partial<Record<string,string[][]>>={front:[['bmw-race-front','Original GT3 front bumper']],rear:[['bmw-race-rear','Original GT3 rear bumper']],hood:[['bmw-race-hood','Original GT3 vented hood']]};options.push(...(extra[part]??[])); }
     if(selected==='audi') { const extra:Partial<Record<string,string[][]>>={front:[['audi-aero','Avant aero fascia'],['audi-splitter','Canard splitter fascia']],rear:[['audi-clean','Clean rear valance'],['audi-diffuser','Sport diffuser valance']],skirts:[['audi-wide','Superwide spike skirts']]};options.push(...(extra[part]??[])); }
     if (part === 'exhaust') options.push(['flame','Afterfire flames']);
     select.replaceChildren(...options.map(([value,label]) => {
@@ -231,12 +232,12 @@ function syncCustomizationUI() {
     }));
     select.value = config[part];
     const finish = $(`custom-${part}-finish`) as HTMLSelectElement;
-    finish.value = config[`${part}Finish`]; finish.disabled = config[part] === 'stock';
+    finish.value = config[`${part}Finish`]; finish.disabled = config[part] === 'stock' || (selected==='bmw-m3' && String(config[part]).startsWith('bmw-race-'));
   }
   for(const part of ['front','rear','skirts','spoiler','hood','roof'] as const) {
     const input=$(`custom-${part}-color`) as HTMLInputElement;
     input.value=config[`${part}Color`] || paints[selected] || getCar(selected).color;
-    input.disabled=part!=='hood' && part!=='roof' && config[part]==='stock' && !(selected==='golf' && ['front','rear','skirts'].includes(part));
+    input.disabled=(selected==='bmw-m3' && String(config[part]).startsWith('bmw-race-')) || part!=='hood' && part!=='roof' && config[part]==='stock' && !(selected==='golf' && ['front','rear','skirts'].includes(part));
     const reset=document.querySelector<HTMLButtonElement>(`[data-part-color-reset="${part}"]`)!;
     reset.disabled=!config[`${part}Color`];
   }

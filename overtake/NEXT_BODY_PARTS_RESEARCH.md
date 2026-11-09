@@ -1,0 +1,14 @@
+# Next bodywork batch: Mustang and Challenger
+
+These are visual and construction references, not source assets or licensed product models. The designs would need to be original and fitted to the actual car meshes. These two are practical next candidates because the existing asset survey identifies discrete paint primitives and the game already has fitted front chins, skirts, spoiler handling and exhaust locations for them. This is a *relative* assessment, not a promise that the work is easy: both still need clipping, seam and clearance testing.
+
+## Classic Mustang
+- The game uses a classic fastback; confirm its precise year before selecting year-specific parts. A [1967–68 racing valance](https://www.classicindustries.com/shop/1967/ford/mustang/parts/body-panels/front-end/) is a separate panel with parking-lamp holes and can coexist with the stock bumper. [Rear valances](https://www.c2cfabrication.com/collections/ford-mustang-parts/valance) are offered with different lamp and exhaust openings. Preserve chrome bumper, exposed signal lenses and exhaust layout; do not paste a solid panel over them.
+- Candidate first batch: restrained lower front valance, separately shaped chin, rear valance with appropriate outlet openings, and subtle sill extensions. Use `mustang_mesh_7`, trim meshes 1, 5 and 8 and the measured wheel centers (−1.434 / 1.246) as survey starting points, not as validated cut seams. The factory wing is merged in trim and requires selective removal for alternatives.
+
+## Challenger
+- A [2015–23 Circuit kit](https://carboncreations.com/2015-2020-dodge-challenger-duraflex-circuit-wide-body-kit-15-pieces-ed_113912/) lists a front bumper, front lip, side splitter, rear diffuser and separate fenders. [West Coast Customs](https://shop.westcoastcustoms.com/products/challenger-body-kit) similarly lists lip, flares, skirts and diffuser. Confirm the in-game model's year and fit against its own body instead of assuming either kit fits.
+- Candidate first batch: complete front fascia and lower lip, a separate rear diffuser with exhaust cutouts, sills and four independently fitted flares. `Plane005_Plane037` and `Plane006_Plane038` are useful front/rear source primitives; front/rear wheel centers are approximately −1.562 / 1.431. Retain existing lamps, indicators, paint choices and exhaust placement.
+
+## BMW M3 baseline
+The game model is a GT3-style source, not an authentic road-car mesh. The simplified baseline is an in-game interpretation, not a claim of an OEM E92 replica. [Street-style replacement](https://www.radicaltuning.eu/en/e92-2d/137-e92-2d-m3-spec-front-bumper-for-bmw-e92-coupe-m3.html) and [GT3 conversion](https://www.vividracing.com/flossman-gt3-front-bumper-bmw-e92-20082013-p-150944290.html) illustrate how the road and race pieces differ. The original source hood and bumper options are separate purchases; the source wing is removed from player cars independently of those choices.

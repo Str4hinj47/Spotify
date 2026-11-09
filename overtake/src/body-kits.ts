@@ -348,10 +348,10 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   const metal=new THREE.MeshStandardMaterial({ color:0xb6c7cf,metalness:.9,roughness:.22 });
   const dark=new THREE.MeshBasicMaterial({ color:0x090d10, side:THREE.DoubleSide });
   const reg=(part:string)=>{const partGroup=new THREE.Group();partGroup.name=`custom-${part}`;g.add(partGroup);return partGroup;};
-  const level=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>({stock:0,street:0,touring:.34,sport:.67,track:1,flame:1,'golf-r32':.67,'golf-clean':.34,'golf-diffuser':1,'golf-wide':1,'golf-splitter':1,'golf-superwide':1,'golf-wing':1,'golf-quad-flame':1,'mercedes-aero':.34,'mercedes-splitter':1,'mercedes-clean':.34,'mercedes-diffuser':1,'mercedes-wide':1,'audi-aero':.34,'audi-splitter':1,'audi-clean':.34,'audi-diffuser':1,'audi-wide':1}[config[part]]);
+  const level=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>({stock:0,street:0,touring:.34,sport:.67,track:1,flame:1,'golf-r32':.67,'golf-clean':.34,'golf-diffuser':1,'golf-wide':1,'golf-splitter':1,'golf-superwide':1,'golf-wing':1,'golf-quad-flame':1,'mercedes-aero':.34,'mercedes-splitter':1,'mercedes-clean':.34,'mercedes-diffuser':1,'mercedes-wide':1,'audi-aero':.34,'audi-splitter':1,'audi-clean':.34,'audi-diffuser':1,'audi-wide':1,'bmw-race-front':1,'bmw-race-rear':1}[config[part]]);
   const isTrack=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>config[part]==='track'||(part==='exhaust' && (config.exhaust==='flame'||config.exhaust==='golf-quad-flame'));
   const top=TOP_FITS[id];
-  if(config.hood!=='stock') {
+  if(config.hood!=='stock' && config.hood!=='bmw-race-hood') {
     const a=reg('hood'), mount=new THREE.Group();a.add(mount);mount.position.set(0,top.hoodY,top.hoodZ);mount.rotation.x=-Math.atan(top.hoodSlope);
     const finish=config.hoodFinish==='carbon'?woven:body;
     if(id==='golf' && config.hood==='golf-vented') {
@@ -394,7 +394,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       }
     }
   }
-  if(config.front!=='stock') {
+  if(config.front!=='stock' && config.front!=='bmw-race-front') {
     const a=reg('front'), track=isTrack('front'), amount=level('front'), panel=config.frontFinish==='carbon'?woven:body;
     const nose=f.frontZ-.015;
     if(id==='golf') {
@@ -439,7 +439,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
     }
     if(id==='mercedes' && config.front!=='mercedes-aero' && config.front!=='mercedes-splitter') box(f.frontW*1.35,.015,.035,0,f.bumperY+.11,nose+.04,metal,a,'bright-fascia-trim');
   }
-  if(config.rear!=='stock' || (id==='golf' && config.exhaust==='golf-quad-flame')) {
+  if((config.rear!=='stock' && config.rear!=='bmw-race-rear') || (id==='golf' && config.exhaust==='golf-quad-flame')) {
     const a=reg('rear'),track=isTrack('rear'),amount=level('rear'), tail=f.rearZ-.035, panel=config.rearFinish==='carbon'?woven:body;
     if(id==='golf') {
       // Fitted against the source mesh in fitGolfBodywork after this group is created.

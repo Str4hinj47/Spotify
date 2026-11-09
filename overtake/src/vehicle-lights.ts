@@ -61,7 +61,7 @@ export function updateVehicleLights(group:THREE.Group,camera:THREE.Camera,night:
   const darkness=THREE.MathUtils.clamp(night,0,1);
   // Brighten the model's own headlamp lenses as well as the soft halo.
   for(const mat of (group.userData.headlightMaterials ?? []) as THREE.MeshStandardMaterial[])
-    mat.emissiveIntensity = mat.name === 'headlight__r8' ? .30 + darkness*.42 : .45 + darkness*.50;
+    mat.emissiveIntensity = mat.name === 'headlight__r8' ? .26 + darkness*.38 : .32 + darkness*.44;
   for(const sprite of lights.front) sprite.material.opacity=frontVisible ? .30+darkness*.52 : 0;
   for(const sprite of lights.rear) sprite.material.opacity=rearVisible ? (braking ? .85 : .35+darkness*.34) : 0;
   if(lights.beam) { lights.beam.visible=!garage;lights.beam.material.uniforms.strength.value=.08+darkness*.48; }
