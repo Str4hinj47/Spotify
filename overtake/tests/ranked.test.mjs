@@ -13,3 +13,14 @@ test('old highway scenario history and rank survive migration',()=>{
  const old={version:1,points:250,attempts:9,scenarios:{needle:{completions:3,bestTime:70,bestMedal:'silver'}}};const p=sanitizeRanked(old);assert.equal(p.points,250);assert.deepEqual(p.scenarios.needle,old.scenarios.needle);assert.equal(rankFor(120).rank.id,'street');
 });
 test('ranked race no longer triggers timed highway objectives',()=>{const r=createRun('ranked',1,0,'summit');assert.equal(r.timeLeft,null);assert.equal(r.contracts.length,0);r.distance=3000;tickRun(r,.1,20);assert.equal(r.finished,false);});
+
+test('new circuit layouts preserve old history without comparing old times',()=>{
+ const old={version:1,points:250,attempts:9,scenarios:{stadium:{completions:3,bestTime:70,bestMedal:'silver'}}};
+ const migrated=sanitizeRanked(old),stats=migrated.scenarios.stadium;
+ assert.equal(migrated.points,250);assert.equal(stats.completions,3);assert.equal(stats.bestMedal,'silver');
+ assert.equal(stats.bestTime,null);assert.equal(stats.legacyBestTime,70);assert.equal(stats.layoutRevision,2);
+ assert.deepEqual(sanitizeRanked(migrated),migrated,'migration and backup sanitizing must be idempotent');
+ const result=applyRankedResult(migrated,{rankedScenario:'stadium',reason:'distance',elapsed:125,racePosition:1});
+ assert.equal(result.state.scenarios.stadium.bestTime,125);assert.equal(result.state.scenarios.stadium.legacyBestTime,70);
+ assert.deepEqual(sanitizeRanked(result.state),result.state);
+});
