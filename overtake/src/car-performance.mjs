@@ -1,6 +1,6 @@
 // One source of truth for both the driven car and the garage readout.
 import { tireWidthHandling } from './tire-width.mjs';
-import { createVehicleState, stepVehicle } from './physics.mjs';
+import { createVehicleState, stepVehicle, GRAVITY } from './physics.mjs';
 
 export function vehicleParameters(spec, upgrades, width, surface = 1) {
   const tire = tireWidthHandling(width);
@@ -24,7 +24,12 @@ export function performanceStats(spec, upgrades, width) {
   const braking = { ...accelerating, throttle:false, brake:true };
   // Drag may prevent a car from reaching its configured speed cap.
   const terminal = Math.sqrt(Math.max(0, p.accel - .35) / (.45 * p.accel / (p.maxSpeed * p.maxSpeed) + (p.drag ?? .0008)));
-  const topSpeed = Math.min(p.maxSpeed, terminal);
+  // At low grip the driven tires may reach their force limit before the
+  // engine curve and drag balance. This is the same straight-line limit used
+  // by stepVehicle, not an independent showroom estimate.
+  const traction = p.grip * GRAVITY;
+  const tractionTerminal = (p.drag ?? .0008) > 0 ? Math.sqrt(Math.max(0,traction-.35)/(p.drag ?? .0008)) : Infinity;
+  const topSpeed = Math.min(p.maxSpeed, terminal, tractionTerminal);
   let sprint = null;
   if (topSpeed > target) {
     const car = createVehicleState();

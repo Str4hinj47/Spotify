@@ -2,8 +2,16 @@
 // longitudinal/lateral coupling, weight transfer and speed-sensitive rack.
 // Pure module so handling can be unit-tested without WebGL.
 
-const G = 9.81;
+export const GRAVITY = 9.81;
+const G = GRAVITY;
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+
+/** Remaining longitudinal tire acceleration under a shared friction circle.
+ * Values are accelerations (m/s²), so mass cancels on a level surface. */
+export function longitudinalGrip(limit, lateralAcceleration) {
+  const available=Math.max(0,limit), lateral=Math.min(available,Math.abs(lateralAcceleration));
+  return Math.sqrt(Math.max(0,available*available-lateral*lateral));
+}
 
 export function createVehicleState() {
   return {
@@ -40,23 +48,29 @@ export function stepVehicle(st, input, p, dt, curvature = 0) {
   const latUse = Math.min(1, Math.abs(st.latAccel) / G);
   const transfer = 1 - 0.10 * latUse;
   const handbrake = input.handbrake ? 0.55 : 1;
-  const maxLat = (p.grip ?? 1.0) * G * 0.85 * transfer * handbrake;
+  const tireLimit = (p.grip ?? clamp(p.surfaceGrip ?? 1, 0.35, 1)) * G * transfer * handbrake;
+  const maxLat = tireLimit * .85;
   const maxYaw = maxLat / Math.max(st.speed, 2);
   const targetYaw = clamp(desiredYaw, -maxYaw, maxYaw);
   st.slip = clamp(Math.abs(desiredYaw) / Math.max(maxYaw, 1e-3) - 1, 0, 1);
   st.yawRate += (targetYaw - st.yawRate) * Math.min(1, dt * (p.yawResponse ?? 6.5));
   st.latAccel = st.speed * st.yawRate;
 
-  // Friction circle: cornering hard leaves less grip for throttle/brakes.
-  const circle = Math.sqrt(Math.max(0.18, 1 - 0.7 * Math.pow(st.latAccel / Math.max(maxLat, 1e-3), 2)));
+  // Share a finite tire-force budget between lateral and longitudinal
+  // acceleration. Engine/brake requests can be smaller than that budget;
+  // surface loss is already included in p.grip by vehicleParameters.
+  const availableLong = longitudinalGrip(tireLimit, st.latAccel);
   const baseMax = p.maxSpeed ?? 60;
   const cap = Math.max(baseMax, st.speed);
   const accelRate = p.accel ?? 8;
-  const surfaceGrip = clamp(p.surfaceGrip ?? 1, 0.35, 1);
-  const power = input.throttle ? accelRate * circle * surfaceGrip * (1 - 0.45 * Math.pow(st.speed / cap, 2)) : 0;
-  const brake = (input.brake ? (p.brake ?? 11) : 0) + (input.handbrake ? (p.brake ?? 11) * 0.75 : 0);
+  const power = input.throttle ? accelRate * (1 - 0.45 * Math.pow(st.speed / cap, 2)) : 0;
+  // Brake specs are game-tuned; 80% represents usable brake hardware force,
+  // with the tire limit preventing unrealistically large brake upgrades.
+  const brake = ((input.brake ? (p.brake ?? 11) : 0) + (input.handbrake ? (p.brake ?? 11) * 0.75 : 0)) * .80;
+  const tireAcceleration = clamp(power-brake,-availableLong,availableLong);
+  // Quadratic aerodynamic load plus rolling and off-throttle engine braking.
   const drag = (p.drag ?? 0.0008) * st.speed * st.speed + 0.35 + (input.throttle ? 0 : 1.1);
-  st.accel = power - brake * circle * surfaceGrip - drag;
+  st.accel = tireAcceleration - drag;
   if (st.speed <= 0 && st.accel < 0) st.accel = 0;
   st.speed = clamp(st.speed + st.accel * dt, 0, cap);
   if (st.speed > baseMax) st.speed = Math.max(baseMax, st.speed - 7 * dt);

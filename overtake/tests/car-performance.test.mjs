@@ -39,3 +39,11 @@ test('unreachable 100 km/h is represented without inventing a time', () => {
   const slow={...CAR_CONTENT[0],maxSpeed:20};
   assert.equal(performanceStats(slow,stock,'standard').sprint,null);
 });
+
+test('traction-limited terminal speed agrees with a long physics run',()=>{
+ const spec={...CAR_CONTENT[0],physics:{...CAR_CONTENT[0].physics,grip:.05}};
+ const p=vehicleParameters(spec,stock,'standard'),expected=performanceStats(spec,stock,'standard').topSpeed;
+ const car=createVehicleState(),controls={throttle:true,brake:false,left:false,right:false,handbrake:false};
+ for(let i=0;i<40000;i++)stepVehicle(car,controls,p,.05);
+ assert.ok(Math.abs(car.speed-expected)<.02,`${car.speed} vs ${expected}`);
+});

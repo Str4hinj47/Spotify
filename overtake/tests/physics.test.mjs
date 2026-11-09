@@ -77,3 +77,36 @@ test('wet and snowy surfaces increase braking distance and reduce acceleration',
   }
   assert.ok(a.speed > b.speed);
 });
+
+test('the longitudinal and lateral tire forces share a finite grip circle', async () => {
+  const {longitudinalGrip} = await import('../src/physics.mjs');
+  const limit=10;
+  assert.equal(longitudinalGrip(limit,0),limit);
+  assert.equal(longitudinalGrip(limit,6),8);
+  assert.equal(longitudinalGrip(limit,10),0);
+  assert.equal(longitudinalGrip(limit,12),0);
+  assert.equal(longitudinalGrip(limit,-6),8);
+  for(let lat=-10;lat<=10;lat+=.5)assert.ok(Math.hypot(lat,longitudinalGrip(limit,lat))<=limit+1e-10);
+});
+
+test('tire grip limits powerful brakes and upgrades increase available stopping force', () => {
+  const stop=(grip,brake)=>{
+    const v=createVehicleState();v.speed=30;let t=0;
+    while(v.speed>0 && t<30){stepVehicle(v,input({brake:true}),{...base,grip,brake,roadAssist:false},1/120);t+=1/120;}
+    return v.s;
+  };
+  assert.ok(stop(.65,30)>stop(1,30),'low grip should require more distance');
+  assert.ok(stop(1,30)>stop(1.2,30),'tire upgrades improve braking at the traction limit');
+  assert.ok(stop(1,7)>stop(1,10),'brake hardware improves braking before tire saturation');
+  assert.ok(Math.abs(stop(1,30)-stop(1,60))<1e-8,'brake force cannot exceed the tire limit');
+});
+
+test('braking while cornering uses less longitudinal tire force than braking straight', () => {
+  const params={...base,brake:30,roadAssist:false};
+  const straight=createVehicleState(),corner=createVehicleState();straight.speed=corner.speed=25;
+  // Start from a sustained, high-yaw corner to avoid comparing steering lag.
+  corner.yawRate=.3;corner.latAccel=7.5;corner.steer=1;
+  stepVehicle(straight,input({brake:true}),params,.01);
+  stepVehicle(corner,input({brake:true,left:true}),params,.01);
+  assert.ok(corner.accel>straight.accel,'cornering must leave less tire force for braking');
+});
