@@ -17,11 +17,41 @@ export function raceLap(progress) { return Math.max(1,Math.min(RACE_LAPS,Math.fl
 // AI and lap counting share exactly the same path. Points are unbranded,
 // original circuit designs in clockwise driving order.
 const definitions = [
- {id:'stadium', name:'Stadium Circuit', kind:'race', halfWidth:10, theme:'stadium', points:[[150,120],[150,25],[150,-150],[110,-240],[20,-225],[-55,-155],[-125,-195],[-190,-110],[-165,-10],[-110,60],[-130,165],[-50,235],[70,230]]},
- {id:'summit', name:'Summit Ring', kind:'race', halfWidth:10, theme:'mountain', points:[[160,170],[185,20],[140,-150],[45,-235],[-80,-220],[-170,-120],[-155,10],[-105,120],[-80,230],[45,250]]},
- {id:'coast', name:'Coast Run', kind:'race', halfWidth:10, theme:'coast', points:[[150,180],[175,25],[135,-125],[20,-220],[-130,-190],[-105,-80],[-175,35],[-140,175],[-20,245],[90,240]]},
- {id:'dockside', name:'Dockside Drift', kind:'drift', halfWidth:13, theme:'industrial', points:[[125,145],[150,15],[110,-120],[25,-175],[-85,-150],[-130,-40],[-95,70],[-60,160],[25,190]]},
- {id:'neon', name:'Neon Slide', kind:'drift', halfWidth:13, theme:'neon', points:[[135,155],[155,25],[110,-120],[10,-190],[-115,-150],[-145,-25],[-90,55],[-120,145],[-20,210],[65,215]]},
+ // Fast grand-prix rhythm: opening straight, alternating esses, a heavy
+ // braking zone and a long return straight (Silverstone-inspired, not a replica).
+ {id:'stadium', name:'Stadium Circuit', kind:'race', halfWidth:10, theme:'stadium', points:[
+  [180,90],[180,0],[180,-80],[155,-125],[110,-130],
+  [65,-155],[35,-195],[-10,-190],[-40,-230],[-105,-225],[-165,-190],
+  [-185,-140],[-155,-100],[-105,-110],[-75,-80],[-100,-45],[-160,-35],
+  [-200,10],[-190,75],[-150,110],[-115,150],[-120,205],[-65,240],[30,240],[120,220],[180,170]]},
+ // Compact club circuit with two distinct hairpins and a fast final sweeper,
+ // inspired by Tsukuba's rhythm rather than a surveyed reproduction.
+ {id:'summit', name:'Summit Ring', kind:'race', halfWidth:10, theme:'mountain', points:[
+  [175,85],[175,-25],[170,-110],[135,-165],[80,-185],
+  [25,-170],[-5,-130],[-50,-120],[-95,-155],[-150,-145],[-180,-100],
+  [-170,-55],[-125,-35],[-75,-50],[-35,-20],[-40,25],[-85,45],
+  [-145,40],[-175,75],[-170,125],[-125,155],[-65,150],[-20,180],[45,230],[120,225],[175,175]]},
+ // Road-course braking zones, a compact left-right crest sequence and a
+ // flowing return, informed by Laguna Seca. This game uses a flat surface.
+ {id:'coast', name:'Coast Run', kind:'race', halfWidth:10, theme:'coast', points:[
+  [75,100],[75,0],[75,-90],[50,-155],[0,-190],[-70,-195],
+  [-130,-175],[-160,-130],[-150,-90],[-105,-70],[-65,-85],[-35,-60],
+  [-45,-15],[-95,0],[-155,-15],[-200,15],[-195,65],[-155,95],
+  [-105,90],[-65,115],[-75,160],[-120,185],[-110,225],[-55,245],[15,235],[75,180]]},
+ // Linking long sweepers to slower transitions gives the drift layouts more
+ // than an oval while preserving recovery room and closed-lap racing.
+ {id:'dockside', name:'Dockside Drift', kind:'drift', halfWidth:13, theme:'industrial', points:[
+  [170,80],[170,-15],[155,-90],[115,-135],[55,-135],[10,-165],
+  [-50,-180],[-115,-155],[-155,-110],[-150,-65],[-105,-45],[-55,-55],
+  [-15,-20],[-30,25],[-85,40],[-145,35],[-185,75],[-175,125],
+  [-130,155],[-80,150],[-35,180],[30,215],[110,210],[170,160]]},
+ // Outer sweep followed by an infield switchback: a flat interpretation of
+ // the outer-to-inner transition used in stadium drifting.
+ {id:'neon', name:'Neon Slide', kind:'drift', halfWidth:13, theme:'neon', points:[
+  [175,85],[175,-15],[165,-105],[125,-160],[55,-180],[-30,-175],
+  [-105,-145],[-150,-100],[-155,-55],[-115,-30],[-65,-40],[-25,-20],
+  [-20,20],[-60,50],[-115,45],[-165,65],[-185,110],[-160,155],
+  [-110,165],[-65,150],[-20,175],[45,215],[120,215],[175,165]]},
 ];
 function catmull(a,b,c,d,t) {
  const t2=t*t,t3=t2*t;

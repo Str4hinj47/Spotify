@@ -61,3 +61,21 @@ test('all five tracks can be completed with appropriate steering and drift handl
   assert.ok(v.s>=track.length*track.laps,`${track.id} unfinished`);assert.ok(hits<50,`${track.id} too difficult`);
  }
 });
+
+test('reworked circuits have safe separated sections, mixed turns and a usable start',async()=>{
+ const {TRACKS,trackSample}=await import('../src/circuit.mjs');
+ for(const track of TRACKS) {
+  const count=Math.ceil(track.length/4),samples=Array.from({length:count},(_,i)=>trackSample(i*track.length/count,track.id));
+  let positive=0,negative=0,maxCurvature=0;
+  for(const p of samples){if(p.curvature>.003)positive++;if(p.curvature<-.003)negative++;maxCurvature=Math.max(maxCurvature,Math.abs(p.curvature));}
+  assert.ok(positive>8&&negative>8,`${track.id} needs left and right complexes`);
+  assert.ok(maxCurvature*(track.halfWidth+3.45)<.95,`${track.id} inner safety wall folds over`);
+  for(let i=0;i<count;i++)for(let j=i+1;j<count;j++) {
+   const arc=Math.min(j-i,count+i-j)*track.length/count;if(arc<110)continue;
+   assert.ok(Math.hypot(samples[i].x-samples[j].x,samples[i].z-samples[j].z)>2*(track.halfWidth+3.45)+3,`${track.id} separate road sections overlap`);
+  }
+  // Starting grid and pit straight must not begin in a hairpin.
+  for(let s=10;s<=100;s+=10)assert.ok(Math.abs(trackSample(s,track.id).curvature)<.01,`${track.id} grid straight`);
+  if(track.id==='coast')assert.ok(Math.max(...samples.map(p=>p.x))+track.halfWidth+4<125,'coastal road must remain on dry ground');
+ }
+});

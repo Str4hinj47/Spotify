@@ -1,0 +1,11 @@
+# Circuit rework research
+
+These are original, fictional venues, not surveyed recreations or licensed replicas. The game's track and physics are planar, so elevation, banking, bridges and the true sizes of the real circuits are **not** reproduced. No third-party maps, logos, or art are used. The research informs corner rhythm, braking and acceleration rather than copying track geometry.
+
+- **Stadium Circuit — Silverstone:** the Grand Prix course combines sustained straights, hard braking and the quick direction changes of Maggotts–Becketts–Chapel. The redesigned stadium combines a long start straight, quick transitions and slower complexes. [Silverstone layout and corner guide](https://oversteer48.com/silverstone-circuit-configurations/).
+- **Summit Ring — Tsukuba:** a compact club course alternating hairpins, S-bends and a longer back straight into a fast final corner. Summit uses linked tighter turns and a longer acceleration zone. [Tsukuba course and corner sequence](https://lapmeta.com/en/track/variation/272).
+- **Coast Run — Laguna Seca:** mixed braking zones and the left–right Corkscrew followed by flowing corners; Coast uses an original sequence of tighter transitions and sweepers. It does not simulate the real Corkscrew's crest or elevation drop. [RacingCircuits.info: Laguna Seca](https://www.racingcircuits.info/north-america/usa/laguna-seca.html).
+- **Dockside Drift — Ebisu:** dedicated drift courses emphasize connected changes of direction, an entry sweeper and recovery space; Dockside adapts these ideas to a closed, flat industrial venue, not an Ebisu replica. [Ebisu drift circuit overview](https://driftmission.com/mini-minami-ebisu-d1gp-drift-circuit/).
+- **Neon Slide — Irwindale:** the real drift route links a long outer sweep to an infield transition and clipping zones. Neon uses a broad sweep followed by an infield transition; it does not reproduce the banked oval or the competition route. [Irwindale drift course description](https://www.drivingline.com/articles/2017-formula-drift-finals-irwindale-top-32-play-by-play/).
+
+All five share one arc-length centerline between rendering, physics, AI and HUD. Track IDs, race kinds and saved progression stay unchanged. The fictional layouts are sized for the game's road cars and three-lap events, rather than the real-world lap lengths.
