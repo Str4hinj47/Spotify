@@ -261,6 +261,27 @@ function audiSpike(side:number,z:number) {
  for(let i=0;i<=12;i++){const t=i/12,x=side*(1.11+.15*t),half=.065*(1-t)+.004;sections.push([[x,.105,z-half],[x,.15,z-half],[x,.15,z+half],[x,.105,z+half]]);}
  return loft(sections,side>0,.1);
 }
+function muscleFrontLip(id:'mustang'|'challenger',amount:number,unique:boolean) {
+ const xs=[0,.2,.4,.6,.7,.8],zs=id==='mustang'?[-2.29,-2.27,-2.255,-2.205,-2.16,-2.05]:[-2.44,-2.425,-2.407,-2.38,-2.36,-2.32],sections:Point3[][]=[];
+ const width=id==='mustang'?.74:.83,y=id==='mustang'?.275:.22;
+ for(let i=0;i<=LOFT_SEGMENTS;i++){
+  const t=2*i/LOFT_SEGMENTS-1,x=t*width,edge=Math.pow(Math.abs(t),4),z=sampleProfile(xs,zs,Math.min(Math.abs(x),.8),true);
+  const lead=(unique?.065:THREE.MathUtils.lerp(.018,.05,amount))*(1-.6*edge),thickness=unique?.03:.018;
+  sections.push([[x,y,z+.07],[x,y,z-lead],[x,y-thickness,z-lead],[x,y-thickness,z+.07]]);
+ }
+ return loft(sections);
+}
+// Challenger's wheels have their own measured center and radius. The flare
+// rolls outward from the original arch rather than projecting through a tire.
+function challengerArch(side:number,z:number) {
+ const sections:Point3[][]=[];
+ for(let i=0;i<=64;i++){
+  const a=-.12+(Math.PI+.24)*i/64,c=Math.cos(a),sn=Math.sin(a),taper=Math.pow(Math.max(0,Math.sin(Math.PI*i/64)),.5);
+  const inner=.377,outer=.433,inside=.932,outside=.955+.065*taper;
+  sections.push([[side*inside,.362+sn*inner,z+c*inner],[side*outside,.362+sn*inner,z+c*inner],[side*outside,.362+sn*outer,z+c*outer],[side*inside,.362+sn*outer,z+c*outer]]);
+ }
+ return loft(sections,side>0,.06);
+}
 function supportRod(a:THREE.Vector3,b:THREE.Vector3,mat:THREE.Material,group:THREE.Group) {
   const delta=b.clone().sub(a),rod=new THREE.Mesh(new THREE.CylinderGeometry(.006,.006,delta.length(),10),mat);
   rod.name='splitter-support';rod.position.copy(a).add(b).multiplyScalar(.5);rod.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());group.add(rod);
@@ -349,7 +370,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   const metal=new THREE.MeshStandardMaterial({ color:0xb6c7cf,metalness:.9,roughness:.22 });
   const dark=new THREE.MeshBasicMaterial({ color:0x090d10, side:THREE.DoubleSide });
   const reg=(part:string)=>{const partGroup=new THREE.Group();partGroup.name=`custom-${part}`;g.add(partGroup);return partGroup;};
-  const level=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>({stock:0,street:0,touring:.34,sport:.67,track:1,flame:1,'golf-r32':.67,'golf-clean':.34,'golf-diffuser':1,'golf-wide':1,'golf-splitter':1,'golf-superwide':1,'golf-wing':1,'golf-quad-flame':1,'mercedes-aero':.34,'mercedes-splitter':1,'mercedes-clean':.34,'mercedes-diffuser':1,'mercedes-wide':1,'audi-aero':.34,'audi-splitter':1,'audi-clean':.34,'audi-diffuser':1,'audi-wide':1,'bmw-race-front':1,'bmw-race-rear':1}[config[part]]);
+  const level=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>({stock:0,street:0,touring:.34,sport:.67,track:1,flame:1,'golf-r32':.67,'golf-clean':.34,'golf-diffuser':1,'golf-wide':1,'golf-splitter':1,'golf-superwide':1,'golf-wing':1,'golf-quad-flame':1,'mercedes-aero':.34,'mercedes-splitter':1,'mercedes-clean':.34,'mercedes-diffuser':1,'mercedes-wide':1,'audi-aero':.34,'audi-splitter':1,'audi-clean':.34,'audi-diffuser':1,'audi-wide':1,'bmw-race-front':1,'bmw-race-rear':1,'mustang-heritage':.67,'mustang-valance':.67,'mustang-rockers':.67,'challenger-aero':.67,'challenger-diffuser':1,'challenger-wide':1}[config[part]]);
   const isTrack=(part:'front'|'rear'|'skirts'|'spoiler'|'exhaust')=>config[part]==='track'||(part==='exhaust' && (config.exhaust==='flame'||config.exhaust==='golf-quad-flame'));
   const top=TOP_FITS[id];
   if(config.hood!=='stock' && config.hood!=='bmw-race-hood') {
@@ -398,7 +419,11 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   if(config.front!=='stock' && config.front!=='bmw-race-front') {
     const a=reg('front'), track=isTrack('front'), amount=level('front'), panel=config.frontFinish==='carbon'?woven:body;
     const nose=f.frontZ-.015;
-    if(id==='golf') {
+    if(id==='mustang' || id==='challenger') {
+      // The lower cover is cut from the body; this narrow lip follows it.
+      const unique=config.front==='mustang-heritage'||config.front==='challenger-aero';
+      const lip=new THREE.Mesh(muscleFrontLip(id,amount,unique),config.frontFinish==='carbon'?woven:carbon);lip.name=`${id}-front-lip`;a.add(lip);
+    } else if(id==='golf') {
       // The fitted lower fascia is created by fitGolfBodywork; accessories
       // remain below the bumper seam and well clear of the headlights.
       if(config.front==='golf-splitter') {
@@ -425,12 +450,6 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       const lip=new THREE.Mesh(audiFrontLip(amount),config.frontFinish==='carbon'?woven:carbon);lip.name='front-fascia';a.add(lip);
     } else if(id==='bmw-m3'||id==='skyline'||id==='aventador'||id==='aventador-game'||id==='bugatti') {
       const lip=new THREE.Mesh(importedFrontLip(id,amount),config.frontFinish==='carbon'?woven:carbon);lip.name='front-fascia';a.add(lip);
-    } else if(id==='mustang') {
-      const chin=new THREE.Mesh(mustangChin(amount),panel);chin.name='front-fascia';a.add(chin);
-      if(amount>=.67) {
-        const blade=new THREE.Mesh(taperedBand(.73,-2.335,.239,THREE.MathUtils.lerp(.12,.16,amount),.012,.26),carbon);
-        blade.name='front-splitter';a.add(blade);
-      }
     } else {
       const sweep=f.character==='muscle'?.10:.23;
       const fascia=new THREE.Mesh(apron(f.frontW*THREE.MathUtils.lerp(.97,1.02,amount),nose,f.bumperY+.015,THREE.MathUtils.lerp(.12,.18,amount),.22,sweep),panel);
@@ -442,7 +461,14 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   }
   if((config.rear!=='stock' && config.rear!=='bmw-race-rear') || (id==='golf' && config.exhaust==='golf-quad-flame')) {
     const a=reg('rear'),track=isTrack('rear'),amount=level('rear'), tail=f.rearZ-.035, panel=config.rearFinish==='carbon'?woven:body;
-    if(id==='golf') {
+    if(id==='mustang' || id==='challenger') {
+      // Keep the diffuser inside the exhaust span and below the factory lamps.
+      const z=id==='mustang'?2.10:2.27,y=id==='mustang'?.355:.285;
+      const unique=config.rear==='mustang-valance'||config.rear==='challenger-diffuser';
+      const diffuser=new THREE.Mesh(taperedBand(.38,z,y,unique?.17:THREE.MathUtils.lerp(.09,.14,amount),.014,-.025),config.rearFinish==='carbon'?woven:carbon);diffuser.name=`${id}-rear-diffuser`;a.add(diffuser);
+      const fins=unique?(id==='mustang'?[-.20,.20]:[-.30,-.15,0,.15,.30]):amount<.67?[]:track?[-.30,-.15,0,.15,.30]:[-.25,0,.25];
+      for(const x of fins){const fin=box(.012,.045,.10,x,y-.012,z+.07,carbon,a,'diffuser-fin');fin.rotation.x=-.06;}
+    } else if(id==='golf') {
       // Fitted against the source mesh in fitGolfBodywork after this group is created.
       // These short vertical strakes belong to the replacement's diffuser;
       // they do not sit over any retained factory bumper surface.
@@ -476,12 +502,6 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       // is tucked into it rather than adding a second, hanging set of fins.
       const blade=new THREE.Mesh(taperedBand(THREE.MathUtils.lerp(.47,.53,amount),1.74,.19,THREE.MathUtils.lerp(.10,.15,amount),.012,0),config.rearFinish==='carbon'?woven:carbon);
       blade.name='rear-diffuser-extension';a.add(blade);
-    } else if(id==='mustang') {
-      // Tuck a shallow lower valance under the factory bumper and keep it
-      // below the four exhaust outlets instead of hanging a slab off the tail.
-      const valance=new THREE.Mesh(taperedBand(.68,2.04,.305,.18,THREE.MathUtils.lerp(.045,.060,amount),-.06),panel);
-      valance.name='rear-valance';a.add(valance);
-      if(amount>=.67) {const diffuser=new THREE.Mesh(taperedBand(THREE.MathUtils.lerp(.40,.46,amount),2.06,.297,.12,.012,0),carbon);diffuser.name='rear-diffuser';a.add(diffuser);}
     } else {
       const valance=new THREE.Mesh(apron(f.rearW*.98,tail,f.bumperY+.005,THREE.MathUtils.lerp(.11,.16,amount),.20,.16,true),panel);
       valance.name='rear-valance';a.add(valance);
@@ -499,6 +519,8 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   if(config.skirts!=='stock') {
     const a=reg('skirts'),amount=level('skirts'),panel=config.skirtsFinish==='carbon'?woven:body;
     const wideFinish=config.skirtsFinish==='carbon'?woven:carbon;
+    if((id==='mustang' && config.skirts==='mustang-rockers') || (id==='challenger' && config.skirts==='challenger-wide')) for(const side of [-1,1]){const blade=new THREE.Mesh(skirtBlade(id,side,.67),config.skirtsFinish==='carbon'?woven:carbon);blade.name=`${id}-rocker-blade`;a.add(blade);}
+    if(id==='challenger' && config.skirts==='challenger-wide')for(const side of [-1,1])for(const z of [-1.562,1.431]){const arch=new THREE.Mesh(challengerArch(side,z),config.skirtsFinish==='carbon'?woven:body);arch.name='challenger-wheel-arch-flare';a.add(arch);}
     if(id==='golf' && config.skirts==='golf-superwide') for(const side of [-1,1]) {
       const blade=new THREE.Mesh(golfWideBlade(side),wideFinish);blade.name='superwide-skirt';a.add(blade);
       for(const z of [-1.182,1.347]) {const arch=new THREE.Mesh(golfArch(side,z),wideFinish);arch.name='wheel-arch-flare';a.add(arch);}
@@ -514,7 +536,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       for(const z of [-1.537,1.386]){const arch=new THREE.Mesh(audiArch(side,z),wideFinish);arch.name='wheel-arch-flare';a.add(arch);}
       for(const z of [-.8,-.43,-.06,.31,.68]){const spike=new THREE.Mesh(audiSpike(side,z),wideFinish);spike.name='skirt-spike';a.add(spike);}
     }
-    for(const side of id==='golf' || (id==='mercedes' && config.skirts==='mercedes-wide') || (id==='audi' && config.skirts==='audi-wide') ? [] : [-1,1]) {
+    for(const side of id==='golf' || (id==='mustang' && config.skirts==='mustang-rockers') || (id==='challenger' && config.skirts==='challenger-wide') || (id==='mercedes' && config.skirts==='mercedes-wide') || (id==='audi' && config.skirts==='audi-wide') ? [] : [-1,1]) {
       const skirt=new THREE.Mesh(skirtShell(id,side,amount),panel);skirt.name='side-skirt';a.add(skirt);
       if(amount>=.67) {
         const blade=new THREE.Mesh(skirtBlade(id,side,amount),carbon);blade.name='sill-blade';a.add(blade);

@@ -224,6 +224,8 @@ function syncCustomizationUI() {
       options.push(...(extra[part] ?? []));
     }
     if(selected==='mercedes') { const extra:Partial<Record<string,string[][]>>={front:[['mercedes-aero','Executive lower fascia'],['mercedes-splitter','Canard splitter fascia']],rear:[['mercedes-clean','Clean rear fascia'],['mercedes-diffuser','Touring diffuser rear']],skirts:[['mercedes-wide','Superwide spike skirts']]};options.push(...(extra[part]??[])); }
+    if(selected==='mustang') { const extra:Partial<Record<string,string[][]>>={front:[['mustang-heritage','Heritage front valance']],rear:[['mustang-valance','Heritage rear valance']],skirts:[['mustang-rockers','Heritage rockers']]};options.push(...(extra[part]??[])); }
+    if(selected==='challenger') { const extra:Partial<Record<string,string[][]>>={front:[['challenger-aero','Muscle aero fascia']],rear:[['challenger-diffuser','Muscle rear diffuser']],skirts:[['challenger-wide','Wide fenders and sills']]};options.push(...(extra[part]??[])); }
     if(selected==='bmw-m3') { const extra:Partial<Record<string,string[][]>>={front:[['bmw-race-front','Original GT3 front bumper']],rear:[['bmw-race-rear','Original GT3 rear bumper']],hood:[['bmw-race-hood','Original GT3 vented hood']]};options.push(...(extra[part]??[])); }
     if(selected==='audi') { const extra:Partial<Record<string,string[][]>>={front:[['audi-aero','Avant aero fascia'],['audi-splitter','Canard splitter fascia']],rear:[['audi-clean','Clean rear valance'],['audi-diffuser','Sport diffuser valance']],skirts:[['audi-wide','Superwide spike skirts']]};options.push(...(extra[part]??[])); }
     if (part === 'exhaust') options.push(['flame','Afterfire flames']);

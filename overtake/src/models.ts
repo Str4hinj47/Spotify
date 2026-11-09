@@ -10,6 +10,7 @@ import { fitGolfBodywork, removeGolfTailgateHandle } from './golf-bodywork';
 import { fitMercedesBodywork } from './mercedes-bodywork';
 import { fitAudiBodywork } from './audi-bodywork';
 import { createCarbonMaterial, customPaintMaterial } from './livery';
+import { fitMuscleBodywork } from './muscle-bodywork';
 import { BMW_PART_OPTIONS, GOLF_PART_OPTIONS, sanitizeCustomization, type Customization } from './customization.mjs';
 
 export interface CarModel {
@@ -456,6 +457,7 @@ export class ModelLibrary {
     if(id!=='mercedes') { for(const part of ['front','rear','skirts'] as const) if(clean[part].startsWith('mercedes-')) (clean as unknown as Record<string,string>)[part]='stock'; }
     if(id!=='bmw-m3') { for(const [part,options] of Object.entries(BMW_PART_OPTIONS)) if(options?.includes(clean[part as keyof typeof BMW_PART_OPTIONS] as never)) (clean as unknown as Record<string,string>)[part]='stock'; }
     if(id!=='audi') { for(const part of ['front','rear','skirts'] as const) if(clean[part].startsWith('audi-')) (clean as unknown as Record<string,string>)[part]='stock'; }
+    for(const owner of ['mustang','challenger'] as const) if(id!==owner) for(const part of ['front','rear','skirts'] as const) if(clean[part].startsWith(owner+'-')) (clean as unknown as Record<string,string>)[part]='stock';
     this.customization.set(id, clean);
   }
 
@@ -595,6 +597,7 @@ export class ModelLibrary {
           const kit=createBodyKit(id, config, paint ?? factoryPaint ?? 0x808080);
           wrapper.add(kit);
           if(id==='audi') customGeometries.push(...fitAudiBodywork(inner,wrapper,kit,config));
+          if(id==='mustang'||id==='challenger') customGeometries.push(...fitMuscleBodywork(id,inner,wrapper,kit,config));
           if(id==='mercedes') customGeometries.push(...fitMercedesBodywork(inner,wrapper,kit,config));
           if(id==='golf') {
             customGeometries.push(...fitGolfBodywork(inner,wrapper,kit,config));
@@ -739,9 +742,9 @@ export class ModelLibrary {
       const config=sanitizeCustomization({[part]:value});
       kit=createBodyKit(id,config,0x91a9ba);
       let temporary:THREE.BufferGeometry[]=[];
-      if((id==='golf'||id==='mercedes'||id==='audi') && ['front','rear','skirts'].includes(part)) {
+      if((id==='golf'||id==='mercedes'||id==='audi'||id==='mustang'||id==='challenger') && ['front','rear','skirts'].includes(part)) {
         const wrapper=new THREE.Group(), inner=this.get(id).scene.clone(true);wrapper.add(inner,kit);wrapper.updateMatrixWorld(true);
-        temporary=id==='golf'?fitGolfBodywork(inner,wrapper,kit,config):id==='mercedes'?fitMercedesBodywork(inner,wrapper,kit,config):fitAudiBodywork(inner,wrapper,kit,config);wrapper.remove(kit);
+        temporary=id==='golf'?fitGolfBodywork(inner,wrapper,kit,config):id==='mercedes'?fitMercedesBodywork(inner,wrapper,kit,config):id==='audi'?fitAudiBodywork(inner,wrapper,kit,config):fitMuscleBodywork(id,inner,wrapper,kit,config);wrapper.remove(kit);
       }
       for(const geometry of temporary)geometry.dispose();
       object=kit.getObjectByName(`custom-${part}`); scene.add(kit);
