@@ -10,13 +10,13 @@ try {
   for(const track of TRACKS) {
    g.toGarage();g.setRunMode('circuit');g.setSelectedCar('challenger');g.setCircuitScenario(track.id);if(!g.start())throw Error('start '+track.id);
    const venue=g.circuitGroup,detail=venue.getObjectByName('circuit-details'),trees=venue.getObjectByName('venue-trees'),rubber=venue.getObjectByName('rubber-marks'),fence=venue.getObjectByName('catch-fence');
-   const road=venue.getObjectByName('circuit-asphalt');
+   const road=venue.getObjectByName('circuit-asphalt');let boards=0;venue.traverse(o=>{if(o.name==='braking-board')boards++});
    const matrix=new THREE.Matrix4(),pos=new THREE.Vector3();let nearest=Infinity;
    for(let i=0;i<trees.count;i++){trees.getMatrixAt(i,matrix);pos.setFromMatrixPosition(matrix);for(let s=0;s<track.length;s+=4){const p=trackPoint(s,0,track.id);nearest=Math.min(nearest,Math.hypot(pos.x-p.x,pos.z-p.z));}}
    const high=detail.userData.extra.visible;g.setSceneryQuality('low');const low=detail.userData.extra.visible;g.setSceneryQuality('high');const restored=detail.userData.extra.visible;
-   rows.push({id:track.id,road:!!road,uv:!!road?.geometry.attributes.uv,detail:!!detail,fence:!!fence,marks:rubber.geometry.attributes.position.count,trees:trees.count,nearest,halfWidth:track.halfWidth,high,low,restored,rivals:g.circuitRivals.length,texture:!!road.material.map});
+   rows.push({id:track.id,boards,road:!!road,uv:!!road?.geometry.attributes.uv,detail:!!detail,fence:!!fence,marks:rubber.geometry.attributes.position.count,trees:trees.count,nearest,halfWidth:track.halfWidth,high,low,restored,rivals:g.circuitRivals.length,texture:!!road.material.map});
   }
   g.toGarage();g.setRunMode('endless');g.start();return {rows,highway:g.roadGroup.visible&&!g.circuitGroup.visible};
  });
- for(const r of out.rows){assert.ok(r.road&&r.uv&&r.texture&&r.detail&&r.fence,`${r.id} missing detail`);assert.ok(r.marks>0&&r.trees>0,`${r.id} missing scenery`);assert.ok(r.nearest>r.halfWidth+8,`${r.id} tree intrudes on track`);assert.equal(r.high,true);assert.equal(r.low,false);assert.equal(r.restored,true);assert.equal(r.rivals,5)}assert.ok(out.highway);assert.deepEqual(errors,[]);console.log('Five detailed circuits, texture mapping, safe tree placement, scenery controls and highway isolation passed.');
+ for(const r of out.rows){assert.ok(r.boards>=4,`${r.id} missing braking references: ${r.boards}`);assert.ok(r.road&&r.uv&&r.texture&&r.detail&&r.fence,`${r.id} missing detail`);assert.ok(r.marks>0&&r.trees>0,`${r.id} missing scenery`);assert.ok(r.nearest>r.halfWidth+8,`${r.id} tree intrudes on track`);assert.equal(r.high,true);assert.equal(r.low,false);assert.equal(r.restored,true);assert.equal(r.rivals,5)}assert.ok(out.highway);assert.deepEqual(errors,[]);console.log('Five detailed circuits, texture mapping, safe tree placement, scenery controls and highway isolation passed.');
 }finally{await browser.close()}

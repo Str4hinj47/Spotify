@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getTrack, trackPoint, type TrackId } from '../circuit.mjs';
+import { getTrack, trackPoint, trackSample, type TrackId } from '../circuit.mjs';
 import { circuitGroundMaterial, circuitRoadMaterial, circuitSandMaterial, circuitWaterMaterial, createCircuitDetails } from './circuit-details';
 
 // A self-contained venue: nothing from the endless highway is reused here.
@@ -55,7 +55,10 @@ export function createCircuit(trackId:TrackId='stadium') {
     const kerbPositions:number[][]=[[],[]];
     for(let i=0;i<Math.ceil(TRACK_LENGTH/5);i++) {
       const s=i*5, e=Math.min(s+5,TRACK_LENGTH), a=trackPosition(s,side*(TRACK_HALF_WIDTH+.05)),b=trackPosition(s,side*(TRACK_HALF_WIDTH+1.1)),c=trackPosition(e,side*(TRACK_HALF_WIDTH+.05)),d=trackPosition(e,side*(TRACK_HALF_WIDTH+1.1));
-      kerbPositions[i%2].push(a.x,.03,a.z,c.x,.03,c.z,b.x,.03,b.z,b.x,.03,b.z,c.x,.03,c.z,d.x,.03,d.z);
+      // Curbs mark corner entry, apex and exit rather than striping the
+      // entire lap, including long straights.
+      if(Math.max(...[-15,0,15].map(d=>Math.abs(trackSample(s+d,trackId).curvature)))>.003)
+        kerbPositions[i%2].push(a.x,.03,a.z,c.x,.03,c.z,b.x,.03,b.z,b.x,.03,b.z,c.x,.03,c.z,d.x,.03,d.z);
     }
     for(const [i,positions] of kerbPositions.entries()) {const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.computeVertexNormals();group.add(new THREE.Mesh(geo,i?red:white));}
     // Continuous low wall, deliberately outside the driveable surface.
@@ -64,46 +67,70 @@ export function createCircuit(trackId:TrackId='stadium') {
   }
   // Chequered start/finish line on the first straight.
   for(let x=0;x<16;x++)for(let z=0;z<2;z++) {
-    const box=new THREE.Mesh(new THREE.BoxGeometry(1.25,.025,1), (x+z)%2?white:new THREE.MeshStandardMaterial({color:0x17191b}));
-    const p=trackPosition(z,x*1.25-9.375);box.position.set(p.x,.04,p.z);box.rotation.y=p.yaw;group.add(box);
+    const box=new THREE.Mesh(new THREE.BoxGeometry(TRACK_HALF_WIDTH*2/16,.025,1), (x+z)%2?white:new THREE.MeshStandardMaterial({color:0x17191b}));
+    const p=trackPosition(z,(x+.5)*TRACK_HALF_WIDTH*2/16-TRACK_HALF_WIDTH);box.position.set(p.x,.04,p.z);box.rotation.y=p.yaw;group.add(box);
   }
   // A dedicated pit lane runs beside the front straight, outside the track.
-  group.add(trackStrip(0,Math.min(240,TRACK_LENGTH*.16),TRACK_HALF_WIDTH+4,TRACK_HALF_WIDTH+7,-.005,road,trackId));
+  group.add(trackStrip(-40,110,TRACK_HALF_WIDTH+4,TRACK_HALF_WIDTH+7,-.005,road,trackId));
   const pitLine=new THREE.MeshStandardMaterial({color:0xf2cf5b,roughness:.85,side:THREE.DoubleSide});
-  group.add(trackStrip(0,Math.min(240,TRACK_LENGTH*.16),TRACK_HALF_WIDTH+6.7,TRACK_HALF_WIDTH+6.83,.015,pitLine,trackId));
+  group.add(trackStrip(-40,110,TRACK_HALF_WIDTH+6.7,TRACK_HALF_WIDTH+6.83,.015,pitLine,trackId));
   // Pit buildings and trackside towers form an identifiable, separate venue.
   const buildingMat=new THREE.MeshStandardMaterial({color:0x53616c,roughness:.8});
   const glassMat=new THREE.MeshStandardMaterial({color:0x253d4d,metalness:.25,roughness:.3});
-  for(let i=0;i<(trackId==='stadium'?8:0);i++) {
-    const p=trackPosition(35+i*25,25);const building=new THREE.Mesh(new THREE.BoxGeometry(16,6,21),buildingMat);building.position.set(p.x,3,p.z);building.rotation.y=p.yaw;group.add(building);
-    const gp=trackPosition(35+i*25,16.95);const glass=new THREE.Mesh(new THREE.BoxGeometry(.1,1.4,15),glassMat);glass.position.set(gp.x,4.8,gp.z);glass.rotation.y=gp.yaw;group.add(glass);
+  for(let i=0;i<(trackId==='stadium'?6:0);i++) {
+    const p=trackPosition(-27+i*23,25);const building=new THREE.Mesh(new THREE.BoxGeometry(16,6,21),buildingMat);building.position.set(p.x,3,p.z);building.rotation.y=p.yaw;group.add(building);
+    const gp=trackPosition(-27+i*23,16.95);const glass=new THREE.Mesh(new THREE.BoxGeometry(.1,1.4,15),glassMat);glass.position.set(gp.x,4.8,gp.z);glass.rotation.y=gp.yaw;group.add(glass);
     const door=new THREE.Mesh(new THREE.BoxGeometry(.12,2.8,12),glassMat);door.position.set(gp.x,1.45,gp.z);door.rotation.y=gp.yaw;group.add(door);
     const sill=new THREE.Mesh(new THREE.BoxGeometry(.2,.15,14),white);sill.position.set(gp.x,3.1,gp.z);sill.rotation.y=gp.yaw;group.add(sill);
   }
-  const tower=new THREE.Mesh(new THREE.BoxGeometry(12,20,12),buildingMat);tower.position.set(190,10,155);if(trackId==='stadium')group.add(tower);
+  const tower=new THREE.Mesh(new THREE.BoxGeometry(12,20,12),buildingMat);const towerAt=trackPosition(65,43);tower.position.set(towerAt.x,10,towerAt.z);if(trackId==='stadium')group.add(tower);
   // Grandstands, pit-side gantry and a clear visual start/finish landmark.
   const standMat=new THREE.MeshStandardMaterial({color:0x657782,roughness:.85});
   const seatMat=new THREE.MeshStandardMaterial({color:0xbd4639,roughness:.85});
   for(let i=0;i<(trackId==='stadium'?6:0);i++) {
-    const p=trackPosition(10+i*25,-27);
+    const p=trackPosition(-30+i*23,-27);
     const support=new THREE.Mesh(new THREE.BoxGeometry(9,3.6,24),standMat);support.position.set(p.x,1.8,p.z);support.rotation.y=p.yaw;group.add(support);
     for(let row=0;row<4;row++) {
       const step=new THREE.Mesh(new THREE.BoxGeometry(3,1,24),row%2?seatMat:standMat);
-      const seat=trackPosition(10+i*25,-27-row*2);step.position.set(seat.x,1+row,seat.z);step.rotation.y=seat.yaw;group.add(step);
+      const seat=trackPosition(-30+i*23,-27-row*2);step.position.set(seat.x,1+row,seat.z);step.rotation.y=seat.yaw;group.add(step);
     }
   }
-  // Brake boards ahead of each turn give drivers a visible reference point.
+  // Select the strongest well-separated bends from this actual layout. The
+  // old fixed stadium distances did not follow the road and other venues had
+  // no braking references at all.
+  const candidates:{s:number;strength:number}[]=[];
+  for(let s=160;s<TRACK_LENGTH-70;s+=10) {
+    const strength=(Math.abs(trackSample(s-10,trackId).curvature)+Math.abs(trackSample(s,trackId).curvature)+Math.abs(trackSample(s+10,trackId).curvature))/3;
+    if(strength>.008)candidates.push({s,strength});
+  }
+  candidates.sort((a,b)=>b.strength-a.strength);
+  const apexes:number[]=[];
+  for(const candidate of candidates) {
+    if(apexes.every(s=>Math.min(Math.abs(candidate.s-s),TRACK_LENGTH-Math.abs(candidate.s-s))>150))apexes.push(candidate.s);
+    if(apexes.length===5)break;
+  }
   const boardMat=new THREE.MeshStandardMaterial({color:0xf2f4ed,roughness:.8,side:THREE.DoubleSide});
-  for(const corner of (trackId==='stadium'?[205,620,1050]:[])) {
-    for(const distance of [100,50]) {
-      const p=trackPosition(corner-distance,TRACK_HALF_WIDTH+5.2);
-      const board=new THREE.Group();board.position.set(p.x,0,p.z);board.rotation.y=p.yaw;
-      const post=new THREE.Mesh(new THREE.BoxGeometry(.12,2,.12),rail);post.position.y=1;board.add(post);
-      const face=new THREE.Mesh(new THREE.BoxGeometry(1.55,.9,.12),boardMat);face.position.y=2;board.add(face);
+  const boardTextures=new Map<number,THREE.Material>();
+  for(const corner of apexes) for(const distance of [100,50]) {
+    const s=corner-distance,p=trackPosition(s,TRACK_HALF_WIDTH+5.2);
+    // The sign must also clear any other nearby part of the circuit.
+    let safe=true;
+    for(let d=0;d<TRACK_LENGTH;d+=8) {
+      const arc=Math.min(Math.abs(d-s),TRACK_LENGTH-Math.abs(d-s));if(arc<50)continue;
+      const other=trackPosition(d,0);
+      if(Math.hypot(other.x-p.x,other.z-p.z)<TRACK_HALF_WIDTH+3){safe=false;break;}
+    }
+    if(!safe)continue;
+    const board=new THREE.Group();board.name='braking-board';board.position.set(p.x,0,p.z);board.rotation.y=p.yaw;
+    const post=new THREE.Mesh(new THREE.BoxGeometry(.12,2,.12),rail);post.position.y=1;board.add(post);
+    const face=new THREE.Mesh(new THREE.BoxGeometry(1.55,.9,.12),boardMat);face.position.y=2;board.add(face);
+    let labelMat=boardTextures.get(distance);
+    if(!labelMat) {
       const c=document.createElement('canvas');c.width=128;c.height=64;const ctx=c.getContext('2d')!;
       ctx.fillStyle='#f2f4ed';ctx.fillRect(0,0,128,64);ctx.fillStyle='#151c23';ctx.font='bold 48px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(distance),64,33);
-      const label=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.82),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c)}));label.position.set(0,2,.065);board.add(label);group.add(board);
+      labelMat=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c)});boardTextures.set(distance,labelMat);
     }
+    const label=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.82),labelMat);label.position.set(0,2,.065);board.add(label);group.add(board);
   }
   const start=trackPosition(0,0);
   const pillarGeo=new THREE.BoxGeometry(1.1,8,1.1), beamGeo=new THREE.BoxGeometry(25,1.7,1.2);

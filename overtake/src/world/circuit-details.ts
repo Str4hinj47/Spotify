@@ -117,7 +117,7 @@ export function createCircuitDetails(id:TrackId) {
       for(let row=0;row<6;row++) {const y=24+row*38;ctx.fillStyle='#819099';ctx.fillRect(0,y+27,512,5);
         for(let col=0;col<36;col++){const x=col*15+(row%2)*7;ctx.fillStyle=shirts[(col*7+row*5)%shirts.length];ctx.fillRect(x,y+11,9,15);ctx.fillStyle='#c2ab93';ctx.beginPath();ctx.arc(x+4.5,y+7,4,0,Math.PI*2);ctx.fill();}}
     });
-    const p=trackPoint(82,-34,id),stand=new THREE.Group();stand.position.set(p.x,0,p.z);stand.rotation.y=p.yaw;
+    const p=trackPoint(35,-34,id),stand=new THREE.Group();stand.position.set(p.x,0,p.z);stand.rotation.y=p.yaw;
     const crowdFace=new THREE.Mesh(new THREE.PlaneGeometry(150,6.5),crowd);crowdFace.rotation.y=Math.PI/2;crowdFace.position.set(0,6.6,0);stand.add(crowdFace);
     const canopy=new THREE.Mesh(new THREE.BoxGeometry(15,.5,155),metal);canopy.position.set(-4,10.5,0);stand.add(canopy);
     for(let z=-70;z<=70;z+=20){const pole=new THREE.Mesh(new THREE.BoxGeometry(.35,10,.35),metal);pole.position.set(-9,5,z);stand.add(pole);}
@@ -133,7 +133,7 @@ export function createCircuitDetails(id:TrackId) {
       ctx.fillStyle='#e1b958';ctx.fillRect(24,240,464,8);
     });
     const garageFaceGeo=new THREE.PlaneGeometry(20.5,5.4);
-    for(let i=0;i<8;i++){const p=trackPoint(35+i*25,16.91,id);const face=new THREE.Mesh(garageFaceGeo,pitFacade);face.position.set(p.x,3,p.z);face.rotation.y=p.yaw-Math.PI/2;root.add(face);}
+    for(let i=0;i<6;i++){const p=trackPoint(-27+i*23,16.91,id);const face=new THREE.Mesh(garageFaceGeo,pitFacade);face.position.set(p.x,3,p.z);face.rotation.y=p.yaw-Math.PI/2;root.add(face);}
   }
   // Venue-specific building silhouettes with window/door detail.
   if(id!=='stadium') {
