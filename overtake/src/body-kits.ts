@@ -334,7 +334,7 @@ function aeroWedge(width:number,length:number,height:number) {
 
 let sharedFlameTexture:THREE.Texture | undefined;
 function flameTexture() {
-  if(!sharedFlameTexture) {sharedFlameTexture=new THREE.TextureLoader().load(`${(import.meta as any).env?.BASE_URL ?? '/'}textures/effects/kenney-flame.png`);sharedFlameTexture.colorSpace=THREE.SRGBColorSpace;}
+  if(!sharedFlameTexture) {sharedFlameTexture=new THREE.TextureLoader().load(`${(import.meta as any).env?.BASE_URL ?? '/'}textures/effects/highwizard-fire-sheet.png`);sharedFlameTexture.colorSpace=THREE.SRGBColorSpace;}
   return sharedFlameTexture;
 }
 
@@ -580,20 +580,31 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       const flameMaterials:THREE.ShaderMaterial[]=[];
       for (const [i,x] of centers.entries()) {
         const jet=new THREE.Group(); jet.position.set(x,stock ? stock.y : ferrariFactoryFlame ? .334 : y, stock ? stock.z : ferrariFactoryFlame ? 2.002 : mouthZ);
-        // CC0 Kenney flame sprite, stretched along the exhaust axis and
-        // colored by a hot inner core. Crossed sheets remain visible from all
-        // camera directions, while gentle UV motion and scaling animate it.
-        const length=id==='golf'?.58:.42, jetRadius=radius*1.7;
+        // A 25-frame fire sheet, continuously interpolated between frames.
+        // Crossed sheets and drifting UVs avoid the old two-pose flicker.
+        const length=id==='golf'?.58:.42, jetRadius=radius*1.85;
         const mat=new THREE.ShaderMaterial({
           uniforms:{uTime:{value:0},uSeed:{value:i*7.31},uFlameColor:{value:new THREE.Color(config.flameColor)},uFlame:{value:flameTexture()}},
           transparent:true,depthWrite:false,depthTest:true,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,
           vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
           fragmentShader:`uniform float uTime,uSeed;uniform vec3 uFlameColor;uniform sampler2D uFlame;varying vec2 vUv;
-            void main(){float t=vUv.y;float wave=sin(t*12.0-uTime*12.0+uSeed)*.018*t;
-              vec2 uv=vec2(.408+(vUv.x+wave)*.196,.254+t*.528);vec4 tex=texture2D(uFlame,uv);
-              float strength=tex.a*max(tex.r,tex.g);float core=pow(max(0.0,1.0-abs(vUv.x-.5)*2.0),2.5)*(1.0-smoothstep(.05,.65,t));
-              vec3 color=mix(uFlameColor,vec3(1.0,.92,.75),core*.75);
-              gl_FragColor=vec4(color,strength*.65*(1.0-smoothstep(.85,1.0,t)));
+            vec3 frame(float index, vec2 uv) {
+              float col=mod(index,5.0),row=floor(index/5.0);
+              // Inset half a texel so bilinear filtering never crosses tiles.
+              uv=clamp(uv,vec2(.004),vec2(.996));
+              return texture2D(uFlame,(vec2(col,4.0-row)+uv)/5.0).rgb;
+            }
+            void main(){
+              float t=vUv.y;
+              float drift=(sin(t*8.0-uTime*5.1+uSeed)+.45*sin(t*15.0-uTime*8.3+uSeed))*.025*t;
+              vec2 uv=vec2(vUv.x+drift,.08+t*.84);
+              float phase=mod(uTime*15.0+uSeed,25.0),a=floor(phase),b=mod(a+1.0,25.0);
+              vec3 fire=mix(frame(a,uv),frame(b,uv),smoothstep(0.0,1.0,fract(phase)));
+              float energy=max(fire.r,max(fire.g,fire.b));
+              float fade=smoothstep(0.0,.07,t)*(1.0-smoothstep(.86,1.0,t));
+              float core=smoothstep(.50,.95,fire.g)*.72;
+              vec3 color=mix(uFlameColor,vec3(1.0,.92,.78),core);
+              gl_FragColor=vec4(color,energy*fade*.8);
             }`,
         });
         for (const angle of [0,Math.PI/3,-Math.PI/3]) {
@@ -684,7 +695,7 @@ export function updateExhaustFlames(car: THREE.Group | null, time: number, activ
   if (!active) return;
   for (const material of (flames.userData.flameMaterials || []) as THREE.ShaderMaterial[]) material.uniforms.uTime.value=time;
   flames.children.forEach((jet,i)=>{
-    const flicker=.55+.45*(.5+.5*Math.sin(time*19+i*2.7)*Math.sin(time*7.7+i));
-    jet.scale.set(.8+flicker*.2,.8+flicker*.2,flicker);
+    const flicker=.92+.045*Math.sin(time*5.3+i*2.7)+.025*Math.sin(time*8.1+i);
+    jet.scale.set(1,1,flicker);
   });
 }

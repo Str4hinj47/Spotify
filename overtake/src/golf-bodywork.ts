@@ -206,17 +206,24 @@ export function fitGolfBodywork(inner:THREE.Group,wrapper:THREE.Group,kit:THREE.
     }
     const section=kit.getObjectByName('custom-front');
     if(section) {
-      // A multi-row sculpted fascia rather than the old two-row flat patch.
-      // The surface blends to the original seams and carries pressed-in
-      // aerodynamic shoulders and a subtle central lower crease, without
-      // exposing the factory grille openings behind it.
-      const positions:number[]=[],indices:number[]=[],columns=96,rows=32;
+      // Closed, body-coloured panel with pressed-in central channel and
+      // paired corner pockets. All relief is modelled into the surface: no
+      // floating trim and no reopening the factory grille behind it.
+      const positions:number[]=[],indices:number[]=[],columns=160,rows=64;
       for(let i=0;i<=columns;i++) for(let j=0;j<=rows;j++) {
-        const x=(i/columns*2-1)*.675,t=j/rows,y=THREE.MathUtils.lerp(.205,.405,t);
-        const seamFade=Math.sin(Math.PI*t)*Math.pow(Math.max(0,1-Math.pow(Math.abs(x)/.675,8)),2);
-        const shoulders=Math.exp(-Math.pow((Math.abs(x)-.47)/.105,2));
-        const ridge=Math.exp(-Math.pow((t-.29)/.11,2))*Math.exp(-Math.pow(x/.42,4));
-        const z=-2.04+.47*x*x-.24*(y-.34)+seamFade*(.020*shoulders-.012*ridge);
+        const x=(i/columns*2-1)*.675,t=j/rows,y=THREE.MathUtils.lerp(.205,.405,t),ax=Math.abs(x);
+        const seamFade=Math.sin(Math.PI*t)*Math.pow(Math.max(0,1-Math.pow(ax/.675,8)),2);
+        const box=(v:number,c:number,w:number)=>Math.exp(-Math.pow((v-c)/w,6));
+        // Raised shoulders frame a broad inset centre. Two stacked, sculpted
+        // ribs and the outer pockets give the fascia visible structure.
+        const centre=box(x,0,.37)*box(t,.52,.28);
+        const pocket=box(ax,.50,.105)*box(t,.48,.27);
+        const brow=box(x,0,.51)*Math.exp(-Math.pow((t-.77)/.055,2));
+        const lowerRib=box(x,0,.43)*Math.exp(-Math.pow((t-.27)/.055,2));
+        const pocketRib=box(ax,.50,.085)*Math.exp(-Math.pow((t-.48)/.06,2));
+        const shoulders=Math.exp(-Math.pow((ax-.39)/.06,2))*box(t,.52,.32);
+        const relief=.052*centre+.047*pocket-.022*brow-.026*lowerRib-.018*pocketRib-.022*shoulders;
+        const z=-2.04+.47*x*x-.24*(y-.34)+seamFade*relief;
         positions.push(x,y,z);
       }
       for(let i=0;i<columns;i++)for(let j=0;j<rows;j++){

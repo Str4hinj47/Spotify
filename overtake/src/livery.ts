@@ -4,7 +4,7 @@ import type { Customization } from './customization.mjs';
 import { LIVERY_OPTIONS } from './content/cosmetics.mjs';
 
 // Each car gets different stripe widths, placement and flank graphics; these
-// are original procedural designs, not imported logos or branded decals.
+// use unbranded procedural graphics, except for the CC0 flame artwork below.
 export const LIVERIES: Record<CarId, { labels:[string,string], stripe:number, offset:number, belt:number, doorZ:number, side:number, roof:number }> = {
   bugatti: { labels:['Grand touring stripes','Hypercar circuit'], stripe:.09, offset:.20, belt:.40, doorZ:0, side:.94, roof:.76 },
   'bmw-m3': { labels:['Circuit stripes','GT racing'], stripe:.10, offset:.20, belt:.40, doorZ:0, side:.85, roof:.85 },
@@ -19,6 +19,17 @@ export const LIVERIES: Record<CarId, { labels:[string,string], stripe:number, of
   r8: { labels:['Vantage stripes','GT circuit'], stripe:.075, offset:.24, belt:.33, doorZ:-.1, side:.89, roof:.78 },
   challenger: { labels:['Muscle stripes','Drag graphics'], stripe:.16, offset:.20, belt:.43, doorZ:.05, side:.91, roof:.96 },
 };
+
+// Public-domain automotive flame artwork (NetAlloy / Openclipart).
+// Shared texture lives for the lifetime of the app, not any individual car.
+let flameDecal: THREE.Texture | undefined;
+function flameDecalTexture() {
+  if (!flameDecal) {
+    flameDecal=new THREE.TextureLoader().load(`${(import.meta as any).env?.BASE_URL ?? '/'}textures/liveries/netalloy-flame.png`);
+    flameDecal.colorSpace=THREE.SRGBColorSpace;
+  }
+  return flameDecal;
+}
 
 /** Clone per mesh because each imported mesh has a different transform into
  * the car's coordinate system. Shared originals and traffic are untouched. */
@@ -42,7 +53,7 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
   const livery = new THREE.Color(config.liveryColor);
   mat.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, {
-      kitMatrix:{value:meshToCar}, kitNormalMatrix:{value:new THREE.Matrix3().getNormalMatrix(meshToCar)}, kitSecondary:{value:secondary}, kitAccent:{value:livery},
+      kitFlameDecal:{value:pattern===8 ? flameDecalTexture() : null}, kitMatrix:{value:meshToCar}, kitNormalMatrix:{value:new THREE.Matrix3().getNormalMatrix(meshToCar)}, kitSecondary:{value:secondary}, kitAccent:{value:livery},
       kitHoodColor:{value:new THREE.Color(config.hoodColor || '#ffffff')}, kitRoofColor:{value:new THREE.Color(config.roofColor || '#ffffff')},
       kitHoodEnabled:{value:config.hoodColor?1:0}, kitRoofEnabled:{value:config.roofColor?1:0},
       kitDoorLF:{value:new THREE.Color(config.leftFrontDoorColor || '#ffffff')}, kitDoorRF:{value:new THREE.Color(config.rightFrontDoorColor || '#ffffff')},
@@ -58,7 +69,7 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
     shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvKitPos = (kitMatrix * vec4(transformed, 1.0)).xyz;');
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
       varying vec3 vKitPos; varying vec3 vKitNormal; uniform vec3 kitSecondary; uniform vec3 kitAccent; uniform vec3 kitHoodColor, kitRoofColor; uniform float kitHoodEnabled, kitRoofEnabled; uniform vec3 kitDoorLF,kitDoorRF,kitDoorLR,kitDoorRR; uniform vec4 kitDoorEnabled; uniform vec3 kitFrontColor,kitRearColor,kitSkirtsColor,kitFasciaEnabled;
-      uniform float kitScheme, kitPattern, kitCarbon, kitStripe, kitOffset, kitBelt, kitDoor, kitSide, kitRoof; uniform vec3 kitHood;
+      uniform float kitScheme, kitPattern, kitCarbon, kitStripe, kitOffset, kitBelt, kitDoor, kitSide, kitRoof; uniform vec3 kitHood; uniform sampler2D kitFlameDecal;
       float kitBand(float d,float w) { return 1.0-smoothstep(w,w+0.008,abs(d)); }
       float kitBox(vec2 p,vec2 b,float r) {
         vec2 q=abs(p)-b+vec2(r);
@@ -71,16 +82,6 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
       }
       float kitDigitSeven(vec2 p) {
         return max(kitBox(p-vec2(0.0,.066),vec2(.050,.012),.004),kitBand(p.x - (.02 + p.y*.42),.012)*step(abs(p.y),.075));
-      }
-      // Rounded, swept pinstripe tongues with a tapered tip. The curvature
-      // changes along each stroke rather than making angular wedges.
-      float kitTongue(vec2 p, vec2 a, vec2 b, float width, float bend) {
-        float t=clamp((p.x-a.x)/(b.x-a.x),0.0,1.0);
-        float ease=t*t*(3.0-2.0*t);
-        float cy=mix(a.y,b.y,ease)+bend*sin(3.14159265*t);
-        float radius=width*pow(1.0-t,.72)*(0.86+0.14*sin(t*3.14159));
-        float dx=max(max(a.x-p.x,p.x-b.x),0.0);
-        return 1.0-smoothstep(max(0.0,radius-.004),radius+.004,length(vec2(dx,p.y-cy)));
       }
       vec3 kitWeave(vec3 p) {
         vec2 q=vec2(p.x+p.z*.23,p.y+p.z*.30)*115.0;
@@ -154,20 +155,13 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
         float spear=kitBand(vKitPos.y-(kitBelt+.15+z*.12),.055)*flank*step(abs(z+.05),.95);
         graphics=max(upper,spear);
       } else if(kitPattern > 7.5) {
-        vec2 f=vec2(z,vKitPos.y-kitBelt);
-        // Classic swept flames: a compact rounded root with individual,
-        // curved tongues and separate warm inner strokes. No square clipping.
-        float root=kitBox(f-vec2(-1.10,.11),vec2(.19,.13),.12);
-        float outer=max(root,kitTongue(f,vec2(-1.13,.12),vec2(.64,.20),.115,-.055));
-        outer=max(outer,kitTongue(f,vec2(-1.10,.17),vec2(.39,.43),.082,.085));
-        outer=max(outer,kitTongue(f,vec2(-1.04,.08),vec2(.32,-.025),.071,-.06));
-        outer=max(outer,kitTongue(f,vec2(-1.03,.20),vec2(-.07,.47),.050,.065));
-        float inner=kitTongue(f,vec2(-1.16,.12),vec2(.30,.19),.048,-.040);
-        inner=max(inner,kitTongue(f,vec2(-1.11,.16),vec2(.04,.36),.034,.06));
-        inner=max(inner,kitTongue(f,vec2(-1.10,.08),vec2(-.02,.015),.025,-.045));
-        graphics=outer*side;
-        flameCore=inner*side;
-
+        // Project the same unbranded automotive art on both flanks in car
+        // space. Preserve the transparent cutouts and tint to the chosen color.
+        vec2 uv=vec2((z+1.50)/2.50,(vKitPos.y-(kitBelt-.10))/.72);
+        float bounds=step(0.0,uv.x)*step(uv.x,1.0)*step(0.0,uv.y)*step(uv.y,1.0);
+        vec4 decal=texture2D(kitFlameDecal,clamp(uv,0.0,1.0));
+        graphics=decal.a*side*bounds;
+        flameCore=decal.a*side*bounds*smoothstep(.35,.9,decal.g)*.65;
       }
       diffuseColor.rgb=mix(diffuseColor.rgb,kitAccent,graphics*.96);
       diffuseColor.rgb=mix(diffuseColor.rgb,mix(kitAccent,vec3(1.0),.5),flameCore*.8);
@@ -176,7 +170,7 @@ export function customPaintMaterial(source: THREE.MeshStandardMaterial, meshToCa
       vec3 ink=lightness > .35 ? vec3(.015,.02,.025) : vec3(.96,.97,.98);
       diffuseColor.rgb=mix(diffuseColor.rgb,ink,number);`);
   };
-  mat.customProgramCacheKey = () => 'overtake-custom-paint-v10';
+  mat.customProgramCacheKey = () => 'overtake-custom-paint-v11';
   mat.name = `custom-paint-${id}`;
   return mat;
 }
