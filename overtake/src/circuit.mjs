@@ -19,35 +19,35 @@ export function raceLap(progress) { return Math.max(1,Math.min(RACE_LAPS,Math.fl
 const definitions = [
  // Fast grand-prix rhythm: opening straight, alternating esses, a heavy
  // braking zone and a long return straight (Silverstone-inspired, not a replica).
- {id:'stadium', name:'Stadium Circuit', kind:'race', halfWidth:10, theme:'stadium', points:[
+ {id:'stadium', name:'Stadium Circuit', kind:'race', halfWidth:10, theme:'stadium', feature:'Fast esses and heavy braking', points:[
   [180,90],[180,0],[180,-80],[155,-125],[110,-130],
   [65,-155],[35,-195],[-10,-190],[-40,-230],[-105,-225],[-165,-190],
   [-185,-140],[-155,-100],[-105,-110],[-75,-80],[-100,-45],[-160,-35],
   [-200,10],[-190,75],[-150,110],[-115,150],[-120,205],[-65,240],[30,240],[120,220],[180,170]]},
  // Compact club circuit with two distinct hairpins and a fast final sweeper,
  // inspired by Tsukuba's rhythm rather than a surveyed reproduction.
- {id:'summit', name:'Summit Ring', kind:'race', halfWidth:10, theme:'mountain', points:[
+ {id:'summit', name:'Summit Ring', kind:'race', halfWidth:10, theme:'mountain', feature:'Hairpins and a fast sweeper', points:[
   [175,85],[175,-25],[170,-110],[135,-165],[80,-185],
   [25,-170],[-5,-130],[-50,-120],[-95,-155],[-150,-145],[-180,-100],
   [-170,-55],[-125,-35],[-75,-50],[-35,-20],[-40,25],[-85,45],
   [-145,40],[-175,75],[-170,125],[-125,155],[-65,150],[-20,180],[45,230],[120,225],[175,175]]},
  // Road-course braking zones, a compact left-right crest sequence and a
  // flowing return, informed by Laguna Seca. This game uses a flat surface.
- {id:'coast', name:'Coast Run', kind:'race', halfWidth:10, theme:'coast', points:[
+ {id:'coast', name:'Coast Run', kind:'race', halfWidth:10, theme:'coast', feature:'Technical bends and flowing exits', points:[
   [75,100],[75,0],[75,-90],[50,-155],[0,-190],[-70,-195],
   [-130,-175],[-160,-130],[-150,-90],[-105,-70],[-65,-85],[-35,-60],
   [-45,-15],[-95,0],[-155,-15],[-200,15],[-195,65],[-155,95],
   [-105,90],[-65,115],[-75,160],[-120,185],[-110,225],[-55,245],[15,235],[75,180]]},
  // Linking long sweepers to slower transitions gives the drift layouts more
  // than an oval while preserving recovery room and closed-lap racing.
- {id:'dockside', name:'Dockside Drift', kind:'drift', halfWidth:13, theme:'industrial', points:[
+ {id:'dockside', name:'Dockside Drift', kind:'drift', halfWidth:13, theme:'industrial', feature:'Linked drift turns and sweepers', points:[
   [170,80],[170,-15],[155,-90],[115,-135],[55,-135],[10,-165],
   [-50,-180],[-115,-155],[-155,-110],[-150,-65],[-105,-45],[-55,-55],
   [-15,-20],[-30,25],[-85,40],[-145,35],[-185,75],[-175,125],
   [-130,155],[-80,150],[-35,180],[30,215],[110,210],[170,160]]},
  // Outer sweep followed by an infield switchback: a flat interpretation of
  // the outer-to-inner transition used in stadium drifting.
- {id:'neon', name:'Neon Slide', kind:'drift', halfWidth:13, theme:'neon', points:[
+ {id:'neon', name:'Neon Slide', kind:'drift', halfWidth:13, theme:'neon', feature:'Long sweep into infield transitions', points:[
   [175,85],[175,-15],[165,-105],[125,-160],[55,-180],[-30,-175],
   [-105,-145],[-150,-100],[-155,-55],[-115,-30],[-65,-40],[-25,-20],
   [-20,20],[-60,50],[-115,45],[-165,65],[-185,110],[-160,155],

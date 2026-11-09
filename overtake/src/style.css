@@ -878,7 +878,10 @@ body:has(#main-menu:not(.hidden)) .tag, body:has(#main-menu:not(.hidden)) .site-
 .ranked-event-badge { position:absolute; right:7px; top:5px; width:48px; height:54px; object-fit:contain; filter:drop-shadow(0 2px 3px #0008); }
 .circuit-picker-info { color:#c3e6f8; font-size:11px; font-weight:800; letter-spacing:.07em; margin:8px 0; }
 .main-menu .rank-scenario { display:flex; flex-direction:column; overflow:hidden; padding:0; border-radius:5px; }
-.track-photo { display:block; width:100%; height:82px; flex:none; background-size:cover; background-position:center; }
+.track-photo { position:relative; display:block; width:100%; height:82px; flex:none; background-size:cover; background-position:center; }
+.track-card-map { position:absolute; right:5px; bottom:4px; width:96px; height:64px; padding:3px; border-radius:5px; background:#071925d9; }
+.track-card-map path { fill:none; stroke:#eff9fc; stroke-width:5; stroke-linecap:round; stroke-linejoin:round; }
+.track-card-map circle { fill:#aee764; stroke:#142830; stroke-width:2; }
 .track-copy { display:block; min-width:0; padding:8px 9px; }
 @media(max-width:700px) and (orientation:portrait) {
  .main-menu .rank-scenario { flex-direction:row; min-height:72px; padding:0; }

@@ -658,8 +658,8 @@ function syncRankUI() {
     button.className = `rank-scenario${scenario.id === selectedScenario.id ? ' active' : ''}`;
     button.classList.toggle('hidden',Math.floor(index/3)!==rankTrackPage);
     button.setAttribute('aria-pressed', String(scenario.id === selectedScenario.id));
-    const best = state.scenarios[scenario.id];
-    button.innerHTML = `<span class="track-photo" style="background-image:url('/tracks/${scenario.id}.webp')" aria-hidden="true"></span><span class="track-copy"><span class="rank-scenario-top"><span>${scenario.kicker}</span><span>${scenario.kind==='drift'?'DRIFT':'RACE'}</span></span><strong>${scenario.title}</strong><small>${scenario.laps} laps · ${(scenario.distance / scenario.laps / 1000).toFixed(2)} km · ${scenario.objective}</small><small>${ranked ? `1st +40 · 2nd +28 · 3rd +18 RP${best?.bestTime ? ` · Best ${formatTime(best.bestTime)}` : ''}` : '5 AI rivals · no RP'}</small></span>`;
+    const best = state.scenarios[scenario.id], track=getTrack(scenario.trackId), map=createRaceMap(track.id);
+    button.innerHTML = `<span class="track-photo" style="background-image:url('/tracks/${scenario.id}.webp')" aria-hidden="true"><svg class="track-card-map" viewBox="0 0 150 100"><path d="${map.path}"/><circle cx="${map.start.x}" cy="${map.start.y}" r="4"/></svg></span><span class="track-copy"><span class="rank-scenario-top"><span>${scenario.kicker}</span><span>${scenario.kind==='drift'?'DRIFT':'RACE'}</span></span><strong>${scenario.title}</strong><small>${scenario.laps} laps · ${(scenario.distance / scenario.laps / 1000).toFixed(2)} km · ${scenario.objective}</small><small>${track.feature}</small><small>${ranked ? `1st +40 · 2nd +28 · 3rd +18 RP${best?.bestTime ? ` · Best ${formatTime(best.bestTime)}` : ''}` : '5 AI rivals · no RP'}</small></span>`;
     button.addEventListener('click', () => { if(ranked) game.setRankedScenario(scenario.id as ScenarioId); else game.setCircuitScenario(scenario.id as ScenarioId); syncModeUI(); syncRankUI(); syncProgressionUI(); list.querySelector<HTMLButtonElement>(`[data-scenario="${scenario.id}"]`)?.focus(); audio.click(); });
     list.appendChild(button);
   }
