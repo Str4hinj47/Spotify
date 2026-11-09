@@ -961,7 +961,8 @@ body:has(#main-menu:not(.hidden)) .tag, body:has(#main-menu:not(.hidden)) .site-
 @media(max-width:700px) { .lobby-track { position:absolute; right:0; bottom:calc(100% + 7px); min-height:32px; padding:0 10px; font-size:9px; } }
 
 /* Regular circuit races live alongside the highway events in the picker. */
-.main-menu .circuit-event-card { background-size:cover; background-position:center; text-shadow:0 1px 4px #000; }
+.main-menu .circuit-event-card { position:relative; padding-right:76px; background-size:cover; background-position:center; text-shadow:0 1px 4px #000; }
+.circuit-event-card .track-card-map { right:4px; bottom:4px; width:68px; height:50px; }
 .main-menu .circuit-event-card.active { border-color:#d2b9ff; box-shadow:inset 0 0 0 2px #d2b9ff55; }
 
 /* One continuous, paired reward road: premium above free at every tier. */

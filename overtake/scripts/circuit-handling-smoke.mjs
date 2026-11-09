@@ -4,7 +4,7 @@ const browser=await pw.launch({executablePath:await chromium.executablePath(),he
 try {
  const page=await browser.newPage({viewport:{width:1280,height:800}}),errors=[];page.setDefaultTimeout(120000);page.on('pageerror',e=>errors.push(String(e)));
  await page.goto(`${process.env.BASE_URL||'http://localhost:4185'}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
- await page.click('#open-tracks');assert.equal(await page.locator('.track-card-map path').count(),5);assert.equal(await page.locator('[data-mode=circuit]').count(),5);assert.equal(await page.locator('[data-mode=circuit]:visible').count(),3);await page.screenshot({path:'test-results/circuit-picker-desktop.png'});
+ await page.click('#open-tracks');assert.equal(await page.locator('.circuit-event-card .track-card-map path').count(),5);assert.equal(await page.locator('[data-mode=circuit]').count(),5);assert.equal(await page.locator('[data-mode=circuit]:visible').count(),3);await page.screenshot({path:'test-results/circuit-picker-desktop.png'});
  await page.click('#mode-next');assert.equal(await page.locator('[data-mode=circuit]:visible').count(),2);await page.click('[data-track=neon]');assert.match(await page.locator('#menu-selected-mode').textContent(),/NEON SLIDE/);
  // The two drift tracks require a suitable car; use Coast for this Golf run.
  await page.click('#open-tracks');await page.click('#mode-prev');await page.click('[data-track=coast]');assert.match(await page.locator('#menu-selected-mode').textContent(),/COAST RUN/);

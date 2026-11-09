@@ -547,7 +547,8 @@ function buildCircuitEventCards() {
     const card=document.createElement('button');card.type='button';card.className='mode-card circuit-event-card';
     card.dataset.mode='circuit';card.dataset.track=scenario.id;
     card.style.backgroundImage=`linear-gradient(90deg,rgba(12,27,40,.94),rgba(12,27,40,.56)),url('${(import.meta as any).env?.BASE_URL ?? '/'}tracks/${scenario.id}.webp')`;
-    card.innerHTML=`<span class="mode-name">${scenario.title}</span><span class="mode-desc">${scenario.laps} laps · 5 AI rivals</span><span class="mode-best">${scenario.kind==='drift' ? 'DRIFT CAR REQUIRED' : 'CIRCUIT RACE · NO RP'}</span>`;
+    const map=createRaceMap(scenario.trackId);
+    card.innerHTML=`<span class="mode-name">${scenario.title}</span><span class="mode-desc">${scenario.laps} laps · 5 AI rivals</span><span class="mode-best">${scenario.kind==='drift' ? 'DRIFT CAR REQUIRED' : 'CIRCUIT RACE · NO RP'}</span><svg class="track-card-map" viewBox="0 0 150 100" aria-hidden="true"><path d="${map.path}"/><circle cx="${map.start.x}" cy="${map.start.y}" r="4"/></svg>`;
     list.insertBefore(card,ranked);
   }
 }
