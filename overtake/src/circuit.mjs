@@ -48,10 +48,10 @@ const definitions = [
  // Outer sweep followed by an infield switchback: a flat interpretation of
  // the outer-to-inner transition used in stadium drifting.
  {id:'neon', name:'Neon Slide', kind:'drift', halfWidth:13, theme:'neon', feature:'Long sweep into infield transitions', points:[
-  [175,85],[175,-15],[165,-105],[125,-160],[55,-180],[-30,-175],
-  [-105,-145],[-150,-100],[-155,-55],[-115,-30],[-65,-40],[-25,-20],
-  [-20,20],[-60,50],[-115,45],[-165,65],[-185,110],[-160,155],
-  [-110,165],[-65,150],[-20,175],[45,215],[120,215],[175,165]]},
+  [175,85],[175,-15],[165,-100],[125,-165],[55,-190],[-25,-185],[-110,-150],
+  [-175,-95],[-185,-35],[-155,10],[-105,35],[-65,80],[-80,125],
+  [-140,145],[-170,180],[-155,225],[-95,245],[-40,225],[5,185],
+  [50,175],[105,200],[175,165]]},
 ];
 function catmull(a,b,c,d,t) {
  const t2=t*t,t3=t2*t;
