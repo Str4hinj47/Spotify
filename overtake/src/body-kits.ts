@@ -264,16 +264,57 @@ function muscleFrontLip(id:'mustang'|'challenger',amount:number,unique:boolean) 
  }
  return loft(sections);
 }
+// The bumper's lower lip is the only horizontal surface above the tail. This
+// diffuser starts inside that lip and sweeps down to the trailing edge, so no
+// gap is left between the skirt and the car. A flat shelf left a visible hole.
+function challengerDiffuser() {
+ // Sampled from the fitted wide rear panel: its lower edge stays near the
+ // bumper lip through the middle of the car, then rises sharply at the tail,
+ // so the diffuser's top follows it instead of leaving an open gap.
+ const topXs=[0,.25,.45,.62,.78,.9,1],topYs=[.322,.325,.332,.347,.376,.401,.408];
+ const topAt=(u:number)=>sampleProfile(topXs,topYs,u)+.004,bottomAt=(u:number)=>.304-.022*u;
+ const sections:Point3[][]=[],half=.435,front=2.205,back=2.455;
+ for(let i=0;i<=LOFT_SEGMENTS;i++){
+  const t=2*i/LOFT_SEGMENTS-1,edge=t*t,x=t*half,frontZ=front+edge*.014,backZ=back-edge*.012;
+  const lift=edge*.006,zAt=(u:number)=>THREE.MathUtils.lerp(frontZ,backZ,u);
+  const ring:Point3[]=[[x,bottomAt(0)+lift,frontZ],[x,topAt(0)+lift,frontZ]];
+  for(const u of [.2,.4,.6,.78,.92,1]) ring.push([x,topAt(u)+lift,zAt(u)]);
+  ring.push([x,bottomAt(1)+lift,backZ]);
+  for(const u of [.8,.55,.3]) ring.push([x,bottomAt(u)+lift,zAt(u)]);
+  sections.push(ring);
+ }
+ return loft(sections,false,.05);
+}
 // Challenger's wheels have their own measured center and radius. The flare
 // rolls outward from the original arch rather than projecting through a tire.
 function challengerArch(side:number,z:number) {
  const sections:Point3[][]=[];
  for(let i=0;i<=64;i++){
   const a=-.12+(Math.PI+.24)*i/64,c=Math.cos(a),sn=Math.sin(a),taper=Math.pow(Math.max(0,Math.sin(Math.PI*i/64)),.5);
-  const inner=.377,outer=.433,inside=.932,outside=.955+.065*taper;
+  // The flare grows out of the painted fender: its base sits inside the body
+  // instead of hovering beside it, which left a visible gap around the arch.
+  const inner=.377,outer=.433,inside=.858,outside=.955+.065*taper;
   sections.push([[side*inside,.362+sn*inner,z+c*inner],[side*outside,.362+sn*inner,z+c*inner],[side*outside,.362+sn*outer,z+c*outer],[side*inside,.362+sn*outer,z+c*outer]]);
  }
  return loft(sections,side>0,.06);
+}
+// A wide sill must start inside the painted body and sweep out to its lip.
+// The old flat blade floated outboard of the panel, exposing a ledge and a gap.
+function muscleWideSill(id:'mustang'|'challenger',side:number) {
+ const fit=sillProfiles[id as keyof typeof sillProfiles],samples=fit.sides[side<0?0:1][0],sections:Point3[][]=[];
+ const flare=id==='challenger'?.058:.038;
+ for(let i=0;i<=LOFT_SEGMENTS;i++){
+  const t=i/LOFT_SEGMENTS,taper=Math.pow(Math.sin(Math.PI*t),.45),z=THREE.MathUtils.lerp(fit.range[0],fit.range[1],t),x=sampleSill(samples,t);
+  sections.push([
+   [side*(x-.022),.335,z],
+   [side*(x-.018),.285,z],
+   [side*(x-.012),.232,z],
+   [side*(x+.026*taper),.208,z],
+   [side*(x+flare*taper),.19,z],
+   [side*(x-.032),.182,z],
+  ]);
+ }
+ return loft(sections,side>0,.08);
 }
 function supportRod(a:THREE.Vector3,b:THREE.Vector3,mat:THREE.Material,group:THREE.Group) {
   const delta=b.clone().sub(a),rod=new THREE.Mesh(new THREE.CylinderGeometry(.006,.006,delta.length(),10),mat);
@@ -459,9 +500,16 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
       // Keep the diffuser inside the exhaust span and below the factory lamps.
       const z=id==='mustang'?2.10:2.27,y=id==='mustang'?.355:.285;
       const unique=config.rear==='mustang-valance'||config.rear==='challenger-diffuser';
-      const diffuser=new THREE.Mesh(taperedBand(.38,z,y,unique?.17:THREE.MathUtils.lerp(.09,.14,amount),.014,-.025),config.rearFinish==='carbon'?woven:carbon);diffuser.name=`${id}-rear-diffuser`;a.add(diffuser);
-      const fins=unique?(id==='mustang'?[-.20,.20]:[-.30,-.15,0,.15,.30]):amount<.67?[]:track?[-.30,-.15,0,.15,.30]:[-.25,0,.25];
-      for(const x of fins){const fin=box(.012,.045,.10,x,y-.012,z+.07,carbon,a,'diffuser-fin');fin.rotation.x=-.06;}
+      if(id==='challenger' && unique) {
+       // Fitted wide diffuser: a closed wedge from the bumper's lip to the
+       // trailing edge, with the strakes tucked underneath it.
+       const diffuser=new THREE.Mesh(challengerDiffuser(),config.rearFinish==='carbon'?woven:carbon);diffuser.name='challenger-rear-diffuser';a.add(diffuser);
+       for(const x of [-.30,-.15,0,.15,.30]){const fin=box(.012,.055,.11,x,.286,2.375,carbon,a,'diffuser-fin');fin.rotation.x=-.12;}
+      } else {
+       const diffuser=new THREE.Mesh(taperedBand(.38,z,y,unique?.17:THREE.MathUtils.lerp(.09,.14,amount),.014,-.025),config.rearFinish==='carbon'?woven:carbon);diffuser.name=`${id}-rear-diffuser`;a.add(diffuser);
+       const fins=unique?(id==='mustang'?[-.20,.20]:[-.30,-.15,0,.15,.30]):amount<.67?[]:track?[-.30,-.15,0,.15,.30]:[-.25,0,.25];
+       for(const x of fins){const fin=box(.012,.045,.10,x,y-.012,z+.07,carbon,a,'diffuser-fin');fin.rotation.x=-.06;}
+      }
     } else if(id==='golf') {
       // Fitted against the source mesh in fitGolfBodywork after this group is created.
       // These short vertical strakes belong to the replacement's diffuser;
@@ -518,7 +566,7 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
   if(config.skirts!=='stock') {
     const a=reg('skirts'),amount=level('skirts'),panel=config.skirtsFinish==='carbon'?woven:body;
     const wideFinish=config.skirtsFinish==='carbon'?woven:carbon;
-    if((id==='mustang' && config.skirts==='mustang-rockers') || (id==='challenger' && config.skirts==='challenger-wide')) for(const side of [-1,1]){const blade=new THREE.Mesh(skirtBlade(id,side,.67),config.skirtsFinish==='carbon'?woven:carbon);blade.name=`${id}-rocker-blade`;a.add(blade);}
+    if((id==='mustang' && config.skirts==='mustang-rockers') || (id==='challenger' && config.skirts==='challenger-wide')) for(const side of [-1,1]){const sill=new THREE.Mesh(muscleWideSill(id,side),config.skirtsFinish==='carbon'?woven:carbon);sill.name=`${id}-rocker-skirt`;a.add(sill);}
     if(id==='challenger' && config.skirts==='challenger-wide')for(const side of [-1,1])for(const z of [-1.562,1.431]){const arch=new THREE.Mesh(challengerArch(side,z),config.skirtsFinish==='carbon'?woven:body);arch.name='challenger-wheel-arch-flare';a.add(arch);}
     if(id==='golf' && config.skirts==='golf-superwide') for(const side of [-1,1]) {
       const blade=new THREE.Mesh(golfWideBlade(side),wideFinish);blade.name='superwide-skirt';a.add(blade);
@@ -566,8 +614,12 @@ export function createBodyKit(id:CarId, config:Customization, paint:number) {
         support.name='wing-pedestal';a.add(support);
       }
       const blade=new THREE.Mesh(wingProfile(wingWidth,f.spoilerZ,f.spoilerY+h,chord),panel);blade.name='wing-blade';a.add(blade);
-      if(track && f.character!=='luxury') for(const side of [-1,1]) {
-        const end=box(.018,.085,chord*.90,side*(wingWidth-.012),f.spoilerY+h+.012,f.spoilerZ-.06,carbon,a,'wing-endplate');end.rotation.x=-.08;
+      if(track && f.character!=='luxury') {
+        // Cap the tip instead of sitting inboard of it: the old plates let the
+        // painted blade pass through them and poke out the far side.
+        blade.geometry.computeBoundingBox();const bounds=blade.geometry.boundingBox!;
+        const plateHeight=(bounds.max.y-bounds.min.y)+.026,plateDepth=(bounds.max.z-bounds.min.z)+.01;
+        for(const side of [-1,1]) box(.024,plateHeight,plateDepth,side*(wingWidth-.001),(bounds.max.y+bounds.min.y)*.5+.006,(bounds.max.z+bounds.min.z)*.5-.004,carbon,a,'wing-endplate');
       }
     } else {
       const lip=new THREE.Mesh(deckLip(f,id,amount),panel);lip.name='deck-lip';a.add(lip);

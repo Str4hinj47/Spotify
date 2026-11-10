@@ -6,7 +6,7 @@ import type { Customization } from './customization.mjs';
 // source. Negative Z is the front of the normalized model.
 type Vertex={p:THREE.Vector3;a:number[][]};
 type Plane=(p:THREE.Vector3)=>number;
-type Region={part:'front'|'rear'|'skirts';side?:number;planes:Plane[]};
+type Region={part:'front'|'rear';planes:Plane[]};
 const smooth=(a:number,b:number,x:number)=>THREE.MathUtils.smoothstep(x,a,b);
 function mix(a:Vertex,b:Vertex,t:number):Vertex{return {p:a.p.clone().lerp(b.p,t),a:a.a.map((v,i)=>v.map((n,j)=>THREE.MathUtils.lerp(n,b.a[i][j],t)))};}
 function split(poly:Vertex[],plane:Plane):[Vertex[],Vertex[]]{
@@ -21,11 +21,9 @@ function regions(id:'mustang'|'challenger',config:Customization):Region[]{
  if(id==='mustang'){
   if(config.front!=='stock')out.push({part:'front',planes:[p=>.38-p.y,p=>-1.90-p.z]});
   if(config.rear!=='stock')out.push({part:'rear',planes:[p=>.40-p.y,p=>p.z-1.90]});
-  if(config.skirts==='mustang-rockers')for(const side of [-1,1])out.push({part:'skirts',side,planes:[p=>.38-p.y,p=>p.z+1.01,p=>.87-p.z,p=>side*p.x-.72]});
  }else{
   if(config.front!=='stock')out.push({part:'front',planes:[p=>.52-p.y,p=>-1.93-p.z]});
   if(config.rear!=='stock')out.push({part:'rear',planes:[p=>.50-p.y,p=>p.z-1.95]});
-  if(config.skirts==='challenger-wide')for(const side of [-1,1])out.push({part:'skirts',side,planes:[p=>.36-p.y,p=>p.z+1.15,p=>1.02-p.z,p=>side*p.x-.80]});
  }
  return out;
 }
@@ -39,10 +37,6 @@ function shape(id:'mustang'|'challenger',p:THREE.Vector3,area:Region,config:Cust
   const top=id==='mustang'?.40:.50,cut=id==='mustang'?1.90:1.95;
   const w=smooth(0,.13,top-p.y)*smooth(0,.24,p.z-cut);
   q.y-=(id==='mustang'?.018:.025)*w*strength;q.z+=(id==='mustang'?.015:.025)*w*strength;
- }else{
-  const top=id==='mustang'?.38:.36,start=id==='mustang'?-1.01:-1.15,end=id==='mustang'?.87:1.02,edge=id==='mustang'?.72:.80;
-  const w=smooth(0,.10,top-p.y)*smooth(0,.16,p.z-start)*smooth(0,.16,end-p.z)*smooth(0,.07,Math.abs(p.x)-edge);
-  q.y-=(id==='mustang'?.018:.025)*w;q.x+=area.side!*(id==='mustang'?.015:.03)*w;
  }
  return q;
 }
