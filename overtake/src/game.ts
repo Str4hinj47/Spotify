@@ -1633,6 +1633,23 @@ export class OvertakeGame {
     const result=buyPremiumPass(this.progression);this.progression=result.progress;
     if (result.ok) this.saveProgression();return result.ok;
   }
+  /** Adds a portal ad reward (for example a doubled payout) without touching run
+   * settlement, so replaying or quitting later cannot pay it twice. */
+  grantAdReward(amounts: { coins?: number; credits?: number; gems?: number }): { coins: number; credits: number; gems: number } {
+    const cap = 1_000_000_000;
+    const add = (value: unknown) => Math.max(0, Math.min(cap, Math.floor(Number(value) || 0)));
+    const coins = add(amounts?.coins), credits = add(amounts?.credits), gems = add(amounts?.gems);
+    if (!coins && !credits && !gems) return { coins: 0, credits: 0, gems: 0 };
+    const current = this.progression;
+    this.progression = sanitizeProgression({
+      ...current,
+      coins: Math.min(cap, current.coins + coins),
+      credits: Math.min(cap, current.credits + credits),
+      gems: Math.min(cap, current.gems + gems),
+    });
+    this.saveProgression();
+    return { coins, credits, gems };
+  }
   getMaxSpeed(): number { return getCar(this.selected).maxSpeed * (1 + effectiveUpgrades(this.progression, this.selected).engine * .04); }
   private loadProgression() {
     try {

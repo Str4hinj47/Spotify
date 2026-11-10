@@ -1150,3 +1150,50 @@ body:has(#main-menu:not(.hidden)) .tag, body:has(#main-menu:not(.hidden)) .site-
  .race-line-legend { gap:1px 8px; margin-top:2px; font-size:7px; }
  .race-line-legend small { display:none; }
 }
+
+/* CrazyGames placements. Ads only ever appear on results/menu screens; the
+   curtain blocks input while a request is pending and clears on adError. */
+#final-progress { display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap; }
+#final-progress-text { flex:1 1 auto; min-width:0; }
+.ad-offer { display:inline-flex; align-items:center; gap:7px; padding:5px 9px; min-height:27px; border:1px solid #8dd7e766; border-radius:6px; background:linear-gradient(180deg,#173340,#0d1d26); color:#e9fbff; font:inherit; font-size:10px; font-weight:800; letter-spacing:.04em; cursor:pointer; text-align:left; }
+.ad-offer:hover:not(:disabled) { border-color:#65e6ff; background:#1b4050; }
+.ad-offer:disabled { opacity:.55; cursor:default; }
+.ad-offer:focus-visible { outline:2px solid #7deaff; outline-offset:2px; }
+.ad-offer-play { display:grid; place-items:center; width:19px; height:19px; flex:none; border-radius:50%; background:#b9f56b; color:#10180b; font-size:8px; line-height:1; }
+.ad-offer-copy { display:flex; flex-direction:column; gap:1px; min-width:0; }
+.ad-offer b { display:block; font-size:10px; letter-spacing:.06em; line-height:1.1; }
+.ad-offer small { display:block; font-size:8px; font-weight:650; color:#a9c2c9; line-height:1.2; }
+#final-progress .ad-offer { flex:0 0 auto; }
+#final-progress .ad-offer b { font-size:9px; }
+#final-progress .ad-offer small { font-size:8px; }
+.ad-claimed { display:block; margin-top:2px; color:#d8f5c9; font-style:normal; font-weight:650; font-size:9px; }
+.ad-status { color:#ffd08a; font-size:9px; font-weight:700; }
+.ad-curtain { position:fixed; inset:0; z-index:200; display:grid; place-items:center; padding:20px; background:rgba(4,9,13,.82); backdrop-filter:blur(2px); cursor:progress; }
+.ad-curtain.hidden { display:none; }
+.ad-curtain>div { display:grid; gap:6px; max-width:320px; padding:18px 22px; border:1px solid #8dd7e755; border-radius:10px; background:#0d1a22; text-align:center; box-shadow:0 18px 60px #000a; }
+.ad-curtain b { color:#eaf9ff; font-size:13px; letter-spacing:.12em; text-transform:uppercase; }
+.ad-curtain small { color:#9fb6bd; font-size:10px; line-height:1.45; }
+.ad-curtain-play { display:grid; place-items:center; width:34px; height:34px; margin:0 auto 2px; border-radius:50%; background:#b9f56b; color:#10180b; font-size:12px; }
+.cg-banner { width:min(100%,760px); height:90px; margin:0 auto 12px; display:grid; place-items:center; overflow:hidden; background:#08131b; border:1px solid #ffffff14; }
+.cg-banner.hidden { display:none; }
+.cg-banner[data-ad-state="demo"]::after { content:'DEMO AD · RESPONSIVE BANNER'; color:#8fa9b2; font-size:9px; font-weight:800; letter-spacing:.18em; }
+.season-ad-row { display:grid; gap:6px; margin:0 0 14px; width:240px; flex:0 0 240px; }
+.season-ad-row .ad-offer { width:100%; justify-content:flex-start; min-height:34px; }
+.season-ad-row .ad-offer b { font-size:10px; }
+.ad-alternative { color:#8fa4a8; font-size:9px; line-height:1.4; }
+@media(max-width:900px) { .season-ad-row { width:100%; flex:1 1 auto; } }
+body.crazygames .site-link, body.crazygames #btn-account, body.crazygames .credits { display:none !important; }
+body.ad-open { overscroll-behavior:contain; }
+@media(max-width:700px) {
+  .cg-banner { height:50px; margin-bottom:9px; }
+  #final-progress { flex-direction:column; align-items:stretch; }
+  #final-progress .ad-offer { width:100%; justify-content:center; min-height:34px; }
+}
+@media(max-width:700px) and (orientation:portrait) {
+  #gameover.race-result .race-line canvas { height:76px; }
+  #gameover.race-result .final-grid div { padding:5px 3px; }
+}
+@media(max-height:500px) and (orientation:landscape) {
+  #gameover.race-result .race-line canvas { height:74px; }
+  #gameover #final-progress .ad-offer { min-height:24px; padding:2px 7px; }
+}

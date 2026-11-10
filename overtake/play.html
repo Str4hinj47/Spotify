@@ -6,6 +6,9 @@
     <title>OVERTAKE — Rush Update</title>
     <meta name="description" content="Pick your car, hit the highway, complete contracts, and turn traffic into points." />
     <link rel="stylesheet" href="/src/style.css" />
+    <!-- CrazyGames SDK v3. Loaded async and optional: outside CrazyGames the
+         game runs unchanged and every ad placement is hidden. -->
+    <script async src="https://sdk.crazygames.com/crazygames-sdk-v3.js" onerror="window.__crazySdkFailed=true"></script>
   </head>
   <body>
     <canvas id="game"></canvas>
@@ -137,10 +140,15 @@
           </section>
           </div>
           <div id="drawer-season" class="drawer-page hidden">
+          <div id="cg-banner-season" class="cg-banner hidden" aria-label="Advertisement"></div>
           <section class="menu-info-card season-pass-card" aria-label="Season pass">
             <div class="pass-overview">
               <div class="pass-heading"><span class="pass-eyebrow">OVERTAKE / SEASON PASS</span><h3>THE REWARD <em>ROAD.</em></h3><span id="season-period" class="pass-period">UTC QUARTER</span></div>
               <div class="premium-pass"><div><strong>✦ PREMIUM PASS</strong><p>Unlock the premium reward track. Rewards you have already reached unlock immediately.</p><span id="season-wallet">0 gems available</span></div><button id="season-premium-buy" type="button">UNLOCK PREMIUM · 50 GEMS</button></div>
+              <div class="season-ad-row">
+                <button id="btn-ad-gems" class="ad-offer hidden" type="button"><span class="ad-offer-play" aria-hidden="true">▶</span><span class="ad-offer-copy"><b>+3 GEMS</b><small id="ad-gems-copy">optional · watch a short ad</small></span></button>
+                <small class="ad-alternative">Gems are also earned from quests — videos are optional.</small>
+              </div>
             </div>
             <div class="season-pass-progress"><div class="pass-progress-heading"><span>SEASON PROGRESS</span><strong id="season-xp">0 / 800 XP</strong></div><div class="season-pass-bar" id="season-progress" role="progressbar" aria-label="Season progress" aria-valuemin="0" aria-valuemax="800" aria-valuenow="0"><i id="season-xp-fill"></i></div><small id="season-next"></small></div>
             <div class="pass-road-heading"><div><strong>YOUR REWARDS</strong><span>Earn XP by completing quests</span></div><div class="pass-scroll-controls"><button id="pass-scroll-prev" type="button" aria-label="Scroll rewards left">‹</button><button id="pass-scroll-next" type="button" aria-label="Scroll rewards right">›</button></div></div>
@@ -451,7 +459,10 @@
           </div>
         </div>
         <div id="final-ranked" class="final-ranked hidden" aria-live="polite"><div id="final-rank-badge" class="final-rank-badge"></div><div><span id="final-rank-label"></span><b id="final-rank-change"></b><small id="final-rank-message"></small></div></div>
-        <div id="final-progress" class="final-progress" aria-live="polite"></div>
+        <div id="final-progress" class="final-progress" aria-live="polite">
+          <span id="final-progress-text"></span>
+          <button id="btn-ad-double" class="ad-offer hidden" type="button"><span class="ad-offer-play" aria-hidden="true">▶</span><span class="ad-offer-copy"><b>DOUBLE REWARDS</b><small>optional · watch a short ad</small></span></button>
+        </div>
         <button id="btn-share-result" class="secondary" type="button">Share result</button>
         <button id="btn-download-card" class="ghost" type="button">Download result card</button>
       <p id="share-status" role="status" class="share-status"></p>
@@ -490,6 +501,7 @@
     </div>
 
     <div id="flash"></div>
+    <div id="ad-curtain" class="ad-curtain hidden" role="status" aria-live="polite"><div><span class="ad-curtain-play" aria-hidden="true">▶</span><b>Advertisement</b><small>The game continues after the video.</small></div></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

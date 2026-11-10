@@ -32,6 +32,8 @@ export class GameAudio {
   private pendingCar: CarId = 'golf';
   private volume = 0.8;
   muted = false;
+  /** Temporary portal-ad mute; never persisted, unlike the player's choice. */
+  adMuted = false;
   scoreSounds = true;
   indicatorSounds = true;
   raceSounds = true;
@@ -128,7 +130,7 @@ export class GameAudio {
 
   private applyVolume() {
     if (!this.sim) return;
-    this.sim.setVolume(this.active && !this.muted ? this.volume : 0);
+    this.sim.setVolume(this.active && !this.muted && !this.adMuted ? this.volume : 0);
   }
 
   setMuted(m: boolean) {
@@ -143,6 +145,13 @@ export class GameAudio {
     if (m) this.stopRaceAmbience();
   }
 
+  setAdMuted(m: boolean) {
+    this.adMuted = m;
+    this.applyVolume();
+    this.applyEffectVolume();
+    if (m) this.stopRaceAmbience();
+  }
+
   private applyEffectVolume() {
     if (!this.ctx) return;
     const set = (node: GainNode | null, enabled: boolean) => {
@@ -150,7 +159,7 @@ export class GameAudio {
       node.gain.cancelScheduledValues(this.ctx!.currentTime);
       node.gain.setValueAtTime(enabled ? 1 : 0, this.ctx!.currentTime);
     };
-    set(this.effectsGain, !this.muted);
+    set(this.effectsGain, !this.muted && !this.adMuted);
     set(this.scoreGain, this.scoreSounds);
     set(this.indicatorGain, this.indicatorSounds);
   }

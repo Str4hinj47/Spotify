@@ -23,7 +23,7 @@ try{
   const page=await browser.newPage({viewport});page.setDefaultTimeout(180000);
   const errors=[];page.on('pageerror',e=>errors.push(String(e)));
   await page.addInitScript(()=>localStorage.setItem('overtake-progression-v2',JSON.stringify({version:2,walletVersion:1,coins:0,credits:0,gems:0,dev:false,owned:['golf','challenger','skyline','mustang','bmw-m3'],upgrades:{},tunes:{}})));
-  await page.goto(`${process.env.BASE_URL||'http://localhost:4191'}/play.html?test=1`,{waitUntil:'domcontentloaded',timeout:180000});
+  await page.goto(`${process.env.BASE_URL||'http://localhost:4191'}/play.html?test=1&ads=demo`,{waitUntil:'domcontentloaded',timeout:180000});
   await page.waitForSelector('#topbar:not(.hidden)',{timeout:180000});
   await page.evaluate(()=>cancelAnimationFrame(window.__overtake.raf));
   const driven=await page.evaluate(async()=>{
@@ -58,9 +58,11 @@ try{
    const rect=canvas.getBoundingClientRect();let cyan=0,green=0;
    if(rect.width>0&&rect.height>0){const ctx=canvas.getContext('2d'),data=ctx.getImageData(0,0,canvas.width,canvas.height).data;for(let i=0;i<data.length;i+=4){const r=data[i],gg=data[i+1],b=data[i+2];if(b>180&&gg>170&&r<160)cyan++;if(r>190&&gg>140&&b<170)green++;}}
    const style=getComputedStyle(modal);
-   return {hidden:panel.classList.contains('hidden'),rect:[Math.round(rect.width),Math.round(rect.height)],cyan,green,lap:document.getElementById('race-line-lap').textContent,note:document.getElementById('race-line-note').textContent,overflowY:modal.scrollHeight-modal.clientHeight,scroll:style.overflowY,doc:[document.documentElement.scrollWidth,document.documentElement.scrollHeight]};
+   return {hidden:panel.classList.contains('hidden'),adOfferVisible:!document.getElementById('btn-ad-double').classList.contains('hidden'),adOfferInModal:document.querySelector('#gameover .modal').contains(document.getElementById('btn-ad-double')),rect:[Math.round(rect.width),Math.round(rect.height)],cyan,green,lap:document.getElementById('race-line-lap').textContent,note:document.getElementById('race-line-note').textContent,overflowY:modal.scrollHeight-modal.clientHeight,scroll:style.overflowY,doc:[document.documentElement.scrollWidth,document.documentElement.scrollHeight]};
   });
   assert.equal(ui.hidden,false,`${name}: line panel hidden`);
+  assert.equal(ui.adOfferVisible,true,`${name}: rewarded offer missing on race results`);
+  assert.equal(ui.adOfferInModal,true,`${name}: rewarded offer outside the results card`);
   assert.ok(ui.rect[0]>120&&ui.rect[1]>40,`${name}: map is ${ui.rect}`);
   assert.ok(ui.cyan>300,`${name}: player line missing (${ui.cyan}px)`);
   assert.ok(ui.green>120,`${name}: reference line missing (${ui.green}px)`);

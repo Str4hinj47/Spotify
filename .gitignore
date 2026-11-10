@@ -68,6 +68,7 @@ agenthub/agents/youtube/db
 google_drive/
 overtake/source-assets/
 overtake/test-results/
+overtake/dist-crazygames/
 overtake/playwright-report/
 
 # Archive files and large assets

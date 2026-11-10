@@ -21,6 +21,7 @@ import { performanceStats } from './car-performance.mjs';
 import { LIVERY_OPTIONS } from './content/cosmetics.mjs';
 import { CAR_CONTENT } from './content/cars.mjs';
 import { BODY_PARTS, DEFAULT_CUSTOMIZATION, sanitizeCustomization, sanitizeCustomizations, type Customization } from './customization.mjs';
+import { createAdService, FREE_GEMS } from './ads.mjs';
 
 createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, Cloud, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor, Settings } });
 
@@ -36,6 +37,40 @@ function currency(n:number, kind:Currency, prefix='') {
 
 const audio = new GameAudio();
 (window as any).__audio = audio; // test/debug hook
+// Portal ads are optional: without the CrazyGames SDK every offer stays hidden.
+const adLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname === '[::1]';
+const adDemo = adLocal && new URLSearchParams(location.search).get('ads') === 'demo';
+const adPortalHost = /(^|\.)crazygames\.(com|video)$/.test(location.hostname);
+// Some portal builds are framed from a CDN host; trust a CrazyGames referrer too.
+const adFramedByPortal = (() => {
+  try {
+    if (window.self === window.top) return false;
+    const referrer = document.referrer ? new URL(document.referrer).hostname : '';
+    return /(^|\.)crazygames\.(com|video)$/.test(referrer);
+  } catch { return false; }
+})();
+const adHostAllowed = adDemo || adLocal || adPortalHost || adFramedByPortal;
+const ads = createAdService({
+  demo: adDemo,
+  enabled: adHostAllowed,
+  storage: (() => { try { return localStorage; } catch { return null; } })(),
+  hooks: {
+    onEvent(event) {
+      if (event.type === 'request') {
+        setAdCurtain(true);
+        // A banner must not stay on screen while a video ad plays.
+        if (event.kind === 'rewarded' || event.kind === 'midgame') clearSeasonBanner();
+      } else if (event.type === 'play') audio.setAdMuted(true);
+      else if (event.type === 'end') {
+        audio.setAdMuted(ads.platformMuted);
+        setAdCurtain(false);
+        syncAdUI();
+        setTimeout(() => refreshSeasonBanner(), 500);
+      } else if (event.type === 'settings') { audio.setAdMuted(ads.platformMuted); syncSoundUI(); syncAdUI(); }
+    },
+  },
+});
+(window as any).__ads = ads; // test/debug hook
 let game: OvertakeGame;
 let library: ModelLibrary;
 let selected: CarId = 'golf';
@@ -450,6 +485,9 @@ function selectCar(id: CarId) {
 
 function setMode(m: Mode) {
   if (m !== 'gameover') hidePromotion();
+  const driving = m === 'driving';
+  if (driving !== lastDriving) { lastDriving = driving; if (driving) ads.gameplayStart(); else ads.gameplayStop(); }
+  if (m === 'gameover') { adDoubleClaimed = false; adDoubleBusy = false; }
   audio.setActive(m === 'driving');
   if(m!=='driving') { clearRearControl(); updateRearProximity(null); }
   if(m==='garage' || m==='gameover') resetRaceHud();
@@ -473,6 +511,7 @@ function setMode(m: Mode) {
     $('camera-panel').classList.add('hidden');
     $('world-panel').classList.add('hidden');
   }
+  syncAdUI();
 }
 
 function showFrontScreen(screen: 'menu' | 'garage') {
@@ -834,6 +873,8 @@ $('promotion-close').addEventListener('click',hidePromotion);
 document.addEventListener('keydown',event=>{if(event.key==='Escape' && !$('rank-promotion').classList.contains('hidden')) {event.preventDefault();event.stopImmediatePropagation();hidePromotion();}},true);
 
 let latestResult: RunStats | null = null;
+let adDoubleClaimed = false, adDoubleBusy = false, gemBusy = false, retryBusy = false;
+let lastDriving = false;
 /** Draw the player's best lap over a geometric reference line. The map is in
  * road coordinates, so it works unchanged on every circuit. */
 function drawRaceLine(s: RunStats) {
@@ -882,9 +923,11 @@ function drawRaceLine(s: RunStats) {
 function onGameOver(s: RunStats) {
   syncTopWallet();
   latestResult = s;
+  adDoubleClaimed = false; adDoubleBusy = false;
+  ads.runCompleted();
   hidePromotion();
   $('share-status').textContent = s.devRun ? 'Dev run · excluded from personal records' : 'Local result · not globally verified';
-  $('final-progress').innerHTML = `${currency(s.coinsGained,'coin','+')} ${currency(s.creditsGained,'credit','+')} ${s.gemsGained ? currency(s.gemsGained,'gem','+') : ''} earned`;
+  $('final-progress-text').innerHTML = `${currency(s.coinsGained,'coin','+')} ${currency(s.creditsGained,'credit','+')} ${s.gemsGained ? currency(s.gemsGained,'gem','+') : ''} earned`;
   $('final-score').textContent = fmt(s.score);
   const race=s.racePosition!==null, validLaps=s.raceLapTimes.filter(t=>t>0);
   $('final-overtakes').textContent = race ? (validLaps.length ? formatTime(Math.min(...validLaps)) : '—') : String(s.overtakes);
@@ -933,6 +976,9 @@ function onGameOver(s: RunStats) {
   medal.classList.toggle('hidden', !s.medal);
   medal.textContent = s.medal ? `${s.medal} medal` : '';
   syncModeUI(); syncRankUI();
+  // Let the portal tune ad timing around genuine highlight moments.
+  if (s.newBest || s.ghostNewBest || (s.racePosition !== null && s.racePosition <= 3)) ads.happytime();
+  syncAdUI();
   drawRaceLine(s);
 }
 // The map is drawn from the canvas's box, so it needs a redraw when the
@@ -959,14 +1005,16 @@ function togglePause() {
 }
 
 function syncSoundUI() {
-  ($('sound-master') as HTMLInputElement).checked = !audio.muted;
+  const muted = audio.muted || audio.adMuted;
+  ($('sound-master') as HTMLInputElement).checked = !muted;
   ($('sound-score') as HTMLInputElement).checked = audio.scoreSounds;
   ($('sound-race') as HTMLInputElement).checked = audio.raceSounds;
   ($('sound-indicator') as HTMLInputElement).checked = audio.indicatorSounds;
-  document.querySelector('.ic-on')?.classList.toggle('hidden', audio.muted);
-  document.querySelector('.ic-off')?.classList.toggle('hidden', !audio.muted);
-  $('btn-sound').setAttribute('aria-label', audio.muted ? 'Unmute sound' : 'Mute sound');
-  $('btn-sound').setAttribute('aria-pressed', String(audio.muted));
+  document.querySelector('.ic-on')?.classList.toggle('hidden', muted);
+  document.querySelector('.ic-off')?.classList.toggle('hidden', !muted);
+  $('btn-sound').setAttribute('aria-label', muted ? (ads.platformMuted ? 'Sound is muted by the game portal' : 'Unmute sound') : 'Mute sound');
+  $('btn-sound').setAttribute('aria-pressed', String(muted));
+  ($('sound-master') as HTMLInputElement).disabled = ads.platformMuted;
 }
 
 function closeSoundPanel() {
@@ -1023,8 +1071,88 @@ function toggleGraphicsPanel() {
 }
 
 function toggleMute() {
+  if (ads.platformMuted) { syncSoundUI(); return; }
   audio.setMuted(!audio.muted);
   syncSoundUI();
+}
+
+function setAdCurtain(open: boolean) {
+  $('ad-curtain').classList.toggle('hidden', !open);
+  document.body.classList.toggle('ad-open', open);
+}
+
+function syncAdUI() {
+  const doubleBtn = $('btn-ad-double') as HTMLButtonElement;
+  const canDouble = !!latestResult && !adDoubleClaimed && !adDoubleBusy
+    && latestResult.coinsGained + latestResult.creditsGained + latestResult.gemsGained > 0
+    && !$('gameover').classList.contains('hidden')
+    && ads.canOfferRewarded('doubleRewards');
+  doubleBtn.classList.toggle('hidden', !canDouble);
+  doubleBtn.disabled = adDoubleBusy || ads.inAd;
+
+  const gemsBtn = $('btn-ad-gems') as HTMLButtonElement;
+  const canGems = ads.canOfferRewarded('freeGems') && !gemBusy;
+  gemsBtn.classList.toggle('hidden', !canGems);
+  gemsBtn.disabled = gemBusy || ads.inAd;
+  if (!gemBusy) $('ad-gems-copy').textContent = 'optional · watch a short ad';
+
+  if ($('drawer-season').classList.contains('hidden')) clearSeasonBanner();
+}
+
+let seasonBannerOpen = false;
+function clearSeasonBanner() {
+  const node = $('cg-banner-season');
+  if (!node) return;
+  if (!node.classList.contains('hidden') && seasonBannerOpen) ads.hideBanner('cg-banner-season');
+  node.classList.add('hidden');
+  node.dataset.adState = '';
+  seasonBannerOpen = false;
+}
+function refreshSeasonBanner() {
+  const node = $('cg-banner-season');
+  const open = !$('lobby-drawer').classList.contains('hidden') && !$('drawer-season').classList.contains('hidden');
+  if (!open || !ads.canShowBanner()) { clearSeasonBanner(); return; }
+  if (seasonBannerOpen) return;
+  node.classList.remove('hidden');
+  seasonBannerOpen = true;
+  void ads.showBanner('cg-banner-season').then(ok => { if (!ok) { node.classList.add('hidden'); seasonBannerOpen = false; } });
+}
+
+async function waitForCrazySdk(timeout = 4000): Promise<any | null> {
+  const read = () => (window as any).CrazyGames?.SDK ?? null;
+  if (read()) return read();
+  const started = performance.now();
+  while (performance.now() - started < timeout) {
+    if ((window as any).__crazySdkFailed) return null;
+    await new Promise(resolve => setTimeout(resolve, 100));
+    if (read()) return read();
+  }
+  return null;
+}
+
+let adsStarted = false;
+async function initAds(sdk: any | null) {
+  if (adsStarted) return;
+  adsStarted = true;
+  const status = await ads.init(sdk);
+  if (status.environment !== 'none') document.body.classList.add('crazygames');
+  audio.setAdMuted(ads.platformMuted);
+  syncSoundUI();
+  syncAdUI();
+  ads.onStatus(() => { audio.setAdMuted(ads.platformMuted); syncSoundUI(); syncAdUI(); });
+}
+async function startAds() {
+  if (adDemo) { await initAds(null); return; }
+  const sdk = await waitForCrazySdk();
+  if (sdk) { await initAds(sdk); return; }
+  // The script is async: a slow portal CDN can beat our first wait. Retry in
+  // the background for a while without ever blocking the game from starting.
+  for (let attempt = 0; attempt < 20; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    const late = (window as any).CrazyGames?.SDK ?? null;
+    if (late) { await initAds(late); return; }
+    if ((window as any).__crazySdkFailed) return;
+  }
 }
 
 function openHelp() {
@@ -1078,13 +1206,14 @@ function showRankDrawer(open: boolean) {
   $('drawer-title').textContent=open ? (ranked ? 'RANKED RACING' : 'CIRCUIT RACE') : 'GAME MODES';
   if(open) { const selected=ranked ? game.getRankedScenario() : game.getCircuitScenario(); rankTrackPage=Math.floor(SCENARIOS.findIndex(s=>s.id===selected.id)/3); syncRankUI(); }
 }
-function closeLobbyDrawer() { $('lobby-drawer').classList.add('hidden'); }
+function closeLobbyDrawer() { $('lobby-drawer').classList.add('hidden'); clearSeasonBanner(); }
 function openLobbyDrawer(page: 'modes' | 'stats' | 'season', rank=false) {
   $('lobby-drawer').classList.remove('hidden');
   for(const name of ['modes','stats','season']) $('drawer-'+name).classList.toggle('hidden',name!==page);
   $('drawer-title').textContent=page==='modes'?'GAME MODES':page==='stats'?'YOUR PROFILE':'SEASON PASS';
   if(page==='modes') { updateModePage(); showRankDrawer(rank); }
-  if(page==='season') requestAnimationFrame(syncPassScrollControls);
+  if(page==='season') { requestAnimationFrame(syncPassScrollControls); setTimeout(refreshSeasonBanner, 160); }
+  syncAdUI();
   $('drawer-close').focus();
 }
 function syncPassScrollControls() {
@@ -1237,7 +1366,56 @@ function bindUI() {
       $('share-status').textContent = 'Result card downloaded.';
     }, 'image/png');
   });
-  $('btn-retry').addEventListener('click', startRun);
+  $('btn-retry').addEventListener('click', async () => {
+    if (retryBusy) return;
+    retryBusy = true;
+    // A natural break between runs: never during driving, never chained, and
+    // skipped entirely when ads are unavailable or still cooling down.
+    if (ads.shouldOfferMidgame()) await ads.requestMidgame();
+    retryBusy = false;
+    startRun();
+  });
+  $('btn-ad-double').addEventListener('click', async () => {
+    if (!latestResult || adDoubleBusy || adDoubleClaimed) return;
+    const s = latestResult;
+    const amounts = { coins: s.coinsGained, credits: s.creditsGained, gems: s.gemsGained };
+    if (amounts.coins + amounts.credits + amounts.gems <= 0) return;
+    adDoubleBusy = true;
+    syncAdUI();
+    const result = await ads.requestRewarded('doubleRewards');
+    adDoubleBusy = false;
+    if (result.ok) {
+      const granted = game.grantAdReward(amounts);
+      adDoubleClaimed = true;
+      $('final-progress-text').innerHTML = `${currency(s.coinsGained,'coin','+')} ${currency(s.creditsGained,'credit','+')} ${s.gemsGained ? currency(s.gemsGained,'gem','+') : ''} earned <em class="ad-claimed">+${currency(granted.coins,'coin')} ${currency(granted.credits,'credit')} ${granted.gems ? currency(granted.gems,'gem') : ''} from ad</em>`;
+      syncTopWallet();
+      ads.happytime();
+      audio.click();
+    } else if (result.reason !== 'unavailable') {
+      const copy = $('btn-ad-double').querySelector('small');
+      if (copy) {
+        copy.textContent = 'Ad unavailable — try again';
+        setTimeout(() => { if (!adDoubleClaimed && copy) copy.textContent = 'watch a short ad'; }, 5000);
+      }
+    }
+    syncAdUI();
+  });
+  $('btn-ad-gems').addEventListener('click', async () => {
+    if (gemBusy) return;
+    gemBusy = true;
+    $('ad-gems-copy').textContent = 'loading…';
+    syncAdUI();
+    const result = await ads.requestRewarded('freeGems');
+    if (result.ok) {
+      game.grantAdReward({ gems: FREE_GEMS });
+      syncTopWallet();
+      syncSeasonPassUI();
+      ads.happytime();
+      audio.click();
+    }
+    gemBusy = false;
+    syncAdUI();
+  });
   $('btn-garage').addEventListener('click', () => { frontScreen = 'garage'; game.toGarage(); });
   $('btn-result-menu').addEventListener('click', () => { frontScreen = 'menu'; game.toGarage(); });
   $('btn-sound').addEventListener('click', toggleMute);
@@ -1261,7 +1439,7 @@ function bindUI() {
     });
   });
   $('sound-close').addEventListener('click', () => { closeSoundPanel(); $(game.mode === 'paused' ? 'btn-pause-sound' : 'btn-sound-settings').focus(); });
-  $('sound-master').addEventListener('change', e => { audio.setMuted(!(e.target as HTMLInputElement).checked); syncSoundUI(); });
+  $('sound-master').addEventListener('change', e => { if (ads.platformMuted) { syncSoundUI(); return; } audio.setMuted(!(e.target as HTMLInputElement).checked); syncSoundUI(); });
   $('sound-score').addEventListener('change', e => audio.setScoreSounds((e.target as HTMLInputElement).checked));
   $('sound-race').addEventListener('change', e => audio.setRaceSounds((e.target as HTMLInputElement).checked));
   $('sound-indicator').addEventListener('change', e => audio.setIndicatorSounds((e.target as HTMLInputElement).checked));
@@ -1484,5 +1662,6 @@ async function boot() {
 }
 
 void boot();
+void startAds();
 
 $('season-premium-buy').addEventListener('click',()=>{ if(game.purchasePremiumPass()){syncSeasonPassUI();syncProgressionUI();audio.click();} });
