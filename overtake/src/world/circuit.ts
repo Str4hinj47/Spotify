@@ -26,11 +26,11 @@ function trackStrip(start:number, end:number, a:number, b:number, y:number, mate
   const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));geometry.setIndex(indices);geometry.computeVertexNormals();
   return new THREE.Mesh(geometry,material);
 }
-function safetyWall(offset:number, material:THREE.Material, trackId:TrackId) {
+function safetyWall(offset:number, material:THREE.Material, trackId:TrackId, bottom=.12, top=1.15) {
   const TRACK_LENGTH=getTrack(trackId).length;const trackPosition=(s:number,o:number)=>trackPoint(s,o,trackId);
   const positions:number[]=[],indices:number[]=[],count=600;
   for(let i=0;i<=count;i++) {
-    const p=trackPosition(TRACK_LENGTH*i/count,offset);positions.push(p.x,.12,p.z,p.x,1.05,p.z);
+    const p=trackPosition(TRACK_LENGTH*i/count,offset);positions.push(p.x,bottom,p.z,p.x,top,p.z);
     if(i<count) {const n=i*2;indices.push(n,n+1,n+2,n+1,n+3,n+2);}
   }
   const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setIndex(indices);geometry.computeVertexNormals();
@@ -45,7 +45,12 @@ export function createCircuit(trackId:TrackId='stadium') {
   const runoff=new THREE.MeshStandardMaterial({color:0x828778,roughness:1,side:THREE.DoubleSide});
   const white=new THREE.MeshStandardMaterial({color:0xf0eee3,roughness:.8,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
   const red=new THREE.MeshStandardMaterial({color:0xc33836,roughness:.8,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
-  const rail=new THREE.MeshStandardMaterial({color:0xabb7b7,metalness:.35,roughness:.65});
+  // The barriers are open ribbons: without DoubleSide the face disappears
+  // whenever the camera crosses to the back of the wall (most of the lap).
+  const rail=new THREE.MeshStandardMaterial({color:0xd4d8d5,metalness:.12,roughness:.82,side:THREE.DoubleSide});
+  const railCap=new THREE.MeshStandardMaterial({color:0xeef0ec,metalness:.05,roughness:.9,side:THREE.DoubleSide});
+  const railBase=new THREE.MeshStandardMaterial({color:0x5b6667,metalness:.1,roughness:.9,side:THREE.DoubleSide});
+  const railStripe=new THREE.MeshStandardMaterial({color:0xb23a35,metalness:.1,roughness:.85,side:THREE.DoubleSide});
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(track.theme==='coast'?875:1500,1500),grass);ground.rotation.x=-Math.PI/2;ground.position.y=-.08;if(track.theme==='coast')ground.position.x=-312.5;group.add(ground);
   group.add(ribbon(-TRACK_HALF_WIDTH-4,TRACK_HALF_WIDTH+4,-.01,runoff,trackId));
   const roadSurface=ribbon(-TRACK_HALF_WIDTH,TRACK_HALF_WIDTH,.01,road,trackId);roadSurface.name='circuit-asphalt';group.add(roadSurface);
@@ -62,8 +67,12 @@ export function createCircuit(trackId:TrackId='stadium') {
     }
     for(const [i,positions] of kerbPositions.entries()) {const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.computeVertexNormals();group.add(new THREE.Mesh(geo,i?red:white));}
     // Continuous low wall, deliberately outside the driveable surface.
-    const wall=ribbon(side*(TRACK_HALF_WIDTH+3),side*(TRACK_HALF_WIDTH+3.45),1.05,rail,trackId);group.add(wall);
-    group.add(safetyWall(side*(TRACK_HALF_WIDTH+3),rail,trackId));
+    const wall=ribbon(side*(TRACK_HALF_WIDTH+3),side*(TRACK_HALF_WIDTH+3.45),1.15,railCap,trackId);wall.name=`safety-wall-cap-${side<0?'left':'right'}`;group.add(wall);
+    const barrier=safetyWall(side*(TRACK_HALF_WIDTH+3),rail,trackId);barrier.name=`safety-wall-${side<0?'left':'right'}`;group.add(barrier);
+    // A dark plinth and a red band give the low concrete wall a readable edge
+    // against the grey run-off instead of blending into it.
+    const plinth=safetyWall(side*(TRACK_HALF_WIDTH+2.99),railBase,trackId,.12,.34);plinth.name=`safety-wall-plinth-${side<0?'left':'right'}`;group.add(plinth);
+    const stripe=safetyWall(side*(TRACK_HALF_WIDTH+2.988),railStripe,trackId,.72,.88);stripe.name=`safety-wall-stripe-${side<0?'left':'right'}`;group.add(stripe);
   }
   // Chequered start/finish line on the first straight.
   for(let x=0;x<16;x++)for(let z=0;z<2;z++) {
