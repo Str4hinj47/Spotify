@@ -52,11 +52,14 @@ test('handbrake reduces lateral grip', () => {
   assert.ok(Math.abs(b.latAccel) < Math.abs(a.latAccel));
 });
 
-test('curvature feed-forward tracks the road tangent without steering input', () => {
+test('no steering input holds a straight world heading with no lane assist', () => {
   const st = createVehicleState(); st.speed = 25;
   run(st, base, input(), 2, 1 / 120, 0.004);
-  assert.ok(Math.abs(st.yawRate - 0.004 * 25) < 0.03);
-  assert.ok(Math.abs(st.offset) < 0.5);
+  assert.ok(Math.abs(st.yawRate) < 1e-9, 'the road curvature must not drive the wheel');
+  // Heading is road-relative: a car going straight in the world loses the
+  // road's own rotation, and nothing adds a steering correction back.
+  assert.ok(Math.abs(st.heading + 0.004 * st.s) < .02);
+  assert.ok(Math.abs(st.offset) > 1, 'driving straight through a bend leaves the lane');
 });
 
 test('wet and snowy surfaces increase braking distance and reduce acceleration', () => {

@@ -15,3 +15,10 @@ test('drifting builds from steering and handbrake, then responds gradually to co
  assert.ok(drift.driftAngle<0);assert.ok(Number.isFinite(drift.s)&&Number.isFinite(drift.offset));
 });
 test('stationary drift car settles rather than sliding at rest',()=>{const s=createVehicleState();for(let i=0;i<120;i++)stepDriftVehicle(s,{...input,throttle:false},p,1/120);assert.equal(s.speed,0);assert.equal(s.offset,0);assert.equal(s.driftAngle,0)});
+test('a coasting drift car never slides sideways on its own',()=>{
+ const s=createVehicleState();s.speed=30;s.offset=0;s.heading=0;s.driftAngle=.3;
+ for(let i=0;i<90;i++)stepDriftVehicle(s,{...input,throttle:false},p,1/120);
+ assert.ok(Math.abs(s.offset)<1e-9,'no lateral travel without steering or handbrake');
+ assert.ok(Math.abs(s.heading)<1e-9,'the slide must not steer the car');
+ assert.ok(s.driftAngle<s.speed&&Math.abs(s.driftAngle)<.3);
+});

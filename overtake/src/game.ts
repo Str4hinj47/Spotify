@@ -116,6 +116,8 @@ export interface RunStats {
   ghostNewBest: boolean;
   racePosition: number | null;
   raceLapTimes: number[];
+  /** Best completed lap as (distance within the lap, road offset) pairs. */
+  raceLine: { track: TrackId; lap: number; lapTime: number; samples: [number, number][] } | null;
   coinsGained: number;
   creditsGained: number;
   gemsGained: number;
@@ -310,6 +312,12 @@ export class OvertakeGame {
   private speed = 0;
   private steer = 0;
   private playerS = 0;
+  // Post-race line comparison: the best lap is sampled in road coordinates.
+  private lineLap = 0;
+  private lineLastS = 0;
+  private lineSamples: [number, number][] = [];
+  private lineLaps: { lap: number; time: number; samples: [number, number][] }[] = [];
+  private raceLine: { track: TrackId; lap: number; lapTime: number; samples: [number, number][] } | null = null;
   private offset = PLAYER_LANE;
   private vehicle = createVehicleState();
 
@@ -1874,6 +1882,7 @@ export class OvertakeGame {
     this.vehicle=createVehicleState(); this.vehicle.s=-36; this.vehicle.offset=-3;
     this.speed=0; this.steer=0; this.playerS=-36; this.offset=-3;
     this.raceCountdown=3; this.raceFinishPosition=null; this.raceTiming=createLapTiming();
+    this.lineLap=0; this.lineLastS=0; this.lineSamples=[]; this.lineLaps=[]; this.raceLine=null;
     const playerSpec=getCar(this.selected), engineLevel=effectiveUpgrades(this.progression,this.selected).engine;
     // Closest performance tiers keep the first race competitive while ensuring
     // every AI car is one of the currently playable models, never traffic-only.
@@ -1907,7 +1916,7 @@ export class OvertakeGame {
       this.updateCamera(dt);this.updateWorld(dt);this.emitHud();return;
     }
     const spec=getCar(this.selected), upgrades=effectiveUpgrades(this.progression,this.selected);
-    const params={...vehicleParameters(spec,upgrades,this.library.getCustomization(this.selected).tireWidth,weatherGrip(this.weather)), roadAssist:false};
+    const params={...vehicleParameters(spec,upgrades,this.library.getCustomization(this.selected).tireWidth,weatherGrip(this.weather))};
     const previous=this.vehicle.s, previousOffset=this.vehicle.offset, steps=Math.max(1,Math.ceil(dt/(1/120))), h=dt/steps;
     const track=getTrack(this.raceTrack), raceDistance=track.length*track.laps;
     for(let i=0;i<steps;i++) {
@@ -1956,7 +1965,9 @@ export class OvertakeGame {
     const elapsedBefore=this.run.elapsed;
     this.handleRunEvents(tickRun(this.run,dt,this.speed));
     recordLapCrossings(this.raceTiming,previous,this.playerS,elapsedBefore,this.run.elapsed,track.length,track.laps);
+    this.recordRaceLine(track);
     if(this.playerS>=raceDistance) {
+      this.closeRaceLineLap();
       this.raceFinishPosition=trackRacePosition(this.playerS,this.circuitRivals,this.raceTrack);
       this.run.racePosition=this.raceFinishPosition;
       this.run.score += [3000,2200,1600,1100,800,500][Math.min(5,this.raceFinishPosition-1)];
@@ -1968,6 +1979,41 @@ export class OvertakeGame {
       this.endRun('distance');return;
     }
     this.updateCamera(dt);this.updateWorld(dt);this.emitHud();
+  }
+
+  /** Capture the player's line for the post-race comparison. Samples are
+   * taken in road coordinates so they line up with the track map at any
+   * resolution. A few metres between samples is plenty for a drawn line. */
+  private recordRaceLine(track: ReturnType<typeof getTrack>) {
+    if (this.raceCountdown > 0 || this.playerS < 0) return;
+    const raceDistance = track.length * track.laps;
+    const progress = Math.min(this.playerS, raceDistance - 1e-6);
+    const lap = Math.min(track.laps - 1, Math.floor(progress / track.length));
+    if (lap !== this.lineLap) {
+      this.lineLaps.push({ lap: this.lineLap, time: this.raceTiming.lapTimes[this.lineLap] ?? 0, samples: this.lineSamples });
+      this.lineSamples = [];
+      this.lineLap = lap;
+      this.lineLastS = lap * track.length;
+    }
+    if (this.lineSamples.length === 0 || progress - this.lineLastS >= 2 || this.playerS >= raceDistance - .5) {
+      this.lineSamples.push([progress - lap * track.length, this.offset]);
+      this.lineLastS = progress;
+    }
+  }
+
+  /** Keep the best timed lap; fall back to the longest sample set. */
+  private closeRaceLineLap() {
+    if (this.lineSamples.length >= 8) {
+      this.lineLaps.push({ lap: this.lineLap, time: this.raceTiming.lapTimes[this.lineLap] ?? 0, samples: this.lineSamples });
+    }
+    this.lineSamples = [];
+    const timed = this.lineLaps.filter(lap => lap.time > 0 && lap.samples.length >= 8);
+    const pool = timed.length ? timed : this.lineLaps.filter(lap => lap.samples.length >= 8);
+    if (!pool.length) { this.raceLine = null; return; }
+    const best = timed.length
+      ? pool.reduce((a, b) => b.time < a.time ? b : a)
+      : pool.reduce((a, b) => b.samples.length > a.samples.length ? b : a);
+    this.raceLine = { track: this.raceTrack, lap: best.lap, lapTime: best.time, samples: best.samples };
   }
 
   private updateDriving(dt: number) {
@@ -2146,7 +2192,7 @@ export class OvertakeGame {
       score: this.score, distance: this.distance, overtakes: this.overtakes, nearMisses: this.nearMisses,
       best: this.best, newBest: result.newBest, mode: this.run.mode, car: this.selected,
       topSpeed: this.run.topSpeed, contractsDone: this.run.contractsDone, contractsTotal: this.run.contracts.length, bestTime: this.records.modes.trial.bestTime, devRun: this.runUsedDev, elapsed: this.run.elapsed,
-      medal: result.medal, reason, ghostNewBest, racePosition: this.run.mode === 'circuit' || this.run.mode === 'ranked' ? this.raceFinishPosition : null, raceLapTimes: this.run.mode === 'circuit' || this.run.mode === 'ranked' ? [...this.raceTiming.lapTimes] : [], coinsGained: progress.coinsGained, creditsGained: progress.creditsGained, gemsGained:this.runGemsGained, ranked,
+      medal: result.medal, reason, ghostNewBest, racePosition: this.run.mode === 'circuit' || this.run.mode === 'ranked' ? this.raceFinishPosition : null, raceLapTimes: this.run.mode === 'circuit' || this.run.mode === 'ranked' ? [...this.raceTiming.lapTimes] : [], raceLine: this.raceLine, coinsGained: progress.coinsGained, creditsGained: progress.creditsGained, gemsGained:this.runGemsGained, ranked,
     });
   }
 

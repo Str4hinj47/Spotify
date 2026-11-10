@@ -14,7 +14,8 @@ import { hexToNumber, sanitizePaints } from './paint.mjs';
 import { BODY_FITS } from './body-kits';
 import { isDriftCar } from './drift.mjs';
 import { createRaceMap, raceGaps, lapComparison, rearProximity, type RaceMap } from './race-hud.mjs';
-import { getTrack, type TrackId } from './circuit.mjs';
+import { getTrack, trackSample, type TrackId } from './circuit.mjs';
+import { referenceLine, resampleLine } from './racing-line.mjs';
 import { LIVERIES } from './livery';
 import { performanceStats } from './car-performance.mjs';
 import { LIVERY_OPTIONS } from './content/cosmetics.mjs';
@@ -833,6 +834,51 @@ $('promotion-close').addEventListener('click',hidePromotion);
 document.addEventListener('keydown',event=>{if(event.key==='Escape' && !$('rank-promotion').classList.contains('hidden')) {event.preventDefault();event.stopImmediatePropagation();hidePromotion();}},true);
 
 let latestResult: RunStats | null = null;
+/** Draw the player's best lap over a geometric reference line. The map is in
+ * road coordinates, so it works unchanged on every circuit. */
+function drawRaceLine(s: RunStats) {
+  const panel=$('race-line'), line=s.raceLine;
+  panel.classList.toggle('hidden',!line);
+  if(!line) return;
+  $('race-line-lap').textContent=String(line.lap+1);
+  $('race-line-note').textContent=line.lapTime>0 ? `${formatTime(line.lapTime)} · the gold line cuts the inside of each bend.` : 'The green line cuts the inside of each bend.';
+  const canvas=$<HTMLCanvasElement>('race-line-map');
+  const rect=canvas.getBoundingClientRect();
+  if(rect.width<20 || rect.height<20) return;
+  const dpr=Math.min(2,window.devicePixelRatio||1),w=rect.width,h=rect.height;
+  canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+  const ctx=canvas.getContext('2d');
+  if(!ctx) return;
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+  const reference=referenceLine(line.track),track=getTrack(line.track),n=reference.samples.length;
+  const world=(at:number,offset:number)=>{const p=trackSample(at,line.track);return [p.x+Math.cos(p.yaw)*offset,p.z-Math.sin(p.yaw)*offset] as [number,number]};
+  const centre=reference.samples.map(p=>world(p.s,0)),left=reference.samples.map(p=>world(p.s,track.halfWidth)),right=reference.samples.map(p=>world(p.s,-track.halfWidth));
+  const xs=[...left,...right].map(p=>p[0]),zs=[...left,...right].map(p=>p[1]);
+  const minX=Math.min(...xs),maxX=Math.max(...xs),minZ=Math.min(...zs),maxZ=Math.max(...zs);
+  const pad=8,scale=Math.min((w-pad*2)/Math.max(1e-6,maxX-minX),(h-pad*2)/Math.max(1e-6,maxZ-minZ));
+  const ox=(w-(maxX-minX)*scale)/2,oz=(h-(maxZ-minZ)*scale)/2;
+  // Same orientation as the in-race minimap so the shapes read alike.
+  const map=(p:[number,number]):[number,number]=>[ox+(p[0]-minX)*scale,oz+(p[1]-minZ)*scale];
+  const path=(points:[number,number][])=>{ctx.beginPath();points.forEach((p,i)=>{const [x,y]=map(p);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.closePath()};
+  // Asphalt, then the two edges.
+  path([...left,...right.slice().reverse()]);ctx.fillStyle='#12232e';ctx.fill();
+  ctx.lineJoin='round';ctx.lineWidth=1;ctx.strokeStyle='#2c4653';ctx.stroke();
+  // Centreline for context.
+  ctx.beginPath();centre.forEach((p,i)=>{const [x,y]=map(p);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.closePath();
+  ctx.setLineDash([3,5]);ctx.lineWidth=1;ctx.strokeStyle='#38566a';ctx.stroke();ctx.setLineDash([]);
+  const polyline=(points:[number,number][],colour:string,width:number,glow=0,dash:number[]=[])=>{
+    ctx.beginPath();points.forEach((p,i)=>{const [x,y]=map(p);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.closePath();
+    ctx.setLineDash(dash);ctx.lineWidth=width;ctx.strokeStyle=colour;ctx.shadowColor=colour;ctx.shadowBlur=glow;ctx.stroke();ctx.shadowBlur=0;ctx.setLineDash([]);
+  };
+  const player=resampleLine(line.samples,reference.length,n).map(p=>world(p.s,p.offset));
+  if(player.length>1)polyline(player,'#62eaff',2.4,7);
+  // The reference is dashed and sits on top, so it stays readable where the
+  // two lines coincide instead of being hidden by the brighter player line.
+  polyline(reference.samples.map(p=>world(p.s,p.offset)),'#ffcf6a',2,4,[4,4]);
+  // Start/finish tick.
+  const [sx1,sy1]=map(world(0,track.halfWidth)),[sx2,sy2]=map(world(0,-track.halfWidth));
+  ctx.beginPath();ctx.moveTo(sx1,sy1);ctx.lineTo(sx2,sy2);ctx.lineWidth=2;ctx.strokeStyle='#e9f3ed';ctx.stroke();
+}
 function onGameOver(s: RunStats) {
   syncTopWallet();
   latestResult = s;
@@ -887,7 +933,16 @@ function onGameOver(s: RunStats) {
   medal.classList.toggle('hidden', !s.medal);
   medal.textContent = s.medal ? `${s.medal} medal` : '';
   syncModeUI(); syncRankUI();
+  drawRaceLine(s);
 }
+// The map is drawn from the canvas's box, so it needs a redraw when the
+// results panel is laid out again (rotation, resize, browser zoom).
+let lineRedraw=0;
+window.addEventListener('resize',()=>{
+  if(!latestResult || $('gameover').classList.contains('hidden')) return;
+  cancelAnimationFrame(lineRedraw);
+  lineRedraw=requestAnimationFrame(()=>drawRaceLine(latestResult!));
+});
 
 function startRun() {
   if (!game.canDrive(selected)) return;

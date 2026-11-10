@@ -6,27 +6,31 @@ import { resolveCircuitCarContact } from './circuit-contact.mjs';
 import { roadFrameRates } from './physics.mjs';
 
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+// Ranked fields are meant to be fast enough to punish a scruffy lap. Grip and
+// braking are cornering accelerations in m/s^2, so these sit at the top of the
+// player's upgraded envelope (a fully upgraded car corners near 10 m/s^2)
+// rather than at the old, deliberately slow traffic-AI values.
 const profiles=[
- {pace:.94,grip:5.6,braking:8.7,line:-.55,side:-1},
- {pace:.90,grip:5.3,braking:8.2,line:.65,side:1},
- {pace:1.00,grip:6.3,braking:9.2,line:.15,side:1},
- {pace:.97,grip:5.9,braking:8.6,line:-.2,side:-1},
- {pace:.99,grip:6.1,braking:9.0,line:.45,side:1},
+ {pace:1.05,grip:9.9,braking:12.0,line:-.55,side:-1},
+ {pace:1.01,grip:9.2,braking:11.3,line:.65,side:1},
+ {pace:1.10,grip:10.7,braking:13.0,line:.15,side:1},
+ {pace:1.04,grip:9.6,braking:11.8,line:-.2,side:-1},
+ {pace:1.08,grip:10.3,braking:12.6,line:.45,side:1},
 ];
 const driftProfiles=[
- {pace:.84,grip:4.5,braking:8.0,line:-.55,side:-1},
- {pace:.76,grip:4.2,braking:7.4,line:.65,side:1},
- {pace:.94,grip:5.1,braking:8.6,line:.15,side:1},
- {pace:.89,grip:4.7,braking:7.8,line:-.2,side:-1},
- {pace:.93,grip:5.0,braking:8.3,line:.45,side:1},
+ {pace:.96,grip:7.8,braking:10.6,line:-.55,side:-1},
+ {pace:.90,grip:7.2,braking:10.0,line:.65,side:1},
+ {pace:1.03,grip:8.6,braking:11.4,line:.15,side:1},
+ {pace:.99,grip:8.0,braking:10.8,line:-.2,side:-1},
+ {pace:1.02,grip:8.4,braking:11.2,line:.45,side:1},
 ];
 // Fixed pre-race tuning, not a catch-up boost: opponents get the same engine
 // upgrade tier as the selected car, including developer-mode max upgrades.
 export function raceRivalPerformance(car, player, engineLevel, kind) {
- if(kind==='drift') return {targetSpeed:Math.min(car.maxSpeed*.95,player.maxSpeed*.70),acceleration:car.accel*.85};
+ if(kind==='drift') return {targetSpeed:Math.min(car.maxSpeed*.99,player.maxSpeed*.94),acceleration:car.accel*.97};
  const level=clamp(Number(engineLevel)||0,0,3);
- const targetSpeed=Math.min(car.maxSpeed*1.06,player.maxSpeed*(kind==='drift'?.80:1.02))*(1+level*.04);
- return {targetSpeed,acceleration:car.accel*(1+level*.08)*.96};
+ const targetSpeed=Math.min(car.maxSpeed*1.06,player.maxSpeed*(kind==='drift'?.80:1.05))*(1+level*.04);
+ return {targetSpeed,acceleration:car.accel*(1+level*.08)*1.02};
 }
 export function raceDriverProfile(index,kind='race') { const list=kind==='drift'?driftProfiles:profiles; return {...list[((index%list.length)+list.length)%list.length]}; }
 
@@ -54,8 +58,8 @@ export function cornerSpeedLimit(driver,trackId,surface=1) {
  * No teleports or speed boosts: positions evolve continuously in stepRival. */
 export function planRaceDriver(driver,others,trackId,surface=1) {
   const track=getTrack(trackId), maxOffset=Math.max(1,track.halfWidth-driver.width/2-1);
-  const curve=trackSample(driver.progress+35,trackId).curvature;
-  const apex=clamp(-curve*240,-2.2,2.2);
+  const curve=trackSample(driver.progress+40,trackId).curvature;
+  const apex=clamp(-curve*520,-maxOffset*.42,maxOffset*.42);
   const line=clamp(apex+driver.profile.line,-maxOffset,maxOffset);
   const near=others.map(o=>({...o,gap:raceGap(driver.progress,o.progress,track.length)}));
   const clearance=(other)=> (driver.width+other.width)*.5+.7;
@@ -97,6 +101,10 @@ export function planRaceDriver(driver,others,trackId,surface=1) {
   // close the gap instead of stopping dead or driving through the opponent.
   for(const other of near) {
     if(other.gap<=0 || other.gap>lookAhead || Math.abs(other.offset-driver.offset)>=clearance(other))continue;
+    // Once a pass is committed and the car has moved most of the way out of
+    // the slower car's lane, stop matching its speed: otherwise a slow car in
+    // a corner can trap a faster rival alongside it indefinitely.
+    if(passTarget!==null && other.key===passTarget && Math.abs(other.offset-driver.offset)>clearance(other)*.62) continue;
     const safe=(driver.length+other.length)*.5+2.5;
     desired=Math.min(desired,Math.max(0,other.speed+(other.gap-safe)*.55));
   }
@@ -112,7 +120,9 @@ export function stepRaceDriver(driver,plan,dt,trackId,surface=1) {
   // and its forward velocity advances both track progress and lateral offset.
   // The track tangent is only the coordinate frame, not a teleport or yaw set.
   const maxOffset=getTrack(trackId).halfWidth-driver.width/2-1;
-  const lateralRate=Math.min(2.8,Math.max(.5,driver.speed*.12));
+  // A floor keeps low-speed lane changes decisive: a rival crawling behind a
+  // stopped car must still be able to steer around it.
+  const lateralRate=Math.min(2.8,Math.max(1.3,driver.speed*.12));
   const desiredLateral=clamp((plan.targetOffset-driver.offset)*.7,-lateralRate,lateralRate);
   const curvature=trackSample(driver.progress,trackId).curvature;
   const speed=Math.max(driver.speed,2);

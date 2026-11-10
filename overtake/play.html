@@ -442,6 +442,14 @@
           <div><b id="final-best">0</b><span id="final-best-label">Personal best</span></div>
         </div>
         <div id="race-laps" class="race-laps hidden" aria-label="Race lap times"></div>
+        <div id="race-line" class="race-line hidden">
+          <canvas id="race-line-map" role="img" aria-label="Your racing line compared with the reference line"></canvas>
+          <div class="race-line-legend">
+            <span><i class="race-line-swatch player" aria-hidden="true"></i>Your line · lap <b id="race-line-lap">1</b></span>
+            <span><i class="race-line-swatch reference" aria-hidden="true"></i>Reference line</span>
+            <small id="race-line-note">Both lines from above. The reference cuts the inside of each bend.</small>
+          </div>
+        </div>
         <div id="final-ranked" class="final-ranked hidden" aria-live="polite"><div id="final-rank-badge" class="final-rank-badge"></div><div><span id="final-rank-label"></span><b id="final-rank-change"></b><small id="final-rank-message"></small></div></div>
         <div id="final-progress" class="final-progress" aria-live="polite"></div>
         <button id="btn-share-result" class="secondary" type="button">Share result</button>

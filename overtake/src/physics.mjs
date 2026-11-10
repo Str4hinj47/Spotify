@@ -45,12 +45,11 @@ export function stepVehicle(st, input, p, dt, curvature = 0) {
   const maxSteer = (p.maxSteer ?? 0.5) / (1 + Math.pow(st.speed / 20, 2));
   const steerAngle = st.steer * maxSteer;
   const understeer = 1 + (p.understeer ?? 0.003) * st.speed * st.speed;
-  // Highway driving retains its gentle road-following assist. On a circuit,
-  // the driver must steer through the bend; road-relative heading still
-  // subtracts the rotation of the track in both modes.
+  // No mode steers the car for the player. Road-relative heading still
+  // subtracts the rotation of the track so that a straight-ahead car tracks
+  // the road's direction, but any change of direction comes from the driver.
   const feed = curvature * roadFrameRates(st.speed,st.heading,st.offset,curvature).progress;
-  const assist = p.roadAssist !== false;
-  let desiredYaw = st.speed * Math.tan(steerAngle) / (p.wheelbase ?? 2.7) / understeer + (assist ? feed : 0);
+  const desiredYaw = st.speed * Math.tan(steerAngle) / (p.wheelbase ?? 2.7) / understeer;
 
   // Lateral load transfer costs a little total grip; handbrake unlocks the rear.
   const latUse = Math.min(1, Math.abs(st.latAccel) / G);
@@ -98,14 +97,13 @@ export function stepVehicle(st, input, p, dt, curvature = 0) {
   // Heading is relative to the road tangent. Curvature rotates the tangent.
   st.heading += (st.yawRate - feed) * dt;
   if (Math.abs(raw) < 0.05) {
-    // Self-centring stability: the car straightens when you release the wheel,
-    // but it does not steer back into a lane or change offset for you.
-    st.yawRate += ((assist ? feed : 0) - st.yawRate) * Math.min(1, dt * 3.0);
-    if (assist) st.heading *= Math.exp(-dt * 2.2);
+    // Self-centring stability only bleeds off rotation; it never points the
+    // car at a lane or a wall.
+    st.yawRate += (0 - st.yawRate) * Math.min(1, dt * 3.0);
   }
-  // Circuit headings must not snap to a 51-degree limit: that forces the
-  // car to turn with the road and makes recovery at a wall feel unnatural.
-  st.heading = assist ? clamp(st.heading,-.9,.9) : Math.atan2(Math.sin(st.heading),Math.cos(st.heading));
+  // Headings are unbounded: a clamp would force the car to turn with the
+  // road and make recovery at a wall feel unnatural.
+  st.heading = Math.atan2(Math.sin(st.heading),Math.cos(st.heading));
   // Trapezoidal distance integration, including the fraction of a step
   // actually spent moving if braking brings the car to rest mid-step.
   const movingTime=st.speed===0 && oldSpeed!==0 && st.accel*oldSpeed<0 ? Math.min(dt,Math.abs(oldSpeed/st.accel)) : dt;
