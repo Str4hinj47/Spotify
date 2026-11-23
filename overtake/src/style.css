@@ -703,6 +703,7 @@ button.season-card{ cursor:pointer; } button.season-card:hover{ border-color:var
 
 /* Season 01: daily card, events, challenge, share */
 .mode-select{ grid-template-columns:1fr 1fr; } .mode-card.daily-card{ grid-column:1 / -1; border-color:rgba(255,176,46,.45); }
+.mode-card.city-card{ grid-column:1 / -1; }
 .mode-card.daily-card.active{ border-color:var(--warm); background:rgba(255,176,46,.12); }
 .event-banner{ margin:0 0 10px; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,176,46,.5);
   background:rgba(255,176,46,.10); font-size:11.5px; line-height:1.5; color:var(--text); }
@@ -721,3 +722,31 @@ body.lite-preview .car-card img { width: 64px; height: 34px; }
 body.lite-preview .hud-value { font-size: 30px; }
 body.lite-preview .contract-card { width: 168px; padding: 9px 11px; }
 body.lite-preview .season-hub, body.lite-preview .event-banner { margin-bottom: 8px; }
+
+/* --- Central City free-roam mode --------------------------------------- */
+.city-card {
+  border-color: rgba(94, 234, 212, 0.28) !important;
+}
+.city-card .mode-name {
+  color: #7de8cf;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.city-card .mode-name svg {
+  width: 15px;
+  height: 15px;
+}
+.city-card:hover {
+  border-color: rgba(94, 234, 212, 0.55) !important;
+  box-shadow: 0 0 22px rgba(45, 212, 191, 0.12);
+}
+/* In the city there is no scoring: hide the run chrome, keep the
+   instruments, environment chip and turn signals. */
+body.city-mode .hud-left,
+body.city-mode #contract-card,
+body.city-mode .hud-meta,
+body.city-mode #run-clock,
+body.city-mode #speed-cluster .boost-bar {
+  display: none !important;
+}

@@ -21,17 +21,27 @@ function shade(geo: THREE.BufferGeometry, value: number) {
   geo.setAttribute('color', new THREE.BufferAttribute(color, 3));
   return geo;
 }
-export function createTreeGeometries() {
+const LOD_LOBE_DETAIL = { high: 2, low: 1 } as const;
+const LOD_LOBES = { high: 19, low: 9 } as const;
+const LOD_BRANCHES = { high: 10, low: 4 } as const;
+
+/**
+ * `detail: 'low'` is for the city, where hundreds of trees share the frame:
+ * it keeps the layered, multi-toned crown silhouette at roughly a third of
+ * the triangles of the highway's hero trees.
+ */
+export function createTreeGeometries(detail: 'high' | 'low' = 'high') {
+  const lobeCount = LOD_LOBES[detail], lobeDetail = LOD_LOBE_DETAIL[detail], branchCount = LOD_BRANCHES[detail];
   const wood: THREE.BufferGeometry[] = [branch(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 5.6, 0), 0.32)];
   const leaves: THREE.BufferGeometry[] = [];
   // Several overlapping lobes form an irregular, multi-toned broadleaf crown.
-  for (let i = 0; i < 19; i++) {
+  for (let i = 0; i < lobeCount; i++) {
     const angle = i * 2.39996;
     const radius = i === 0 ? 0 : 0.65 + (i % 5) * 0.36;
     const x = Math.cos(angle) * radius, z = Math.sin(angle) * radius;
     const y = 4.2 + (i % 4) * 0.62 + (i % 3) * 0.15;
-    if (i < 10) wood.push(branch(new THREE.Vector3(0, 2.4 + (i % 3) * 0.35, 0), new THREE.Vector3(x, y, z), 0.12));
-    const lobe = new THREE.IcosahedronGeometry(1, 2);
+    if (i < branchCount) wood.push(branch(new THREE.Vector3(0, 2.4 + (i % 3) * 0.35, 0), new THREE.Vector3(x, y, z), 0.12));
+    const lobe = new THREE.IcosahedronGeometry(1, lobeDetail);
     lobe.scale(1.1 + (i % 3) * 0.14, 0.8 + (i % 4) * 0.08, 1.05 + (i % 2) * 0.2);
     lobe.translate(x, y, z);
     leaves.push(shade(lobe, 0.68 + (i % 5) * 0.07));

@@ -1,5 +1,5 @@
 import '@fontsource-variable/inter';
-import { createIcons, Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor, Globe, CalendarClock, Share2 } from 'lucide';
+import { createIcons, Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor, Globe, CalendarClock, Share2, Building2 } from 'lucide';
 import { fetchLeaderboard, onAuthChange, saveCloudGarage, signIn, signOut, signUp, submitScore, type OnlineUser } from './online';
 import { ModelLibrary } from './models';
 import { OvertakeGame, CAMERA_ORDER, type Mode, type HudState, type RunStats, type CameraPreset } from './game';
@@ -13,7 +13,7 @@ import { BODY_FITS } from './body-kits';
 import { LIVERIES } from './livery';
 import { BODY_PARTS, DEFAULT_CUSTOMIZATION, sanitizeCustomization, sanitizeCustomizations, type Customization } from './customization.mjs';
 
-createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor, Globe, CalendarClock, Share2 } });
+createIcons({ icons: { Trophy, Volume2, VolumeX, HelpCircle, Pause, Play, Route, Zap, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Home, Camera, AlertTriangle, SunMoon, Clock, CloudSun, Mountain, Timer, Target, Gauge, SlidersHorizontal, Monitor, Globe, CalendarClock, Share2, Building2 } });
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
@@ -286,18 +286,25 @@ function selectCar(id: CarId) {
 }
 
 function setMode(m: Mode) {
-  audio.setActive(m === 'driving');
+  const inRun = m === 'driving' || m === 'city';
+  audio.setActive(inRun);
   if (m === 'garage') { syncModeUI(); syncProgressionUI(); }
+  document.body.classList.toggle('city-mode', m === 'city');
   $('garage').classList.toggle('hidden', m !== 'garage');
   $('hud').classList.toggle('hidden', m === 'garage');
   $('pause').classList.toggle('hidden', m !== 'paused');
   $('gameover').classList.toggle('hidden', m !== 'gameover');
-  $('btn-pause').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
-  $('btn-camera').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
-  $('btn-world').classList.toggle('hidden', m !== 'driving' && m !== 'paused');
+  if (m === 'city' || (m === 'paused' && game.inCity)) {
+    $('pause-note').textContent = 'Central City will wait. Esc resumes the drive.';
+  } else {
+    $('pause-note').textContent = 'The highway will wait.';
+  }
+  $('btn-pause').classList.toggle('hidden', !inRun && m !== 'paused');
+  $('btn-camera').classList.toggle('hidden', !inRun && m !== 'paused');
+  $('btn-world').classList.toggle('hidden', !inRun && m !== 'paused');
   closeSoundPanel();
   closeGraphicsPanel();
-  if (m !== 'driving' && m !== 'paused') {
+  if (m !== 'driving' && m !== 'paused' && m !== 'city') {
     $('camera-panel').classList.add('hidden');
     $('world-panel').classList.add('hidden');
   }
@@ -543,6 +550,16 @@ function onGameOver(s: RunStats) {
   syncModeUI();
 }
 
+function startCity() {
+  closeSoundPanel();
+  closeGraphicsPanel();
+  $('camera-panel').classList.add('hidden');
+  $('world-panel').classList.add('hidden');
+  audio.setCar(selected);
+  void audio.unlock();
+  game.startCity();
+}
+
 function startRun() {
   if (!game.canDrive(selected)) return;
   closeSoundPanel();
@@ -555,7 +572,7 @@ function startRun() {
 }
 
 function togglePause() {
-  if (game.mode === 'driving') game.pause();
+  if (game.mode === 'driving' || game.mode === 'city') game.pause();
   else if (game.mode === 'paused') game.resume();
 }
 
@@ -630,7 +647,7 @@ function toggleMute() {
 function openHelp() {
   closeSoundPanel();
   closeGraphicsPanel();
-  helpPaused = game.mode === 'driving';
+  helpPaused = game.mode === 'driving' || game.mode === 'city';
   if (helpPaused) game.pause();
   $('help').classList.remove('hidden');
 }
@@ -642,7 +659,7 @@ function closeHelp() {
 
 function bindHold(id: string, name: 'throttle' | 'brake' | 'left' | 'right' | 'handbrake') {
   const el = $(id);
-  const down = (e: Event) => { e.preventDefault(); if (game.mode === 'driving') game.setInput(name, true); };
+  const down = (e: Event) => { e.preventDefault(); if (game.mode === 'driving' || game.mode === 'city') game.setInput(name, true); };
   const up = () => game.setInput(name, false);
   el.addEventListener('pointerdown', down);
   el.addEventListener('pointerup', up);
@@ -664,8 +681,10 @@ function bindUI() {
   });
   $('buy-car').addEventListener('click', () => { if (game.purchaseCar(selected)) { syncProgressionUI(); audio.click(); } });
   document.querySelectorAll<HTMLButtonElement>('.mode-card').forEach((b) => {
+    if (!b.dataset.mode) return;
     b.addEventListener('click', () => selectMode(b.dataset.mode as RunMode));
   });
+  $('city-card').addEventListener('click', startCity);
   $('btn-pause').addEventListener('click', togglePause);
   $('btn-camera').addEventListener('click', toggleCameraPanel);
   $('btn-world').addEventListener('click', toggleWorldPanel);
@@ -895,7 +914,7 @@ function bindUI() {
     }
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable || (target.tagName === 'BUTTON' && e.key === 'Enter'))) return;
     const name = keyMap[e.key];
-    if (name) { e.preventDefault(); if (game.mode === 'driving') game.setInput(name, true); return; }
+    if (name) { e.preventDefault(); if (game.mode === 'driving' || game.mode === 'city') game.setInput(name, true); return; }
     if (!e.repeat && (e.key === 'q' || e.key === 'Q')) { e.preventDefault(); game.toggleSignal('left'); return; }
     if (!e.repeat && (e.key === 'e' || e.key === 'E')) { e.preventDefault(); game.toggleSignal('right'); return; }
     switch (e.key) {
@@ -919,10 +938,10 @@ function bindUI() {
   });
   window.addEventListener('blur', () => {
     for (const n of ['throttle', 'brake', 'left', 'right', 'handbrake'] as const) game.setInput(n, false);
-    if (game.mode === 'driving') game.pause();
+    if (game.mode === 'driving' || game.mode === 'city') game.pause();
   });
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && game.mode === 'driving') game.pause();
+    if (document.hidden && (game.mode === 'driving' || game.mode === 'city')) game.pause();
   });
 }
 

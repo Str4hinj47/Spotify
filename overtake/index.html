@@ -122,6 +122,11 @@
             <span class="mode-desc">Same seed worldwide · 90s</span>
             <span class="mode-best">Best <b id="mode-best-daily">0</b></span>
           </button>
+          <button id="city-card" class="mode-card city-card" type="button">
+            <span class="mode-name"><i data-lucide="building-2"></i> Central City</span>
+            <span class="mode-desc">Open-world free roam — shops, park & parking</span>
+            <span class="mode-best">No timers · no scoring</span>
+          </button>
         </div>
         <div id="recent-runs" class="recent-runs hidden">
           <div class="paint-head"><span>Recent runs</span><span id="recent-mode" class="count"></span></div>
@@ -305,7 +310,7 @@
     <div id="pause" class="overlay hidden">
       <div class="modal">
         <h2>Paused</h2>
-        <p>The highway will wait.</p>
+        <p id="pause-note">The highway will wait.</p>
         <button id="btn-resume" class="primary"><i data-lucide="play"></i> Resume</button>
         <button id="btn-pause-graphics" class="ghost" aria-controls="graphics-panel" aria-expanded="false"><i data-lucide="monitor"></i> Graphics settings</button>
         <button id="btn-pause-sound" class="ghost" aria-controls="sound-panel" aria-expanded="false"><i data-lucide="sliders-horizontal"></i> Sound settings</button>

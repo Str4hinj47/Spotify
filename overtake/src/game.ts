@@ -37,8 +37,10 @@ import { createTrafficAI, findLeader, stepTraffic, hazardAhead, trafficCruise, c
 import { chooseTrafficModel, chooseTrafficPaint } from './traffic-appearance.mjs';
 import { emptyRecords, sanitizeRecords, recordRun, bestFor, type Records } from './records.mjs';
 import { emptyProgression, sanitizeProgression, canDriveCar, awardProgress, buyCar, buyUpgrade, buyTune, effectiveUpgrades, type Progression, type Upgrade } from './progression.mjs';
+import { CityWorld } from './world/city';
+import { createCityCar, stepCityCar, resolveCollisions } from './world/city-plan.mjs';
 
-export type Mode = 'garage' | 'driving' | 'paused' | 'gameover';
+export type Mode = 'garage' | 'driving' | 'paused' | 'gameover' | 'city';
 export type CameraPreset = 'close' | 'chase' | 'far' | 'hood' | 'bumper' | 'free';
 
 export interface CameraSettings {
@@ -286,6 +288,13 @@ export class OvertakeGame {
 
   private run: RunState = createRun('endless');
   private runMode: RunMode = 'endless';
+  private cityWorld!: CityWorld;
+  private cityCar = createCityCar();
+  private cityOdometer = 0;
+  private cityElapsed = 0;
+  private pausedFrom: 'driving' | 'city' = 'driving';
+  /** True while the free-roam city is the active mode or the paused context. */
+  inCity = false;
   private records: Records = emptyRecords();
   private progression: Progression = emptyProgression();
   private progressionSettled = true;
@@ -356,9 +365,10 @@ export class OvertakeGame {
     this.buildScenery();
     this.cb.onBootStage?.('garage');
     this.buildGarage();
+    this.cityWorld = new CityWorld(this.library);
     this.buildContactShadow();
     this.buildHeadlights();
-    this.scene.add(this.roadGroup, this.garageGroup, this.mountains);
+    this.scene.add(this.roadGroup, this.garageGroup, this.mountains, this.cityWorld.group);
     // Canvas antialiasing does not affect the composer's offscreen buffers.
     // Multisample those buffers so car silhouettes remain smooth in motion.
     const samples = testMode || this.liteMode ? 0 : Math.min(4, this.renderer.capabilities.maxSamples);
@@ -432,7 +442,7 @@ export class OvertakeGame {
   private bindGarageOrbit(canvas: HTMLCanvasElement) {
     let lastX = 0, lastY = 0;
     canvas.addEventListener('pointerdown', (e) => {
-      if (this.mode === 'driving' && this.cam.preset === 'free') {
+      if ((this.mode === 'driving' || this.mode === 'city') && this.cam.preset === 'free') {
         this.freeDragging = true; this.freeIdle = 0; lastX = e.clientX; lastY = e.clientY;
         canvas.setPointerCapture(e.pointerId); return;
       }
@@ -442,7 +452,7 @@ export class OvertakeGame {
       canvas.setPointerCapture(e.pointerId);
     });
     canvas.addEventListener('pointermove', (e) => {
-      if (this.freeDragging && this.mode === 'driving' && this.cam.preset === 'free') {
+      if (this.freeDragging && (this.mode === 'driving' || this.mode === 'city') && this.cam.preset === 'free') {
         this.freeYaw -= (e.clientX - lastX) * .006 * this.freeCamera.sensitivity;
         this.freePitch = THREE.MathUtils.clamp(this.freePitch + (e.clientY - lastY) * .004 * this.freeCamera.sensitivity, -.42, 1.12);
         this.freeIdle = 0; lastX = e.clientX; lastY = e.clientY; return;
@@ -1373,19 +1383,29 @@ export class OvertakeGame {
     glow.frustumCulled=false;
   }
 
-  private setEnvironment(mode: 'garage' | 'road') {
+  private setEnvironment(mode: 'garage' | 'road' | 'city') {
     if (mode === 'garage') {
       this.scene.environment = this.studioEnv;
       this.atmosphere.setGarage();
       this.roadGroup.visible = false; this.garageGroup.visible = true; this.mountains.visible = false;
+      this.cityWorld.setVisible(false);
       this.contactShadow.visible = false;
       this.precipitation.setVisible(false);
       this.spray.clear();
       for (const h of this.headlights) h.intensity = 0;
-    } else {
+    } else if (mode === 'road') {
       this.scene.environment = this.roadEnv;
       this.roadGroup.visible = true; this.garageGroup.visible = false; this.mountains.visible = true;
+      this.cityWorld.setVisible(false);
       this.contactShadow.visible = true;
+      this.precipitation.setVisible(true);
+    } else {
+      // Central City: flat urban district, shares the road atmosphere,
+      // weather, precipitation and camera behaviours.
+      this.scene.environment = this.roadEnv;
+      this.roadGroup.visible = false; this.garageGroup.visible = false; this.mountains.visible = false;
+      this.cityWorld.setVisible(true);
+      this.contactShadow.visible = false;
       this.precipitation.setVisible(true);
     }
   }
@@ -1438,8 +1458,35 @@ export class OvertakeGame {
     this.updateCamera(0);
   }
 
+  /** Central City — open-world free roam. No timer, no score, no traffic.
+   *  Reuses the road atmosphere, weather, precipitation, camera presets
+   *  and the player's car. Buildings are the Blender-designed GLB pack. */
+  startCity(): boolean {
+    if (this.mode !== 'garage' && this.mode !== 'gameover') return false;
+    if (!this.canDrive(this.selected)) return false;
+    this.progressionSettled = true;
+    this.clearTraffic();
+    this.signal = null; this.signalElapsed = 0;
+    this.updatePlayerLights(0);
+    this.setEnvironment('city');
+    this.cityWorld.ensureLoaded();
+    // Spawn kerbside on Central Avenue, nose pointing north up the shopfront
+    // parade so the district is immediately visible instead of a distant skyline.
+    this.pos.set(6, 0, -8);
+    this.yaw = 0; this.speed = 0; this.steer = 0; this.shake = 0;
+    this.cityCar = createCityCar();
+    this.cityOdometer = 0; this.cityElapsed = 0;
+    this.playerS = 0; this.offset = 0;
+    if (this.player) { this.player.position.copy(this.pos); this.player.rotation.set(0, this.yaw, 0); }
+    this.inCity = true;
+    this.setMode('city');
+    this.emitCityHud();
+    return true;
+  }
+
   start(seedOverride?: number): boolean {
     if ((this.mode !== 'garage' && this.mode !== 'gameover') || !this.canDrive(this.selected)) return false;
+    this.inCity = false;
     this.progressionSettled = false;
     this.clearTraffic();
     this.signal = null; this.signalElapsed = 0;
@@ -1472,15 +1519,17 @@ export class OvertakeGame {
   }
 
   pause() {
-    if (this.mode === 'driving') {
+    if (this.mode === 'driving' || this.mode === 'city') {
+      this.pausedFrom = this.mode;
       this.clearDrivingInput();
       this.setMode('paused');
     }
   }
-  resume() { if (this.mode === 'paused') this.setMode('driving'); }
+  resume() { if (this.mode === 'paused') this.setMode(this.pausedFrom); }
 
   toGarage() {
     if (this.mode === 'driving' || this.mode === 'paused') this.settleProgression();
+    this.inCity = false;
     this.clearTraffic();
     this.cb.onBootStage?.('lights');
     this.setEnvironment('garage');
@@ -1492,6 +1541,25 @@ export class OvertakeGame {
 
   private clearDrivingInput() {
     this.input.throttle = this.input.brake = this.input.left = this.input.right = this.input.handbrake = false;
+  }
+
+  /** Test-only: force the weather state (requires ?test). */
+  forceWeather(mode: 'clear' | 'rain' | 'snow') {
+    if (!this.testMode) return;
+    const w = this.weather;
+    w.mode = mode; w.timer = 0;
+    w.rain = mode === 'rain' ? 1 : 0;
+    w.snow = mode === 'snow' ? 1 : 0;
+    w.wet = mode === 'rain' ? 1 : 0;
+    w.snowCover = mode === 'snow' ? 1 : 0;
+  }
+
+  /** Test-only: drop the free-roam car at a map position (requires ?test). */
+  teleportCity(x: number, z: number, yaw = 0) {
+    if (!this.testMode || this.mode !== 'city') return;
+    this.pos.set(x, 0, z); this.yaw = yaw; this.speed = 0; this.cityCar = createCityCar();
+    if (this.player) { this.player.position.copy(this.pos); this.player.rotation.set(0, yaw, 0); }
+    this.cityWorld.setPlayerPosition(this.pos);
   }
 
   setInput(name: 'throttle' | 'brake' | 'left' | 'right' | 'handbrake', v: boolean) {
@@ -1931,6 +1999,75 @@ export class OvertakeGame {
     }
   }
 
+  /** Central City tick: free-roam vehicle, collider resolution, then the
+   *  shared camera / atmosphere / weather pipeline. */
+  private updateCity(dt: number) {
+    this.cityElapsed += dt;
+    this.updatePlayerLights(dt);
+    const spec = getCar(this.selected);
+    const upgrades = effectiveUpgrades(this.progression, this.selected);
+    const grip = spec.physics.grip * (1 + upgrades.tires * .06) * weatherGrip(this.weather);
+    const params = {
+      ...spec.physics, brake: spec.physics.brake * (1 + upgrades.brakes * .10), accel: spec.accel * (1 + upgrades.engine * .08), maxSpeed: this.getMaxSpeed(), grip,
+    };
+    const body = this.cityCar;
+    const previousX = this.pos.x, previousZ = this.pos.z;
+    const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
+    const h = dt / steps;
+    for (let i = 0; i < steps; i++) stepCityCar(body, this.input, params, grip, h);
+    this.speed = body.speed;
+    this.steer = body.steer;
+    this.yaw += body.yawDelta;
+    this.pos.x += -Math.sin(this.yaw) * this.speed * dt;
+    this.pos.z += -Math.cos(this.yaw) * this.speed * dt;
+    this.pos.y = 0;
+    // Static collisions: push the car back out and scrub speed.
+    const resolved = resolveCollisions(this.pos.x, this.pos.z, 1.35);
+    if (resolved.hit) {
+      const closing = Math.hypot(this.pos.x - previousX, this.pos.z - previousZ);
+      this.pos.x = resolved.x; this.pos.z = resolved.z;
+      this.shake = Math.max(this.shake, Math.min(0.6, closing * 0.35 + 0.12));
+      this.speed *= 0.32; body.speed = this.speed;
+    }
+    this.cityOdometer += Math.hypot(this.pos.x - previousX, this.pos.z - previousZ);
+
+    if (this.player) {
+      spinWheels(this.player, Math.hypot(this.pos.x - previousX, this.pos.z - previousZ));
+      this.player.position.copy(this.pos);
+      const roll = THREE.MathUtils.clamp(-this.steer * this.speed * 0.0011, -0.035, 0.035);
+      this.player.rotation.set(0, this.yaw, roll);
+    }
+    this.updateCamera(dt);
+    // playerS stays pinned at 0 so road helpers see a stable biome.
+    this.updateWorld(dt);
+    this.cityWorld.setPlayerPosition(this.pos);
+    this.cityWorld.update(dt, this.nightFactor, this.weather.wet, this.weather.snowCover);
+    this.emitCityHud();
+  }
+
+  private emitCityHud() {
+    this.cb.onHud({
+      score: 0, speed: Math.abs(this.speed) * 3.6, distance: this.cityOdometer,
+      combo: 0, mult: 1, best: this.best,
+      overtakes: 0, oncoming: null, offroad: false,
+      throttle: this.input.throttle ? 1 : 0,
+      brake: this.input.brake || this.input.handbrake ? 1 : 0,
+      time: formatHour(this.worldClock.hour),
+      weather: weatherLabel(this.weather),
+      biome: 'Central City',
+      night: this.nightFactor > 0.5,
+      runMode: 'endless',
+      runLabel: 'Central City · Free Roam',
+      timeLeft: null,
+      elapsed: this.cityElapsed,
+      contract: null,
+      contractsDone: 0,
+      signal: this.signal,
+      signalLit: !!this.signal && (this.signalElapsed % 1.0) < 0.5,
+      hazard: null,
+    });
+  }
+
   private updateWorld(dt: number) {
     this.worldElapsed += dt;
     stepClock(this.worldClock, dt);
@@ -1940,14 +2077,14 @@ export class OvertakeGame {
     this.nightFactor = atm.night;
     if (!this.liteMode) this.precipitation.update(dt, this.camera.position, this.speed, this.weather, this.worldElapsed);
     if (!this.liteMode) this.spray.update(dt, this.pos, this.yaw, this.playerMeta.width, this.playerMeta.length, this.speed,
-      this.weather.wet, this.weather.snowCover, snowDriftHeight(this.offset, this.playerS, this.weather.snowCover, ROAD_HALF));
+      this.weather.wet, this.weather.snowCover, snowDriftHeight(0, this.playerS, this.weather.snowCover, ROAD_HALF));
 
     // Wet asphalt / snow cover.
     const wet = this.weather.wet;
     const snow = this.weather.snowCover;
     // The glow decal is aligned to the road after the player pose is updated.
-    this.roadSurface.wet.value = wet;
-    this.roadSurface.snow.value = snow;
+    this.roadSurface.wet.value = this.mode === 'city' ? 0 : wet;
+    this.roadSurface.snow.value = this.mode === 'city' ? 0 : snow;
     this.roadSurface.rain.value = this.weather.rain;
     this.roadSurface.time.value = this.worldElapsed;
     this.roadSurface.wind.value = 0.8 + Math.abs(this.weather.wind) * .6;
@@ -2042,13 +2179,15 @@ export class OvertakeGame {
     const dt = Math.min(this.clock.getDelta(), 0.05);
     if (this.mode === 'driving') {
       this.updateDriving(dt);
+    } else if (this.mode === 'city') {
+      this.updateCity(dt);
     } else {
       this.updateCamera(dt);
     }
     this.updateIndicatorView();
     if (this.player) updateVehicleLights(this.player, this.camera, this.nightFactor, this.input.brake || this.input.handbrake, this.mode === 'garage');
     for (const t of this.traffic) updateVehicleLights(t.group, this.camera, this.nightFactor, t.braking);
-    updateExhaustFlames(this.player, performance.now()/1000, this.mode === 'garage' || (this.mode === 'driving' && this.input.throttle && !this.input.brake && this.speed > 6));
+    updateExhaustFlames(this.player, performance.now()/1000, this.mode === 'garage' || ((this.mode === 'driving' || this.mode === 'city') && this.input.throttle && !this.input.brake && this.speed > 6));
     if (this.liteMode) this.renderer.render(this.scene, this.camera); else this.composer.render();
   };
 
