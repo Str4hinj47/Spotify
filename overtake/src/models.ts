@@ -29,6 +29,7 @@ const ORIENTATION: Record<TrafficId, number> = {
   ferrari: Math.PI + FERRARI_SKEW,
   r8: Math.PI,
   challenger: Math.PI,
+  rangerover: Math.PI,
   semi: 0,
   kraz: 0,
 };
@@ -203,19 +204,15 @@ export class ModelLibrary {
               std.color.set(0x0a0f14);
               std.metalness = 0.1;
               std.roughness = 0.06;
-              // Some source GLBs disable depth writes even on nominally opaque
-              // glass. That lets cabin geometry and rear lights render through it.
-              // Treat glazing as smoked, depth-writing exterior bodywork on both
-              // player and traffic clones; never rely on opacity alone.
-              std.transparent = false;
-              std.opacity = 1;
-              std.depthWrite = true;
+              std.transparent = true;
+              std.opacity = 0.38;
+              std.depthWrite = false;
               std.depthTest = true;
               std.alphaTest = 0;
               std.alphaMap = null;
               if ('transmission' in std) (std as THREE.MeshPhysicalMaterial).transmission = 0;
               std.side = THREE.DoubleSide;
-              std.envMapIntensity = 1.2;
+              std.envMapIntensity = 1.4;
             } else if (m.name.startsWith('chrome__')) {
               std.metalness = 1.0;
               std.roughness = 0.12;
@@ -649,3 +646,21 @@ export class ModelLibrary {
     return url;
   }
 }
+
+/**
+ * Rotate any rigged door pivots (`door_fl`, `door_fr`, `door_rl`, `door_rr`)
+ * by `amount` in [0, 1] (0 = closed, 1 = 62 deg open).
+ */
+export function setDoorsOpen(carRoot: THREE.Object3D, amount: number): void {
+  const clamped = Math.max(0, Math.min(1, amount));
+  const maxRad = (62 * Math.PI) / 180;
+  carRoot.traverse((obj) => {
+    const n = obj.name;
+    if (n === 'door_fl' || n === 'door_rl') {
+      obj.rotation.y = -maxRad * clamped;
+    } else if (n === 'door_fr' || n === 'door_rr') {
+      obj.rotation.y = maxRad * clamped;
+    }
+  });
+}
+

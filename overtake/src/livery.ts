@@ -12,6 +12,7 @@ export const LIVERIES: Record<CarId, { labels:string[], stripe:number, offset:nu
   ferrari: { labels:['Central stripe','Circuit endurance'], stripe:.09, offset:.12, belt:.32, doorZ:-.05, side:.86, roof:.72 },
   r8: { labels:['Vantage stripes','GT circuit'], stripe:.075, offset:.24, belt:.33, doorZ:-.1, side:.89, roof:.78 },
   challenger: { labels:['Muscle stripes','Drag graphics'], stripe:.16, offset:.20, belt:.43, doorZ:.05, side:.91, roof:.96 },
+  rangerover: { labels:['Range Rover stripes','SV graphics'], stripe:.16, offset:.20, belt:.55, doorZ:.05, side:.98, roof:1.25 },
 };
 
 /** Paint-finish PBR on any paint material, no custom shader involved.

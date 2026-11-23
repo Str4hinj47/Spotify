@@ -1,4 +1,5 @@
-import * as THREE from 'three';
+
+  import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type { CarId } from './catalog';
 import type { Customization, BodyPart } from './customization.mjs';
@@ -24,6 +25,7 @@ export const BODY_FITS: Record<CarId, Fit> = {
   ferrari: { frontZ:-2.03,rearZ:2.00,frontW:.74,rearW:.86,sideX:.91,sillFront:-.90,sillRear:.86,sillY:.16,bumperY:.17,spoilerZ:1.80,spoilerY:.84,spoilerW:.53,tipX:.54,tipY:.24,tipRadius:.055,tipSpacing:.10,character:'supercar', labels:{roof:['Roof panel','Roof scoop'],hood:['Hood vents','Vented power dome'],front:['Road blade','Circuit splitter'],rear:['Road diffuser','Circuit diffuser'],skirts:['Road blades','Circuit skirts'],spoiler:['Low deck lip','Circuit wing'],exhaust:['Center round','Center race']} },
   r8: { frontZ:-2.17,rearZ:2.18,frontW:.86,rearW:.91,sideX:.94,sillFront:-.88,sillRear:.93,sillY:.17,bumperY:.19,spoilerZ:1.90,spoilerY:.84,spoilerW:.62,tipX:.65,tipY:.22,tipRadius:.07,tipSpacing:.12,character:'midengine', labels:{roof:['Roof panel','Roof scoop'],hood:['Hood vents','Vented power dome'],front:['Road splitter','GT splitter'],rear:['Road diffuser','GT diffuser'],skirts:['Road blades','GT skirts'],spoiler:['Deck lip','GT wing'],exhaust:['Twin oval','Quad titanium']} },
   challenger: { frontZ:-2.47,rearZ:2.47,frontW:.91,rearW:.89,sideX:.96,sillFront:-1.02,sillRear:1.07,sillY:.22,bumperY:.22,spoilerZ:2.22,spoilerY:1.065,spoilerW:.72,tipX:.61,tipY:.23,tipRadius:.07,tipSpacing:.13,character:'muscle', labels:{roof:['Roof panel','Roof scoop'],hood:['Hood vents','Vented power dome'],front:['Street chin','Wide splitter'],rear:['Street valance','Wide diffuser'],skirts:['Street rockers','Wide rockers'],spoiler:['Ducktail','Drag wing'],exhaust:['Dual round','Quad muscle']} },
+  rangerover: { frontZ:-2.46,rearZ:2.41,frontW:.96,rearW:.96,sideX:.99,sillFront:-1.00,sillRear:1.05,sillY:.28,bumperY:.28,spoilerZ:2.20,spoilerY:1.75,spoilerW:.80,tipX:.65,tipY:.28,tipRadius:.06,tipSpacing:.14,character:'luxury', labels:{roof:['Roof rails','Expedition rack'],hood:['Vented hood','SV hood'],front:['Urban chin','Trail bumper'],rear:['Urban valance','Trail diffuser'],skirts:['Side steps','Rock sliders'],spoiler:['Roof lip','SV wing'],exhaust:['Dual square','Quad SV']} },
 };
 
 function taperedBand(width:number, frontZ:number, y:number, depth:number, height:number, sweep:number) {

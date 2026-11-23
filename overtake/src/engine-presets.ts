@@ -134,4 +134,9 @@ export const ENGINE_PRESETS: Record<CarId, EnginePreset> = {
     engineOverrides: { idleRpm: 700, redlineRpm: 6200, peakTorque: 640, peakTorqueRpm: 4200, gears: 6 },
     vehicle: { label: 'Dodge Challenger', mass: 1900, wheelRadius: 0.36, finalDrive: 3.73, gearRatios: [2.97, 2.10, 1.46, 1.00, 0.80, 0.63], gearbox: 'manual', shiftTimeMs: 150 },
   },
+  rangerover: {
+    engine: 'v8cross', label: 'Challenger V8', turbo: false,
+    engineOverrides: { idleRpm: 700, redlineRpm: 6200, peakTorque: 640, peakTorqueRpm: 4200, gears: 6 },
+    vehicle: { label: 'Dodge Challenger', mass: 1900, wheelRadius: 0.36, finalDrive: 3.73, gearRatios: [2.97, 2.10, 1.46, 1.00, 0.80, 0.63], gearbox: 'manual', shiftTimeMs: 150 },
+  },
 };

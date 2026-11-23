@@ -1,4 +1,4 @@
-export type CarId = 'golf' | 'mercedes' | 'audi' | 'mustang' | 'ferrari' | 'r8' | 'challenger';
+export type CarId = 'golf' | 'mercedes' | 'audi' | 'mustang' | 'ferrari' | 'r8' | 'challenger' | 'rangerover';
 export type TruckId = 'semi' | 'kraz';
 export type TrafficId = CarId | TruckId;
 export const TRUCKS: { id: TruckId; name: string }[] = [
@@ -119,6 +119,12 @@ export const CARS: CarSpec[] = [
     maxSpeed: 59, accel: 9.6, handling: 5.4, bonus: 1.05, stats: { speed: 4, handling: 3, bonus: 3 },
     color: '#3f7843', credit: 'User-provided Drive asset',
     physics: { grip: 0.98, brake: 10.6, wheelbase: 2.95, maxSteer: 0.48, understeer: 0.003, yawResponse: 6, steerResponse: 6.5, drag: 0.00085 },
+  },
+  {
+    id: 'rangerover', name: 'Range Rover', maker: 'Land Rover', tagline: 'Commanding luxury SUV, built for any road.', klass: 'Luxury SUV',
+    maxSpeed: 54, accel: 8.8, handling: 5.6, bonus: 1.10, stats: { speed: 3, handling: 3, bonus: 4 },
+    color: '#1e252c', credit: 'Blender-authored asset',
+    physics: { grip: 1.02, brake: 10.2, wheelbase: 2.92, maxSteer: 0.46, understeer: 0.003, yawResponse: 5.5, steerResponse: 6.0, drag: 0.00095 },
   },
 ];
 

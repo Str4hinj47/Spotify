@@ -1,7 +1,7 @@
 import { spinWheels } from './wheels';
 import { addVehicleLights, updateVehicleLights, conformTrafficBeam, disposeVehicleLights, LAMP_POSITIONS } from './vehicle-lights';
 import * as THREE from 'three';
-import { ModelLibrary } from './models';
+import { ModelLibrary, setDoorsOpen } from './models';
 import { CARS, getCar, TRAFFIC_COLORS, type CarId, type TrafficId } from './catalog';
 import {
   ROAD_HALF, PLAYER_LANE, ONCOMING_LANE,
@@ -190,6 +190,8 @@ export class OvertakeGame {
    * props, no post-processing, no shadows and a capped pixel ratio. The
    * normal desktop/local game is completely unaffected. */
   private liteMode = false;
+  private doorsOpen = false;
+  private doorAnim = 0;
   private graphicsQuality: GraphicsQuality = 'sharp';
   private sceneryQuality: SceneryQuality = 'high';
   private detailedScenery!: DetailedScenery;
@@ -313,6 +315,7 @@ export class OvertakeGame {
   private tmpB = new THREE.Vector3();
   private tmpC = new THREE.Vector3();
 
+  private _doorKeyBound = (() => { window.addEventListener('keydown', (e) => { if (e.key === 'o' || e.key === 'O') this.doorsOpen = !this.doorsOpen; }); return true; })();
   constructor(canvas: HTMLCanvasElement, library: ModelLibrary, cb: GameCallbacks) {
     this.library = library;
     this.cb = cb;
@@ -2049,6 +2052,9 @@ export class OvertakeGame {
     if (this.player) updateVehicleLights(this.player, this.camera, this.nightFactor, this.input.brake || this.input.handbrake, this.mode === 'garage');
     for (const t of this.traffic) updateVehicleLights(t.group, this.camera, this.nightFactor, t.braking);
     updateExhaustFlames(this.player, performance.now()/1000, this.mode === 'garage' || (this.mode === 'driving' && this.input.throttle && !this.input.brake && this.speed > 6));
+    const targetDoor = this.doorsOpen ? 1 : 0;
+    this.doorAnim += (targetDoor - this.doorAnim) * 0.12;
+    if (this.player) setDoorsOpen(this.player, this.doorAnim);
     if (this.liteMode) this.renderer.render(this.scene, this.camera); else this.composer.render();
   };
 

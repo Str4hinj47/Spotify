@@ -14,6 +14,7 @@ export const INDICATOR_LAYOUTS: Record<CarId, Config> = {
   ferrari:    { materials: ['taillight__Rear_Light_Cover.000', 'taillight__Rear_Light_RedSide.000', 'taillight__Rear_Light_Tex.000'], x: [0.55, 0.86], y: [0.67, 0.85], z: 1.61, color: 'amber', ellipse: [0.665, 0.75, 0.76, 0.06] },
   r8:         { materials: ['taillight__r8'], x: [0.36, 0.85], y: [0.62, 0.674], z: 1.80, color: 'amber' },
   challenger: { materials: ['taillight__challenger'], x: [0.25, 0.80], y: [0.80, 0.96], z: 2.32, color: 'red' },
+  rangerover: { materials: ['taillight__RangeRover'], x: [0.25, 0.95], y: [0.60, 1.15], z: 2.35, color: 'amber' },
 };
 
 export function isIndicatorMaterial(id: CarId, material: THREE.Material) {
@@ -81,6 +82,7 @@ const FRONT_MATERIALS: Record<CarId, string[]> = {
   ferrari: ['headlight__Main_Light_Cover.000', 'headlight__Front_Light_Covers.000', 'headlight__LEDsOn.000', 'headlight__LEDsOff.000'],
   r8: ['headlight__r8'],
   challenger: ['headlight__challenger'],
+  rangerover: ['headlight__RangeRover'],
 };
 
 export function isFrontIndicatorMaterial(id: CarId, material: THREE.Material): boolean {
@@ -105,6 +107,7 @@ const FRONT_ZONES: Record<CarId, string> = {
   r8: `step(fP.z, -1.67) * step(0.42, fX) * step(fX, 0.84) * step(0.51 + (fX - 0.43) * 0.19, fP.y)`,
   // Challenger's switchback indicators are the rings, not the projectors.
   challenger: `step(fP.z, -2.20) * step(0.47, fX) * step(fX, 0.84) * smoothstep(0.048, 0.057, length(vec2(fX - (fX < 0.655 ? 0.570 : 0.744), fP.y - 0.732))) * (1.0 - smoothstep(0.076, 0.084, length(vec2(fX - (fX < 0.655 ? 0.570 : 0.744), fP.y - 0.732))))`,
+  rangerover: `step(fP.z, -2.20) * step(0.45, fX) * step(fX, 0.92)`,
 };
 
 /** Add a per-instance front signal to a fresh or rear-indicator material. */

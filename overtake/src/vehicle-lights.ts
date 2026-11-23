@@ -12,6 +12,7 @@ export const LAMP_POSITIONS: Record<TrafficId, Lamps> = {
   ferrari:    {front:[.70,.68,-1.68],rear:[.71,.76,1.88]},
   r8:         {front:[.65,.56,-1.91],rear:[.65,.69,2.06]},
   challenger: {front:[.65,.73,-2.30],rear:[.59,.87,2.39]},
+  rangerover: {front:[.74,.78,-2.46],rear:[.80,.88,2.41]},
   semi:       {front:[.75,.74,-8.08],rear:[.84,.76,7.99]},
   kraz:       {front:[.79,.78,-4.08],rear:[.85,.85,3.90]},
 };
